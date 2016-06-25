@@ -15,7 +15,7 @@ kubectl:
 	chmod +x kubectl
 
 heapster-build:
-	$(MAKE) -C $(PWD)/heapster -e TARGET=heapster -f $(PWD)/buildbox.mk
+	$(MAKE) -C $(PWD)/heapster -e TARGET=heapster TARGETDIR=heapster -f $(PWD)/buildbox.mk
 
 heapster-clean:
 	$(MAKE) -C $(PWD)/heapster -f Makefile clean
