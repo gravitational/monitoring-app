@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: SystemApplication
+metadata:
+  name: monitoring-app
+  namespace: kube-system
+  resourceVersion: 0.0.1
+hooks:
+  install:
+    containerImage: monitoring-bootstrap:0.0.1
+  uninstall:
+    containerImage: monitoring-uninstall:0.0.1
+
