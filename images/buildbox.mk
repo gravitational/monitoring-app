@@ -17,12 +17,9 @@ BUILDDIR=$(ASSETS)/build
 # Configuration by convention: use TARGET as a directory name
 BINARIES=$(BUILDDIR)/$(TARGET)
 
-BBOX := buildbox:latest
+BBOX := quay.io/gravitational/debian-venti:latest
 
 all: prepare $(BINARIES)
-
-buildbox:
-	docker build --tag $(BBOX) buildbox
 
 $(BINARIES): buildbox $(ASSETS)/Makefile
 	@echo "\n---> BuildBox for $(TARGET):\n"
@@ -30,7 +27,6 @@ $(BINARIES): buildbox $(ASSETS)/Makefile
 		--volume=$(ASSETS):/assets \
 		--volume=$(BUILDDIR):/targetdir \
 		--env="TARGETDIR=/targetdir" \
-		--env="GOPATH=/gopath" \
 		$(BBOX) \
 		make -f /assets/Makefile
 

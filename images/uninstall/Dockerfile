@@ -1,11 +1,10 @@
-FROM ubuntu:14.04
+FROM quay.io/gravitational/debian-tall:0.0.1
 
-RUN apt-get update && apt-get install -y curl
+RUN mkdir -p /usr/local/bin/
 
-RUN curl -O https://storage.googleapis.com/kubernetes-release/release/v1.2.0/bin/linux/amd64/kubectl && \
-    cp kubectl /usr/local/bin && \
-    chmod +x /usr/local/bin/kubectl
-
+ADD ./kubectl /usr/local/bin/
 ADD ./uninstall.sh /uninstall.sh
+
+RUN test -f /cleanup.sh && sh /cleanup.sh
 
 CMD ["/bin/sh", "/uninstall.sh"]

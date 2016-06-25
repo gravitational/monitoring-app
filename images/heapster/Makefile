@@ -11,7 +11,7 @@ OUT=/targetdir/heapster
 all: $(OUT)
 
 docker:
-	docker build --rm -t $(IMAGE) .
+	docker build --pull --rm -t $(IMAGE) .
 
 $(OUT):
 	@echo "\n---> Building $@\n"

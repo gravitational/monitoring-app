@@ -1,4 +1,4 @@
-FROM busybox:latest
+FROM quay.io/gravitational/debian-tall:0.0.1
 
 ENV INFLUXDB_HOME /influxdb
 ENV PATH $INFLUXDB_HOME:$PATH

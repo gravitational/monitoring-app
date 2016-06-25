@@ -8,6 +8,12 @@ VER := 0.0.1
 BOOTSTRAP_TAG := monitoring-bootstrap:$(VER)
 UNINSTALL_TAG := monitoring-uninstall:$(VER)
 
+KUBECTL_URL := https://storage.googleapis.com/kubernetes-release/release/v1.2.0/bin/linux/amd64/kubectl
+
+kubectl:
+	curl -o kubectl -L $(KUBECTL_URL)
+	chmod +x kubectl
+
 heapster-build:
 	$(MAKE) -C $(PWD)/heapster -e TARGET=heapster -f $(PWD)/buildbox.mk
 
@@ -29,11 +35,13 @@ influxdb: influxdb-build
 grafana:
 	$(MAKE) -C $(PWD)/grafana
 
-bootstrap:
-	docker build -t $(BOOTSTRAP_TAG) bootstrap
+bootstrap: kubectl
+	cp kubectl bootstrap/
+	docker build --pull -t $(BOOTSTRAP_TAG) bootstrap
 
-uninstall:
-	docker build -t $(UNINSTALL_TAG) uninstall
+uninstall: kubectl
+	cp kubectl uninstall/
+	docker build --pull -t $(UNINSTALL_TAG) uninstall
 
 all: heapster influxdb grafana bootstrap uninstall
 
