@@ -8,11 +8,11 @@ spec:
   - name: phony-monitoring-bootstrap
     image: monitoring-bootstrap:0.0.1
   - name: phony-heapster
-    image: heapster:1.0.2
+    image: monitoring-heapster:1.0.2
   - name: phony-influxdb
-    image: influxdb:0.13.0
+    image: monitoring-influxdb:0.13.0
   - name: phony-grafana
-    image: heapster_grafana:v2.6.0-2
+    image: monitoring-grafana:v2.6.0-2
   - name: phony-monitoring-uninstall
     image: monitoring-uninstall:0.0.1
 
