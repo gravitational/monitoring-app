@@ -2,8 +2,6 @@
 
 REPODIR:=$(GOPATH)/src/github.com/influxdata/influxdb
 VER=v0.13.0
-TAG=0.13.0
-IMAGE=influxdb:$(TAG)
 OUT=/targetdir/influxd
 
 # FIXME: define build attributes and build with this:
@@ -15,9 +13,6 @@ date=
 
 all: $(OUT)
 
-docker:
-	docker build --pull --rm -t $(IMAGE) .
-
 $(OUT):
 	@echo "\n---> Building $@\n"
 	mkdir -p $(GOPATH)/src/github.com/influxdata
@@ -27,4 +22,4 @@ $(OUT):
 
 clean:
 	sudo rm build/influxd
-	rm $(IMAGE).tar
+

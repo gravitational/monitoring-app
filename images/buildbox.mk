@@ -10,11 +10,12 @@ ASSETS=$(PWD)/$(TARGET)
 else
 ASSETS=$(PWD)/$(TARGETDIR)
 endif
+override BUILDDIR=$(ASSETS)/build
 
 .PHONY: all prepare buildbox
 
 # Configuration by convention: use TARGET as a directory name
-BINARIES=$(ASSETS)/build/$(TARGET)
+BINARIES=$(BUILDDIR)/$(TARGET)
 
 BBOX := quay.io/gravitational/debian-venti:latest
 
@@ -24,7 +25,7 @@ $(BINARIES): buildbox $(ASSETS)/Makefile
 	@echo "\n---> BuildBox for $(TARGET):\n"
 	docker run --rm=true \
 		--volume=$(ASSETS):/assets \
-		--volume=$(ASSETS)/build:/targetdir \
+		--volume=$(BUILDDIR):/targetdir \
 		--env="TARGETDIR=/targetdir" \
 		$(BBOX) \
 		make -f /assets/Makefile

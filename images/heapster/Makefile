@@ -3,15 +3,10 @@
 REPODIR:=$(GOPATH)/src/k8s.io/heapster
 VER=v1.0.2
 PREFIX=gravity
-TAG=1.0.2
-IMAGE=heapster:$(TAG)
 GOFLAGS=-a -installsuffix cgo --ldflags '-w'
 OUT=/targetdir/heapster
 
 all: $(OUT)
-
-docker:
-	docker build --pull --rm -t $(IMAGE) .
 
 $(OUT):
 	@echo "\n---> Building $@\n"
