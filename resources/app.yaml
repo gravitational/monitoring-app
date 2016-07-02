@@ -19,7 +19,8 @@ hooks:
             restartPolicy: OnFailure
             containers:
               - name: bootstrap
-                image: monitoring-bootstrap:0.0.1
+                image: hook:0.0.1
+                command: ["/usr/local/bin/kubectl", "apply", "-f", "/var/lib/gravity/resources/resources.yaml"
   uninstall:
     spec:
       apiVersion: batch/v1
@@ -34,5 +35,5 @@ hooks:
             restartPolicy: OnFailure
             containers:
               - name: bootstrap
-                image: monitoring-uninstall:0.0.1
-
+                image: hook:0.0.1
+                command: ["/usr/local/bin/kubectl", "delete", "-f", "/var/lib/gravity/resources/resources.yaml"
