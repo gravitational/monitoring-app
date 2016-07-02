@@ -15,11 +15,11 @@ hooks:
         template:
           metadata:
             name: monitoring-app-install
-        spec:
-          restartPolicy: OnFailure
-          containers:
-            - name: bootstrap
-              image: monitoring-bootstrap:0.0.1
+          spec:
+            restartPolicy: OnFailure
+            containers:
+              - name: bootstrap
+                image: monitoring-bootstrap:0.0.1
   uninstall:
     spec:
       apiVersion: batch/v1
@@ -30,9 +30,9 @@ hooks:
         template:
           metadata:
             name: monitoring-app-uninstall
-        spec:
-          restartPolicy: OnFailure
-          containers:
-            - name: bootstrap
-              image: monitoring-uninstall:0.0.1
+          spec:
+            restartPolicy: OnFailure
+            containers:
+              - name: bootstrap
+                image: monitoring-uninstall:0.0.1
 
