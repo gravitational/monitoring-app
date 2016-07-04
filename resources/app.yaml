@@ -20,7 +20,7 @@ hooks:
             containers:
               - name: bootstrap
                 image: hook:0.0.1
-                command: ["/usr/local/bin/kubectl", "apply", "-f", "/var/lib/gravity/resources/resources.yaml"
+                command: ["/usr/local/bin/kubectl", "apply", "-f", "/var/lib/gravity/resources/resources.yaml"]
   uninstall:
     spec:
       apiVersion: batch/v1
@@ -36,4 +36,4 @@ hooks:
             containers:
               - name: bootstrap
                 image: hook:0.0.1
-                command: ["/usr/local/bin/kubectl", "delete", "-f", "/var/lib/gravity/resources/resources.yaml"
+                command: ["/usr/local/bin/kubectl", "delete", "-f", "/var/lib/gravity/resources/resources.yaml"]
