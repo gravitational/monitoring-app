@@ -6,7 +6,34 @@ metadata:
   resourceVersion: 0.0.1
 hooks:
   install:
-    containerImage: monitoring-bootstrap:0.0.1
+    spec:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: monitoring-app-install
+      spec:
+        template:
+          metadata:
+            name: monitoring-app-install
+          spec:
+            restartPolicy: OnFailure
+            containers:
+              - name: bootstrap
+                image: hook:0.0.1
+                command: ["/usr/local/bin/kubectl", "apply", "-f", "/var/lib/gravity/resources/resources.yaml"]
   uninstall:
-    containerImage: monitoring-uninstall:0.0.1
-
+    spec:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: monitoring-app-uninstall
+      spec:
+        template:
+          metadata:
+            name: monitoring-app-uninstall
+          spec:
+            restartPolicy: OnFailure
+            containers:
+              - name: bootstrap
+                image: hook:0.0.1
+                command: ["/usr/local/bin/kubectl", "delete", "-f", "/var/lib/gravity/resources/resources.yaml"]
