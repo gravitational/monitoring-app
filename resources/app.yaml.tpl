@@ -3,7 +3,8 @@ kind: SystemApplication
 metadata:
   name: monitoring-app
   namespace: kube-system
-  resourceVersion: 0.0.2
+  repository: gravitational.io
+  resourceVersion: VERSION
 hooks:
   install:
     spec:
@@ -34,6 +35,6 @@ hooks:
           spec:
             restartPolicy: OnFailure
             containers:
-              - name: hook 
+              - name: hook
                 image: quay.io/gravitational/debian-tall:0.0.1
                 command: ["/usr/local/bin/kubectl", "delete", "-f", "/var/lib/gravity/resources/resources.yaml"]
