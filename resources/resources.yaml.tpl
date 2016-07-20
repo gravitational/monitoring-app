@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: heapster
-        image: quay.io/gravitational/monitoring-heapster:1.0.2
+        image: quay.io/gravitational/monitoring-heapster:VERSION
         imagePullPolicy: Always
         command:
         - /heapster
@@ -59,7 +59,7 @@ spec:
     spec:
       containers:
       - name: influxdb
-        image: quay.io/gravitational/monitoring-influxdb:0.13.0
+        image: quay.io/gravitational/monitoring-influxdb:VERSION
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /data
@@ -103,7 +103,7 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: quay.io/gravitational/monitoring-grafana:v2.6.0-2
+        image: quay.io/gravitational/monitoring-grafana:VERSION
         imagePullPolicy: Always
 ---
 apiVersion: v1

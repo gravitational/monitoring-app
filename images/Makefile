@@ -1,13 +1,16 @@
+ifndef VERSION
+$(error 'VERSION not specified')
+endif
+
 .PHONY: all heapster heapster-build heapster-clean influxdb influxdb-build \
 	influxdb-clean grafana deploy
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
 
-VER := 0.0.1
-INFLUXDB_TAG  := monitoring-influxdb:0.13.0
-HEAPSTER_TAG  := monitoring-heapster:1.0.2
-GRAFANA_TAG   := monitoring-grafana:v2.6.0-2
+INFLUXDB_TAG  := monitoring-influxdb:$(VERSION)
+HEAPSTER_TAG  := monitoring-heapster:$(VERSION)
+GRAFANA_TAG   := monitoring-grafana:$(VERSION)
 
 REPO_URL := quay.io/gravitational
 
