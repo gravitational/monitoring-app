@@ -6,7 +6,7 @@ OUT=/targetdir/influxd
 
 # FIXME: define build attributes and build with this:
 # CGO_ENABLED=0 go build -a --installsuffix cgo --ldflags="-X main.version $(version) -X main.branch $(branch) -X main.commit $(commit) -X main.buildTime $(date)" -o influxd ./cmd/influxd
-version=v0.13.0
+version=$(VER)
 branch=master
 commit=
 date=
