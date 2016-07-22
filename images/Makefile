@@ -4,10 +4,9 @@
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
 
-VER := 0.0.1
 INFLUXDB_TAG  := monitoring-influxdb:0.13.0
 HEAPSTER_TAG  := monitoring-heapster:1.0.2
-GRAFANA_TAG   := monitoring-grafana:v2.6.0-2
+GRAFANA_TAG   := monitoring-grafana:3.0.4
 
 REPO_URL := quay.io/gravitational
 
