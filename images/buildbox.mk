@@ -26,6 +26,7 @@ $(BINARIES): buildbox $(ASSETS)/Makefile
 	docker run --rm=true \
 		--volume=$(ASSETS):/assets \
 		--volume=$(BUILDDIR):/targetdir \
+		--env="BUILD_UID=$(shell id -u)" \
 		--env="TARGETDIR=/targetdir" \
 		$(BBOX) \
 		make -f /assets/Makefile
