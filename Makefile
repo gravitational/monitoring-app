@@ -1,4 +1,4 @@
-VERSION := 0.0.4
+VERSION := 0.0.5
 REPOSITORY := gravitational.io
 NAME := monitoring-app
 OPS_URL ?= https://opscenter.localhost.localdomain:33009
@@ -20,4 +20,3 @@ import: package
 	$(GRAVITY) app import --vendor --glob=**/*.yaml --registry-url=apiserver:5000 \
 		--ops-url=$(OPS_URL) --repository=$(REPOSITORY) --name=$(NAME) \
 		--version=$(VERSION) --insecure .
-
