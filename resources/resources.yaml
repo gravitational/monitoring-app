@@ -18,7 +18,6 @@ spec:
       containers:
       - name: heapster
         image: monitoring-heapster:1.0.2
-        imagePullPolicy: Always
         command:
         - /heapster
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true
@@ -60,7 +59,6 @@ spec:
       containers:
       - name: influxdb
         image: monitoring-influxdb:0.13.0
-        imagePullPolicy: Always
         volumeMounts:
         - mountPath: /data
           name: influxdb-storage
@@ -104,7 +102,6 @@ spec:
       containers:
       - name: grafana
         image: monitoring-grafana:3.0.4
-        imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Service
