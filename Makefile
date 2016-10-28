@@ -1,4 +1,4 @@
-VERSION := 0.0.6
+VERSION := 0.0.7
 REPOSITORY := gravitational.io
 NAME := monitoring-app
 OPS_URL ?= https://opscenter.localhost.localdomain:33009
