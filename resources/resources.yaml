@@ -64,7 +64,8 @@ spec:
           name: influxdb-storage
       volumes:
       - name: influxdb-storage
-        emptyDir: {}
+        hostPath:
+          path: /var/lib/data/influxdb
 ---
 apiVersion: v1
 kind: Service
