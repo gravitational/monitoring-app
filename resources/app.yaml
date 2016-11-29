@@ -41,6 +41,25 @@ hooks:
               - name: hook
                 image: monitoring-hook:0.0.1
                 args: ["update"]
+  rollback:
+    spec:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: monitoring-app-rollback
+      spec:
+        parallelism: 1
+        completions: 1
+        activeDeadlineSeconds: 100
+        template:
+          metadata:
+            name: monitoring-app-rollback
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: hook
+                image: monitoring-hook:0.0.1
+                args: ["rollback"]
   uninstall:
     spec:
       apiVersion: batch/v1
