@@ -7,8 +7,17 @@ PWD=$(shell pwd)
 INFLUXDB_TAG  := monitoring-influxdb:0.13.0
 HEAPSTER_TAG  := monitoring-heapster:1.0.2
 GRAFANA_TAG   := monitoring-grafana:3.0.4
+HOOK_TAG := monitoring-hook:$(VER)
 
 REPO_URL := quay.io/gravitational
+
+.PHONY: hook
+hook:
+	$(eval CHANGESET = $(shell echo $$VER | sed -e 's/[\.]//g'))
+	if [ -z "$(CHANGESET)" ]; then \
+	  echo "CHANGESET is not set"; exit 1; \
+	fi;
+	docker build --build-arg CHANGESET=monitoring-$(CHANGESET) --pull -t $(HOOK_TAG) hook
 
 heapster-build:
 	$(MAKE) -C $(PWD)/heapster -e TARGET=heapster TARGETDIR=heapster -f $(PWD)/buildbox.mk
@@ -31,7 +40,7 @@ influxdb: influxdb-build
 grafana:
 	docker build --pull -t $(GRAFANA_TAG) $@
 
-all: heapster influxdb grafana
+all: heapster influxdb grafana hook
 
 clean: heapster-clean influxdb-clean
 
