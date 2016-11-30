@@ -22,6 +22,44 @@ hooks:
               - name: hook
                 image: quay.io/gravitational/debian-tall:0.0.1
                 command: ["/usr/local/bin/kubectl", "apply", "-f", "/var/lib/gravity/resources/resources.yaml"]
+  update:
+    spec:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: monitoring-app-update
+      spec:
+        parallelism: 1
+        completions: 1
+        activeDeadlineSeconds: 100
+        template:
+          metadata:
+            name: monitoring-app-update
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: hook
+                image: monitoring-hook:0.0.1
+                args: ["update"]
+  rollback:
+    spec:
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: monitoring-app-rollback
+      spec:
+        parallelism: 1
+        completions: 1
+        activeDeadlineSeconds: 100
+        template:
+          metadata:
+            name: monitoring-app-rollback
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: hook
+                image: monitoring-hook:0.0.1
+                args: ["rollback"]
   uninstall:
     spec:
       apiVersion: batch/v1
