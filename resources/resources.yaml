@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
@@ -41,7 +41,7 @@ spec:
   selector:
     k8s-app: heapster
 ---
-apiVersion: v1
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
@@ -87,7 +87,7 @@ spec:
   selector:
     name: influxdb
 ---
-apiVersion: v1
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
