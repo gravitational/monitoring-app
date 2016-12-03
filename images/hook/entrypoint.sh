@@ -6,6 +6,7 @@ echo "Asuming changeset from the envrionment: $RIG_CHANGESET"
 # taking it from the environment variables
 if [ $1 = "update" ]; then
     echo "Starting update, changeset: $RIG_CHANGESET"
+    rig cs delete --force -c cs/$RIG_CHANGESET
     echo "Deleting old replication controller rc/heapster"
     rig delete rc/heapster --resource-namespace=kube-system --force
     echo "Deleting old replication controller rc/influxdb"
