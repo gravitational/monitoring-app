@@ -21,7 +21,7 @@ hooks:
             containers:
               - name: hook
                 image: quay.io/gravitational/debian-tall:0.0.1
-                command: ["/usr/local/bin/kubectl", "apply", "-f", "/var/lib/gravity/resources/resources.yaml"]
+                command: ["/bin/sh", "/var/lib/gravity/resources/install.sh"]
   update:
     spec:
       apiVersion: batch/v1
