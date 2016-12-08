@@ -3,6 +3,7 @@ package lib
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -32,6 +33,14 @@ func NewGrafanaClient() (*GrafanaClient, error) {
 	}
 
 	return &GrafanaClient{Client: client}, nil
+}
+
+func (c *GrafanaClient) Health() error {
+	_, err := c.Get(c.Endpoint("api", "dashboards", "home"), url.Values{})
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
 }
 
 func (c *GrafanaClient) CreateDashboard(data string) error {

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/monitoring-app/watcher/lib"
@@ -29,18 +31,48 @@ func run() error {
 		return trace.Wrap(err)
 	}
 
-	ch := make(chan string)
-
-	go func() {
-		kubernetesClient.WatchDashboards(ch)
-	}()
-
-	for data := range ch {
-		err = grafanaClient.CreateDashboard(data)
-		if err != nil {
-			log.Errorf("failed to create dashboard: %v", trace.DebugReport(err))
-		}
+	// grafana might be still starting up, wait for it
+	err = waitForGrafana(context.TODO(), grafanaClient)
+	if err != nil {
+		return trace.Wrap(err)
 	}
 
+	ch, err := kubernetesClient.WatchDashboards(context.TODO())
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
+}
+
+func waitForGrafana(ctx context.Context, grafanaClient *lib.GrafanaClient) error {
+	for {
+		select {
+		case <-time.After(2 * time.Second):
+			err := grafanaClient.Health()
+			if err != nil {
+				log.Infof("cannot reach grafana: %v", trace.DebugReport(err))
+			} else {
+				return nil
+			}
+		case <-ctx.Done():
+			return trace.Errorf("failed to reach grafana")
+		}
+	}
+}
+
+func receiveAndCreateDashboards(ctx context.Context, grafanaClient *lib.GrafanaClient, ch chan string) {
+	for {
+		select {
+		case data := <-ch:
+			err := grafanaClient.CreateDashboard(data)
+			if err != nil {
+				log.Errorf("failed to create dashboard: %v", trace.DebugReport(err))
+			}
+		case <-ctx.Done():
+			log.Infof("stopping")
+			return
+		}
+	}
 }

@@ -14,6 +14,12 @@ all: container
 
 
 #
+# dev builds the "watcher" binary on host
+#
+dev: build-inside-container
+
+
+#
 # container builds a docker container with the "watcher" binary
 #
 .PHONY: container

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -30,31 +31,41 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 	return &KubernetesClient{Clientset: client}, nil
 }
 
-func (c *KubernetesClient) WatchDashboards(ch chan string) error {
+func (c *KubernetesClient) WatchDashboards(ctx context.Context) (chan string, error) {
 	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
 	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer watcher.Stop()
-
-	log.Infof("start watching dashboards")
-	for event := range watcher.ResultChan() {
-		if event.Type != watch.Added {
-			log.Infof("ignoring event: %v", event.Type)
-			continue
-		}
-
-		configMap := event.Object.(*v1.ConfigMap)
-		if !strings.HasPrefix(configMap.Name, DashboardPrefix) {
-			log.Infof("ignoring configmap: %v", configMap.Name)
-			continue
-		}
-
-		log.Infof("detected dashboard configmap: %v", configMap.Name)
-		for _, v := range configMap.Data {
-			ch <- v
-		}
+		return nil, trace.Wrap(err)
 	}
 
-	return nil
+	ch := make(chan string)
+	go watchDashboards(ctx, watcher, ch)
+
+	return ch, nil
+}
+
+func watchDashboards(ctx context.Context, watcher watch.Interface, ch chan string) {
+	for {
+		select {
+		case event := <-watcher.ResultChan():
+			if event.Type != watch.Added {
+				log.Infof("ignoring event: %v", event.Type)
+				continue
+			}
+
+			configMap := event.Object.(*v1.ConfigMap)
+			if !strings.HasPrefix(configMap.Name, DashboardPrefix) {
+				log.Infof("ignoring configmap: %v", configMap.Name)
+				continue
+			}
+
+			log.Infof("detected dashboard configmap: %v", configMap.Name)
+			for _, v := range configMap.Data {
+				ch <- v
+			}
+		case <-ctx.Done():
+			log.Infof("stopping watcher")
+			watcher.Stop()
+			return
+		}
+	}
 }
