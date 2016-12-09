@@ -50,7 +50,7 @@ func run() error {
 func waitForGrafana(ctx context.Context, grafanaClient *lib.GrafanaClient) error {
 	for {
 		select {
-		case <-time.After(2 * time.Second):
+		case <-time.After(pollInterval):
 			err := grafanaClient.Health()
 			if err != nil {
 				log.Infof("cannot reach grafana: %v", trace.DebugReport(err))
@@ -65,7 +65,7 @@ func waitForGrafana(ctx context.Context, grafanaClient *lib.GrafanaClient) error
 
 // receiveAndCreateDashboards listens on the provided channel that receives new dashboards data and creates
 // them in Grafana using the provided client
-func receiveAndCreateDashboards(ctx context.Context, grafanaClient *lib.GrafanaClient, ch chan string) {
+func receiveAndCreateDashboards(ctx context.Context, grafanaClient *lib.GrafanaClient, ch <-chan string) {
 	for {
 		select {
 		case data := <-ch:
@@ -79,3 +79,6 @@ func receiveAndCreateDashboards(ctx context.Context, grafanaClient *lib.GrafanaC
 		}
 	}
 }
+
+// pollInterval is interval between attempts to reach Grafana API
+const pollInterval = 2 * time.Second

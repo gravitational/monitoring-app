@@ -47,7 +47,7 @@ func (c *KubernetesClient) WatchDashboards(ctx context.Context) (chan string, er
 	return ch, nil
 }
 
-func watchDashboards(ctx context.Context, watcher watch.Interface, ch chan string) {
+func watchDashboards(ctx context.Context, watcher watch.Interface, ch chan<- string) {
 	for {
 		select {
 		case event := <-watcher.ResultChan():

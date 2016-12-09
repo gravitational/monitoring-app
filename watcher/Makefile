@@ -1,4 +1,4 @@
-BUILDBOX := quay.io/gravitational/debian-venti:go1.7-jessie
+BUILDBOX := quay.io/gravitational/debian-venti:go1.7.1-jessie
 BUILDDIR := $(abspath build)
 CURDIR := $(dir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 DSTDIR := /gopath/src/github.com/gravitational/monitoring-app/watcher
@@ -10,12 +10,14 @@ VER ?= 0.0.1
 #
 # all builds a "watcher" container
 #
+.PHONY: all
 all: container
 
 
 #
 # dev builds the "watcher" binary on host
 #
+.PHONY: dev
 dev: build-inside-container
 
 
