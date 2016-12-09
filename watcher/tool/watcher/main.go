@@ -46,6 +46,7 @@ func run() error {
 	return nil
 }
 
+// waitForGrafana spins until Grafana API can be reached successfully or the provided context is cancelled
 func waitForGrafana(ctx context.Context, grafanaClient *lib.GrafanaClient) error {
 	for {
 		select {
@@ -62,6 +63,8 @@ func waitForGrafana(ctx context.Context, grafanaClient *lib.GrafanaClient) error
 	}
 }
 
+// receiveAndCreateDashboards listens on the provided channel that receives new dashboards data and creates
+// them in Grafana using the provided client
 func receiveAndCreateDashboards(ctx context.Context, grafanaClient *lib.GrafanaClient, ch chan string) {
 	for {
 		select {
