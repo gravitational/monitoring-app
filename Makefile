@@ -29,4 +29,4 @@ import: package
 		--force --insecure
 	$(GRAVITY) app import --vendor --glob=**/*.yaml --registry-url=apiserver:5000 \
 		--set-image=monitoring-hook:$(VER) --ops-url=$(OPS_URL) --repository=$(REPOSITORY) --name=$(NAME) \
-		--version=$(VER) --insecure .
+		--set-image=watcher:$(VER) --version=$(VER) --insecure .
