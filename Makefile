@@ -8,6 +8,7 @@ export
 
 .PHONY: package
 package:
+	$(MAKE) -C watcher
 	$(MAKE) -C images all
 
 .PHONY: deploy
