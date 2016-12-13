@@ -20,8 +20,8 @@ if [ $1 = "update" ]; then
     echo "Freezing"
     rig freeze
 elif [ $1 = "rollback" ]; then
-    echo "Rolling back, changeset: $RIG_CHANGESET"
-    rig rollback
+    echo "Reverting changeset $RIG_CHANGESET"
+    rig revert
 else
     echo "Missing argument, should be either 'update' or 'rollback'"
 fi
