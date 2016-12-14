@@ -59,6 +59,10 @@ spec:
         name: influxdb
     spec:
       containers:
+      - name: watcher
+        image: watcher:0.0.1
+        args:
+          - --mode=rollups
       - name: influxdb
         image: monitoring-influxdb:0.13.0
         volumeMounts:
@@ -96,6 +100,8 @@ data:
   grafana.ini: |
     [server]
     root_url = %(protocol)s://%(domain)s/web/grafana
+    [auth.anonymous]
+    org_role = Admin
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -134,6 +140,8 @@ spec:
             mountPath: /etc/grafana
       - name: watcher
         image: watcher:0.0.1
+        args:
+          - --mode=dashboards
         env:
           - name: GRAFANA_USERNAME
             valueFrom:
@@ -166,6 +174,117 @@ spec:
     nodePort: 32503
   selector:
     app: grafana
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollups-default
+  namespace: kube-system
+data:
+  rollups: |
+    [
+      {
+        "retention": "month",
+        "measurement": "cpu/usage_rate",
+        "name": "cpu/usage_rate/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "month",
+        "measurement": "memory/usage",
+        "name": "memory/usage/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "month",
+        "measurement": "filesystem/usage",
+        "name": "filesystem/usage/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "month",
+        "measurement": "network/tx",
+        "name": "network/tx/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "month",
+        "measurement": "network/tx_rate",
+        "name": "network/tx_rate/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "month",
+        "measurement": "network/rx",
+        "name": "network/rx/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "month",
+        "measurement": "network/rx_rate",
+        "name": "network/rx_rate/month",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      }
+    ]
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -29,7 +29,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/gravitational/roundtrip
-  version: 70ae61f93f7a40afe910ec2703c7911497d2077c
+  version: 41588aab7963b48601122368b5c893f13c5c4608
 - name: github.com/gravitational/trace
   version: 6e153c7add15eb07e311f892779fb294373c4cfa
 - name: github.com/jonboulle/clockwork
