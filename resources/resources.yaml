@@ -100,8 +100,6 @@ data:
   grafana.ini: |
     [server]
     root_url = %(protocol)s://%(domain)s/web/grafana
-    [auth.anonymous]
-    org_role = Admin
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -271,6 +269,107 @@ data:
         "retention": "medium",
         "measurement": "network/rx_rate",
         "name": "network/rx_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "cpu/usage_rate",
+        "name": "cpu/usage_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "memory/usage",
+        "name": "memory/usage/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "filesystem/usage",
+        "name": "filesystem/usage/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/tx",
+        "name": "network/tx/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/tx_rate",
+        "name": "network/tx_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/rx",
+        "name": "network/rx/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/rx_rate",
+        "name": "network/rx_rate/long",
         "functions": [
           {
             "function": "max",
