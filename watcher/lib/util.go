@@ -8,6 +8,7 @@ import (
 	"github.com/gravitational/trace"
 )
 
+// OneOf returns true if the value is present in the list of values
 func OneOf(value string, values []string) bool {
 	for _, v := range values {
 		if v == value {
@@ -17,7 +18,9 @@ func OneOf(value string, values []string) bool {
 	return false
 }
 
+// APIClient defines generic interface for an API client
 type APIClient interface {
+	// Health checks the API readiness
 	Health() error
 }
 
