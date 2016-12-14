@@ -36,10 +36,10 @@ const (
 	// RollupsPrefix is the prefix of configmaps with rollups
 	RollupsPrefix = "rollups-"
 
-	// RetentionYear is the name of the "long" retention policy
-	RetentionYear = "year"
-	// RetentionMonth is the name of the "medium" retention policy
-	RetentionMonth = "month"
+	// RetentionLong is the name of the "long" retention policy
+	RetentionLong = "long"
+	// RetentionMedium is the name of the "medium" retention policy
+	RetentionMedium = "medium"
 
 	// FunctionMean is the average function
 	FunctionMean = "mean"
@@ -58,8 +58,8 @@ const (
 var (
 	// AllRetentions contains names of all supported retention policies
 	AllRetentions = []string{
-		RetentionYear,
-		RetentionMonth,
+		RetentionLong,
+		RetentionMedium,
 	}
 
 	// AllFunctions contains names of functions, excluding percentile (because percentile is

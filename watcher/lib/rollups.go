@@ -139,7 +139,7 @@ var (
 
 	// retentionToInterval maps the name of retention policy name to aggregation interval
 	retentionToInterval = map[string]string{
-		RetentionYear:  "1d",
-		RetentionMonth: "1h",
+		RetentionLong:   "1d",
+		RetentionMedium: "1h",
 	}
 )

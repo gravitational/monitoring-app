@@ -184,9 +184,9 @@ data:
   rollups: |
     [
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "cpu/usage_rate",
-        "name": "cpu/usage_rate/month",
+        "name": "cpu/usage_rate/medium",
         "functions": [
           {
             "function": "max",
@@ -201,9 +201,9 @@ data:
         ]
       },
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "memory/usage",
-        "name": "memory/usage/month",
+        "name": "memory/usage/medium",
         "functions": [
           {
             "function": "max",
@@ -218,9 +218,9 @@ data:
         ]
       },
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "filesystem/usage",
-        "name": "filesystem/usage/month",
+        "name": "filesystem/usage/medium",
         "functions": [
           {
             "function": "max",
@@ -229,9 +229,9 @@ data:
         ]
       },
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "network/tx",
-        "name": "network/tx/month",
+        "name": "network/tx/medium",
         "functions": [
           {
             "function": "max",
@@ -240,9 +240,9 @@ data:
         ]
       },
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "network/tx_rate",
-        "name": "network/tx_rate/month",
+        "name": "network/tx_rate/medium",
         "functions": [
           {
             "function": "max",
@@ -257,9 +257,9 @@ data:
         ]
       },
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "network/rx",
-        "name": "network/rx/month",
+        "name": "network/rx/medium",
         "functions": [
           {
             "function": "max",
@@ -268,9 +268,9 @@ data:
         ]
       },
       {
-        "retention": "month",
+        "retention": "medium",
         "measurement": "network/rx_rate",
-        "name": "network/rx_rate/month",
+        "name": "network/rx_rate/medium",
         "functions": [
           {
             "function": "max",

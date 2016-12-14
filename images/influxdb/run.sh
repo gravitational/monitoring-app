@@ -11,8 +11,8 @@ done
 
 echo "Configuring retention policies"
 curl --silent http://localhost:8086/query --data-urlencode "q=create database k8s with duration 24h"
-curl --silent http://localhost:8086/query --data-urlencode "q=create retention policy month on k8s duration 4w replication 1"
-curl --silent http://localhost:8086/query --data-urlencode "q=create retention policy year on k8s duration 52w replication 1"
+curl --silent http://localhost:8086/query --data-urlencode "q=create retention policy medium on k8s duration 4w replication 1"
+curl --silent http://localhost:8086/query --data-urlencode "q=create retention policy long on k8s duration 52w replication 1"
 
 echo "Bringing InfluxDB back to the foreground"
 fg
