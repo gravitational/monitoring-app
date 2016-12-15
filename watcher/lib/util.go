@@ -25,18 +25,18 @@ type APIClient interface {
 }
 
 // WaitForAPI spins until the API can be reached successfully or the provided context is cancelled
-func WaitForAPI(ctx context.Context, client APIClient) error {
+func WaitForAPI(ctx context.Context, client APIClient) (err error) {
 	for {
 		select {
 		case <-time.After(PollInterval):
-			err := client.Health()
+			err = client.Health()
 			if err != nil {
 				log.Infof("API is not ready: %v", trace.DebugReport(err))
 			} else {
 				return nil
 			}
 		case <-ctx.Done():
-			return trace.Errorf("API is not ready")
+			return trace.ConnectionProblem(err, "API is not ready")
 		}
 	}
 }

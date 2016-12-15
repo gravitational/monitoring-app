@@ -1,6 +1,4 @@
-FROM quay.io/gravitational/debian-grande:0.0.1
-
-RUN apt-get update && apt-get install -y curl
+FROM quay.io/gravitational/debian-tall:0.0.1
 
 ENV INFLUXDB_HOME /influxdb
 ENV PATH $INFLUXDB_HOME:$PATH
@@ -20,5 +18,4 @@ VOLUME ["/data"]
 # volume used for storing debug logs
 VOLUME ["/logs"]
 
-COPY run.sh /run.sh
-ENTRYPOINT /run.sh
+CMD ["/influxdb/influxd", "-config", "/etc/influxdb.toml"]

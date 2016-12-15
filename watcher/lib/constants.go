@@ -24,14 +24,14 @@ const (
 	// pollInterval is interval between attempts to reach API
 	PollInterval = 2 * time.Second
 
-	// InfluxdbAPIAddress if the API address of Influxdb running in the same pod
-	InfluxdbAPIAddress = "http://localhost:8086"
+	// InfluxDBAPIAddress if the API address of InfluxDB running in the same pod
+	InfluxDBAPIAddress = "http://localhost:8086"
 
-	// InfluxdbDatabase is the name of the database where all metrics go
-	InfluxdbDatabase = "k8s"
+	// InfluxDBDatabase is the name of the database where all metrics go
+	InfluxDBDatabase = "k8s"
 
-	// InfluxdbRetentionPolicy is the name of the default retention policy
-	InfluxdbRetentionPolicy = "default"
+	// InfluxDBRetentionPolicy is the name of the default retention policy
+	InfluxDBRetentionPolicy = "default"
 
 	// RollupsPrefix is the prefix of configmaps with rollups
 	RollupsPrefix = "rollups-"
@@ -40,6 +40,13 @@ const (
 	RetentionLong = "long"
 	// RetentionMedium is the name of the "medium" retention policy
 	RetentionMedium = "medium"
+
+	// DurationDefault is the duration of "default" retention policy in format InfluxDB expects
+	DurationDefault = "24h"
+	// DurationMedium is the duration of "medium" retention policy in format InfluxDB expects
+	DurationMedium = "4w"
+	// DurationLong is the duration of "long" retention policy in format InfluxDB expects
+	DurationLong = "52w"
 
 	// FunctionMean is the average function
 	FunctionMean = "mean"
@@ -56,6 +63,12 @@ const (
 )
 
 var (
+	// AllModes contains names of all modes the watcher can run in
+	AllModes = []string{
+		ModeDashboards,
+		ModeRollups,
+	}
+
 	// AllRetentions contains names of all supported retention policies
 	AllRetentions = []string{
 		RetentionLong,

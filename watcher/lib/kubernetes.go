@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/trace"
@@ -34,27 +35,37 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 }
 
 // WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix in the system
-// namespace and submits them to the returned channel
-func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string) (chan string, error) {
-	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
-	if err != nil {
-		return nil, trace.Wrap(err)
+// namespace and submits them to the provided channel
+func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, ch chan<- string) {
+	for {
+		select {
+		case <-time.After(time.Second):
+			err := c.restartWatch(ctx, prefix, ch)
+			if err != nil {
+				log.Errorf(trace.DebugReport(err))
+			}
+		case <-ctx.Done():
+			close(ch)
+			return
+		}
 	}
-
-	ch := make(chan string)
-	go watchConfigMaps(ctx, prefix, watcher, ch)
-
-	return ch, nil
 }
 
-func watchConfigMaps(ctx context.Context, prefix string, watcher watch.Interface, ch chan<- string) {
+func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- string) error {
+	log.Infof("restarting watch")
+
+	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer watcher.Stop()
+
 	for {
 		select {
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
 				log.Warningf("watcher channel closed: %v", event)
-				close(ch)
-				return
+				return nil
 			}
 
 			if event.Type != watch.Added {
@@ -74,8 +85,7 @@ func watchConfigMaps(ctx context.Context, prefix string, watcher watch.Interface
 			}
 		case <-ctx.Done():
 			log.Infof("stopping watcher")
-			watcher.Stop()
-			return
+			return nil
 		}
 	}
 }

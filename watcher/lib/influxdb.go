@@ -1,46 +1,60 @@
 package lib
 
 import (
+	"fmt"
 	"net/url"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
 )
 
-// InfluxdbClient is Influxdb API client
-type InfluxdbClient struct {
+// InfluxDBClient is InfluxDB API client
+type InfluxDBClient struct {
 	*roundtrip.Client
 }
 
-// NewInfluxdbClient creates a new client
-func NewInfluxdbClient() (*InfluxdbClient, error) {
-	client, err := roundtrip.NewClient(InfluxdbAPIAddress, "")
+// NewInfluxDBClient creates a new client
+func NewInfluxDBClient() (*InfluxDBClient, error) {
+	client, err := roundtrip.NewClient(InfluxDBAPIAddress, "")
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return &InfluxdbClient{Client: client}, nil
+	return &InfluxDBClient{Client: client}, nil
 }
 
-// Health checks the API readiness by querying for the default database
-func (c *InfluxdbClient) Health() error {
-	response, err := c.Get(c.Endpoint("query"), url.Values{"q": []string{"show databases"}})
+// Health checks the API readiness
+func (c *InfluxDBClient) Health() error {
+	_, err := c.Get(c.Endpoint("ping"), url.Values{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
+	return nil
+}
 
-	log.Infof("%v %v %v", response.Code(), response.Headers(), string(response.Bytes()))
-	if !strings.Contains(string(response.Bytes()), InfluxdbDatabase) {
-		return trace.NotFound("database %v not found", InfluxdbDatabase)
+// Setup sets up InfluxDB database
+func (c *InfluxDBClient) Setup() error {
+	queries := []string{
+		fmt.Sprintf(createDatabaseQuery, InfluxDBDatabase, DurationDefault),
+		fmt.Sprintf(createRetentionPolicyQuery, RetentionMedium, InfluxDBDatabase, DurationMedium),
+		fmt.Sprintf(createRetentionPolicyQuery, RetentionLong, InfluxDBDatabase, DurationLong),
 	}
+	for _, query := range queries {
+		log.Infof("%v", query)
 
+		response, err := c.PostForm(c.Endpoint("query"), url.Values{"q": []string{query}})
+		if err != nil {
+			return trace.Wrap(err)
+		}
+
+		log.Infof("%v %v %v", response.Code(), response.Headers(), string(response.Bytes()))
+	}
 	return nil
 }
 
 // CreateRollup creates a new rollup query in the database
-func (c *InfluxdbClient) CreateRollup(r Rollup) error {
+func (c *InfluxDBClient) CreateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
 		return trace.Wrap(err)
@@ -52,9 +66,7 @@ func (c *InfluxdbClient) CreateRollup(r Rollup) error {
 	}
 	log.Infof("%v", query)
 
-	response, err := c.PostForm(c.Endpoint("query"), url.Values{
-		"q": []string{query},
-	})
+	response, err := c.PostForm(c.Endpoint("query"), url.Values{"q": []string{query}})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -62,3 +74,10 @@ func (c *InfluxdbClient) CreateRollup(r Rollup) error {
 	log.Infof("%v %v %v", response.Code(), response.Headers(), string(response.Bytes()))
 	return nil
 }
+
+var (
+	// createDatabaseQuery is the InfluxDB query to create a database
+	createDatabaseQuery = "create database if not exists %v with duration %v"
+	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
+	createRetentionPolicyQuery = "create retention policy %v on %v duration %v replication 1"
+)

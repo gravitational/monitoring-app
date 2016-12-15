@@ -14,7 +14,7 @@ import (
 type Rollup struct {
 	// Retention is the retention policy for this rollup
 	Retention string `json:"retention"`
-	// Measurement is the name of the measurements to run rollup on
+	// Measurement is the name of the measurement to run rollup on
 	Measurement string `json:"measurement"`
 	// Name is both the name of the rollup query and the name of the
 	// new measurement rollup data will be inserted into
@@ -36,7 +36,7 @@ func (r Rollup) Check() error {
 		return trace.BadParameter("parameter Name is missing")
 	}
 	if len(r.Functions) == 0 {
-		return trace.BadParameter("parameter Rollups is empty")
+		return trace.BadParameter("parameter Functions is empty")
 	}
 	for _, rollup := range r.Functions {
 		err := rollup.Check()
@@ -69,7 +69,7 @@ func (f Function) Check() error {
 	return nil
 }
 
-// buildQuery returns a string with Influxdb query based on the rollup configuration
+// buildQuery returns a string with InfluxDB query based on the rollup configuration
 func buildQuery(r Rollup) (string, error) {
 	var functions []string
 	for _, fn := range r.Functions {
@@ -83,11 +83,11 @@ func buildQuery(r Rollup) (string, error) {
 	var b bytes.Buffer
 	err := queryTemplate.Execute(&b, map[string]string{
 		"name":             r.Name,
-		"database":         InfluxdbDatabase,
+		"database":         InfluxDBDatabase,
 		"functions":        strings.Join(functions, ", "),
 		"retention_into":   r.Retention,
 		"measurement_into": r.Name,
-		"retention_from":   InfluxdbRetentionPolicy,
+		"retention_from":   InfluxDBRetentionPolicy,
 		"measurement_from": r.Measurement,
 		"interval":         retentionToInterval[r.Retention],
 	})
@@ -133,7 +133,7 @@ func parsePercentileValue(data string) (string, error) {
 }
 
 var (
-	// queryTemplate is the template of the Influxdb rollup query
+	// queryTemplate is the template of the InfluxDB rollup query
 	queryTemplate = template.Must(template.New("query").Parse(
 		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{.database}}."{{.retention_from}}"."{{.measurement_from}}" group by *, time({{.interval}}) end`))
 
