@@ -20,6 +20,7 @@ spec:
       - name: heapster
         image: monitoring-heapster:1.0.2
         command:
+        - /usr/bin/dumb-init
         - /heapster
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true
         - --sink=influxdb:http://influxdb:8086
@@ -59,6 +60,10 @@ spec:
         name: influxdb
     spec:
       containers:
+      - name: watcher
+        image: watcher:0.0.1
+        args:
+          - --mode=rollups
       - name: influxdb
         image: monitoring-influxdb:0.13.0
         volumeMounts:
@@ -134,6 +139,8 @@ spec:
             mountPath: /etc/grafana
       - name: watcher
         image: watcher:0.0.1
+        args:
+          - --mode=dashboards
         env:
           - name: GRAFANA_USERNAME
             valueFrom:
@@ -166,6 +173,218 @@ spec:
     nodePort: 32503
   selector:
     app: grafana
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollups-default
+  namespace: kube-system
+data:
+  rollups: |
+    [
+      {
+        "retention": "medium",
+        "measurement": "cpu/usage_rate",
+        "name": "cpu/usage_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "memory/usage",
+        "name": "memory/usage/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "filesystem/usage",
+        "name": "filesystem/usage/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/tx",
+        "name": "network/tx/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/tx_rate",
+        "name": "network/tx_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/rx",
+        "name": "network/rx/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/rx_rate",
+        "name": "network/rx_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "cpu/usage_rate",
+        "name": "cpu/usage_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "memory/usage",
+        "name": "memory/usage/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "filesystem/usage",
+        "name": "filesystem/usage/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/tx",
+        "name": "network/tx/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/tx_rate",
+        "name": "network/tx_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/rx",
+        "name": "network/rx/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/rx_rate",
+        "name": "network/rx_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      }
+    ]
 ---
 apiVersion: v1
 kind: ConfigMap

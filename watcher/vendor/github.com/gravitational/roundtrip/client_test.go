@@ -425,6 +425,13 @@ func (s *ClientSuite) TestCookies(c *C) {
 	c.Assert(re.Cookies()[0].Value, DeepEquals, responseCookies[0].Value)
 }
 
+func (s *ClientSuite) TestEndpoint(c *C) {
+	client := newC("http://localhost", "v1")
+	c.Assert(client.Endpoint("api", "resource"), Equals, "http://localhost/v1/api/resource")
+	client = newC("http://localhost", "")
+	c.Assert(client.Endpoint("api", "resource"), Equals, "http://localhost/api/resource")
+}
+
 func newC(addr, version string, params ...ClientParam) *testClient {
 	c, err := NewClient(addr, version, params...)
 	if err != nil {

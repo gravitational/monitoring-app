@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/trace"
@@ -33,43 +34,58 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 	return &KubernetesClient{Clientset: client}, nil
 }
 
-// WatchDashboards watches Kubernetes API for configmaps with dashboards in system namespace and
-// submits them to the returned channel
-func (c *KubernetesClient) WatchDashboards(ctx context.Context) (chan string, error) {
-	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	ch := make(chan string)
-	go watchDashboards(ctx, watcher, ch)
-
-	return ch, nil
-}
-
-func watchDashboards(ctx context.Context, watcher watch.Interface, ch chan<- string) {
+// WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix in the system
+// namespace and submits them to the provided channel
+func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, ch chan<- string) {
 	for {
 		select {
-		case event := <-watcher.ResultChan():
+		case <-time.After(time.Second):
+			err := c.restartWatch(ctx, prefix, ch)
+			if err != nil {
+				log.Errorf(trace.DebugReport(err))
+			}
+		case <-ctx.Done():
+			close(ch)
+			return
+		}
+	}
+}
+
+func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- string) error {
+	log.Infof("restarting watch")
+
+	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer watcher.Stop()
+
+	for {
+		select {
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				log.Warningf("watcher channel closed: %v", event)
+				return nil
+			}
+
 			if event.Type != watch.Added {
-				log.Infof("ignoring event: %v", event.Type)
+				log.Infof("ignoring event: %v", event)
 				continue
 			}
 
 			configMap := event.Object.(*v1.ConfigMap)
-			if !strings.HasPrefix(configMap.Name, DashboardPrefix) {
+			if !strings.HasPrefix(configMap.Name, prefix) {
 				log.Infof("ignoring configmap: %v", configMap.Name)
 				continue
 			}
 
-			log.Infof("detected dashboard configmap: %v", configMap.Name)
+			log.Infof("detected configmap: %v", configMap.Name)
 			for _, v := range configMap.Data {
 				ch <- v
 			}
 		case <-ctx.Done():
 			log.Infof("stopping watcher")
-			watcher.Stop()
-			return
+			return nil
 		}
 	}
 }

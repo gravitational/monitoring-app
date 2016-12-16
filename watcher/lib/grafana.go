@@ -2,10 +2,8 @@ package lib
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"os"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/roundtrip"
@@ -64,11 +62,6 @@ func (c *GrafanaClient) CreateDashboard(data string) error {
 
 	log.Infof("%v", response)
 	return nil
-}
-
-// Endpoint constructs an API endpoint
-func (c *GrafanaClient) Endpoint(params ...string) string {
-	return fmt.Sprintf("%s/%s", GrafanaAPIAddress, strings.Join(params, "/"))
 }
 
 // CreateDashboardRequest is request to create a new dashboard
