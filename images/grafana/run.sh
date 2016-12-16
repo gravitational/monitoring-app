@@ -3,10 +3,15 @@
 HEADER_CONTENT_TYPE="Content-Type: application/json"
 HEADER_ACCEPT="Accept: application/json"
 
+GRAFANA_USER=${GRAFANA_USER:-admin}
+GRAFANA_PASSWD=${GRAFANA_PASSWD:-admin}
+
 INFLUXDB_HOST=${INFLUXDB_HOST:-"influxdb"}
 INFLUXDB_DATABASE=${INFLUXDB_DATABASE:-k8s}
 INFLUXDB_PASSWORD=${INFLUXDB_PASSWORD:-root}
 INFLUXDB_USER=${INFLUXDB_USER:-root}
+
+DASHBOARD_LOCATION=${DASHBOARD_LOCATION:-"/dashboards"}
 
 # Allow access to dashboards without having to log in
 export GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
@@ -29,13 +34,13 @@ echo "Starting Grafana in the background"
 exec /usr/sbin/grafana-server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini cfg:default.paths.data=/var/lib/grafana cfg:default.paths.logs=/var/log/grafana &
 
 echo "Waiting for Grafana to come up..."
-until $(curl --fail --output /dev/null --silent http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@localhost:${GF_SERVER_HTTP_PORT}/api/org); do
+until $(curl --fail --output /dev/null --silent http://${GRAFANA_USER}:${GRAFANA_PASSWD}@localhost:${GF_SERVER_HTTP_PORT}/api/org); do
   printf "."
   sleep 2
 done
 echo "Grafana is up and running."
 echo "Creating default influxdb datasource..."
-curl -i -XPOST -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" "http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@localhost:${GF_SERVER_HTTP_PORT}/api/datasources" -d '
+curl -i -XPOST -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" "http://${GRAFANA_USER}:${GRAFANA_PASSWD}@localhost:${GF_SERVER_HTTP_PORT}/api/datasources" -d '
 {
   "name": "influxdb-datasource",
   "type": "influxdb",
@@ -47,6 +52,14 @@ curl -i -XPOST -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" "http://${GF_SE
   "database": "'"${INFLUXDB_DATABASE}"'"
 }'
 
+echo ""
+echo "Importing default dashboards..."
+for filename in ${DASHBOARD_LOCATION}/*.json; do
+  echo "Importing ${filename} ..."
+  curl -i -XPOST --data "@${filename}" -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" "http://${GRAFANA_USER}:${GRAFANA_PASSWD}@localhost:${GF_SERVER_HTTP_PORT}/api/dashboards/db"
+  echo ""
+  echo "Done importing ${filename}"
+done
 echo ""
 echo "Bringing Grafana back to the foreground"
 fg
