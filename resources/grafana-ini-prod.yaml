@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana
+  namespace: kube-system
+data:
+  grafana.ini: |
+    [server]
+    root_url = %(protocol)s://%(domain)s/web/grafana

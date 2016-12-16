@@ -92,16 +92,6 @@ spec:
   selector:
     name: influxdb
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana
-  namespace: kube-system
-data:
-  grafana.ini: |
-    [server]
-    root_url = %(protocol)s://%(domain)s/web/grafana
----
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
