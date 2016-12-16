@@ -48,6 +48,11 @@ const (
 	// DurationLong is the duration of "long" retention policy in format InfluxDB expects
 	DurationLong = "52w"
 
+	// IntervalMedium is the aggregation interval for "medium" retention policy
+	IntervalMedium = "5m"
+	// IntervalLong is the aggregation interval for "long" retention policy
+	IntervalLong = "1h"
+
 	// FunctionMean is the average function
 	FunctionMean = "mean"
 	// FunctionMedian is the median function
@@ -73,6 +78,12 @@ var (
 	AllRetentions = []string{
 		RetentionLong,
 		RetentionMedium,
+	}
+
+	// RetentionToInterval maps the name of retention policy name to aggregation interval
+	RetentionToInterval = map[string]string{
+		RetentionLong:   IntervalLong,
+		RetentionMedium: IntervalMedium,
 	}
 
 	// AllFunctions contains names of functions, excluding percentile (because percentile is

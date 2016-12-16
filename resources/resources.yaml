@@ -20,6 +20,7 @@ spec:
       - name: heapster
         image: monitoring-heapster:1.0.2
         command:
+        - /usr/bin/dumb-init
         - /heapster
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true
         - --sink=influxdb:http://influxdb:8086

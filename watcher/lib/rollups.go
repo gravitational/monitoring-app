@@ -89,7 +89,7 @@ func buildQuery(r Rollup) (string, error) {
 		"measurement_into": r.Name,
 		"retention_from":   InfluxDBRetentionPolicy,
 		"measurement_from": r.Measurement,
-		"interval":         retentionToInterval[r.Retention],
+		"interval":         RetentionToInterval[r.Retention],
 	})
 	if err != nil {
 		return "", trace.Wrap(err)
@@ -136,10 +136,4 @@ var (
 	// queryTemplate is the template of the InfluxDB rollup query
 	queryTemplate = template.Must(template.New("query").Parse(
 		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{.database}}."{{.retention_from}}"."{{.measurement_from}}" group by *, time({{.interval}}) end`))
-
-	// retentionToInterval maps the name of retention policy name to aggregation interval
-	retentionToInterval = map[string]string{
-		RetentionLong:   "1h",
-		RetentionMedium: "5m",
-	}
 )
