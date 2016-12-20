@@ -31,13 +31,13 @@ echo "Starting Grafana in the background"
 exec /usr/sbin/grafana-server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini cfg:default.paths.data=/var/lib/grafana cfg:default.paths.logs=/var/log/grafana &
 
 echo "Waiting for Grafana to come up..."
-until $(curl --fail --output /dev/null --silent http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@localhost:${GF_SERVER_HTTP_PORT}/api/org); do
+until $(curl --fail --output /dev/null --silent --user "${GF_SECURITY_ADMIN_USER}":"${GF_SECURITY_ADMIN_PASSWORD}" http://localhost:${GF_SERVER_HTTP_PORT}/api/org); do
   printf "."
   sleep 2
 done
 echo "Grafana is up and running."
 echo "Creating default influxdb datasource..."
-curl -i -XPOST -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" "http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@localhost:${GF_SERVER_HTTP_PORT}/api/datasources" -d '
+curl -i -XPOST -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" --user "${GF_SECURITY_ADMIN_USER}":"${GF_SECURITY_ADMIN_PASSWORD}" "http:/localhost:${GF_SERVER_HTTP_PORT}/api/datasources" -d '
 {
   "name": "influxdb-datasource",
   "type": "influxdb",
@@ -53,7 +53,7 @@ echo ""
 echo "Importing default dashboards..."
 for filename in ${DASHBOARD_LOCATION}/*.json; do
   echo "Importing ${filename} ..."
-  curl -i -XPOST --data "@${filename}" -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" "http://${GF_SECURITY_ADMIN_USER}:${GF_SECURITY_ADMIN_PASSWORD}@localhost:${GF_SERVER_HTTP_PORT}/api/dashboards/db"
+  curl -i -XPOST --data "@${filename}" -H "${HEADER_ACCEPT}" -H "${HEADER_CONTENT_TYPE}" --user "${GF_SECURITY_ADMIN_USER}":"${GF_SECURITY_ADMIN_PASSWORD}" "http://localhost:${GF_SERVER_HTTP_PORT}/api/dashboards/db"
   echo ""
   echo "Done importing ${filename}"
 done
