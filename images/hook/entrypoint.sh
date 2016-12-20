@@ -24,7 +24,7 @@ if [ $1 = "update" ]; then
     rig delete secrets/grafana --resource-namespace=kube-system --force
 
     echo "Creating new secret 'grafana'"
-    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | /opt/bin/base64)
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
     sed -i s/password-goes-here/$password/g /var/lib/gravity/resources/grafana-creds.yaml
     rig upsert -f /var/lib/gravity/resources/grafana-creds.yaml --debug
 
