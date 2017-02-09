@@ -1,13 +1,12 @@
-apiVersion: v1
+apiVersion: bundle.gravitational.io/v2
 kind: SystemApplication
 metadata:
   name: monitoring-app
-  repository: gravitational.io
+  resourceVersion: "0.0.0"
   namespace: kube-system
-  resourceVersion: 0.0.3
 hooks:
   install:
-    spec:
+    job: |
       apiVersion: batch/v1
       kind: Job
       metadata:
@@ -23,7 +22,7 @@ hooks:
                 image: quay.io/gravitational/debian-tall:0.0.1
                 command: ["/bin/sh", "/var/lib/gravity/resources/install.sh"]
   update:
-    spec:
+    job: |
       apiVersion: batch/v1
       kind: Job
       metadata:
@@ -42,7 +41,7 @@ hooks:
                 image: monitoring-hook:0.0.1
                 args: ["update"]
   rollback:
-    spec:
+    job: |
       apiVersion: batch/v1
       kind: Job
       metadata:
@@ -61,7 +60,7 @@ hooks:
                 image: monitoring-hook:0.0.1
                 args: ["rollback"]
   uninstall:
-    spec:
+    job: |
       apiVersion: batch/v1
       kind: Job
       metadata:
