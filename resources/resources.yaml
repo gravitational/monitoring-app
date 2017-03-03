@@ -113,6 +113,7 @@ spec:
       containers:
       - name: grafana
         image: monitoring-grafana:3.0.4
+        imagePullPolicy: Always
         env:
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
