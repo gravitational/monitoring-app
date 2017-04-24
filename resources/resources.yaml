@@ -61,11 +61,11 @@ spec:
     spec:
       containers:
       - name: watcher
-        image: watcher:0.0.1
+        image: watcher:0.0.2
         args:
           - --mode=rollups
       - name: influxdb
-        image: monitoring-influxdb:0.13.0
+        image: monitoring-influxdb:1.2.2
         volumeMounts:
         - mountPath: /data
           name: influxdb-storage
@@ -128,7 +128,7 @@ spec:
           - name: config
             mountPath: /etc/grafana
       - name: watcher
-        image: watcher:0.0.1
+        image: watcher:0.0.2
         args:
           - --mode=dashboards
         env:

@@ -37,6 +37,7 @@ func (c *InfluxDBClient) Health() error {
 func (c *InfluxDBClient) Setup() error {
 	queries := []string{
 		fmt.Sprintf(createDatabaseQuery, InfluxDBDatabase, DurationDefault),
+		fmt.Sprintf(createRetentionPolicyQuery, InfluxDBRetentionPolicy, InfluxDBDatabase, DurationDefault) + " default",
 		fmt.Sprintf(createRetentionPolicyQuery, RetentionMedium, InfluxDBDatabase, DurationMedium),
 		fmt.Sprintf(createRetentionPolicyQuery, RetentionLong, InfluxDBDatabase, DurationLong),
 	}
@@ -77,7 +78,7 @@ func (c *InfluxDBClient) CreateRollup(r Rollup) error {
 
 var (
 	// createDatabaseQuery is the InfluxDB query to create a database
-	createDatabaseQuery = "create database if not exists %v with duration %v"
+	createDatabaseQuery = "create database %q with duration %v"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
-	createRetentionPolicyQuery = "create retention policy %v on %v duration %v replication 1"
+	createRetentionPolicyQuery = "create retention policy %q on %q duration %v replication 1"
 )

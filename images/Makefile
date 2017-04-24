@@ -4,7 +4,7 @@
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
 
-INFLUXDB_TAG  := monitoring-influxdb:0.13.0
+INFLUXDB_TAG  := monitoring-influxdb:1.2.2
 HEAPSTER_TAG  := monitoring-heapster:1.0.2
 GRAFANA_TAG   := monitoring-grafana:3.0.4
 HOOK_TAG := monitoring-hook:$(VER)
@@ -49,4 +49,3 @@ deploy:
 	$(foreach ct,$(INFLUXDB_TAG) $(HEAPSTER_TAG) $(GRAFANA_TAG), \
 		docker tag $(ct) $(REPO_URL)/$(ct) ; \
 		docker push $(REPO_URL)/$(ct) ; )
-
