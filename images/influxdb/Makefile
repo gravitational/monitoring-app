@@ -1,7 +1,7 @@
 .PHONY: all clean docker
 
 REPODIR:=$(GOPATH)/src/github.com/influxdata/influxdb
-VER=v0.13.0
+VER=v1.2.2
 OUT=/targetdir/influxd
 
 # FIXME: define build attributes and build with this:
@@ -22,4 +22,3 @@ $(OUT):
 
 clean:
 	sudo rm build/influxd
-

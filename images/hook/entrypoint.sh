@@ -28,7 +28,7 @@ if [ $1 = "update" ]; then
 
     echo "Creating new secret 'grafana'"
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
-    sed -i s/password-goes-here/$password/g /var/lib/gravity/resources/grafana-creds.yaml
+    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana-creds.yaml
     rig upsert -f /var/lib/gravity/resources/grafana-creds.yaml --debug
 
     echo "Creating new configmap 'grafana'"
