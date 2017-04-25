@@ -134,3 +134,4 @@ Each rollup is a JSON object with the following fields:
 
  - [ ] Better InfluxDB persistence, availability work
  - [ ] More default Grafana Dashboards
+ 
