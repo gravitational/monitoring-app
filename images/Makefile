@@ -1,5 +1,5 @@
 .PHONY: all heapster heapster-build heapster-clean influxdb influxdb-build \
-	influxdb-clean grafana deploy
+	influxdb-clean grafana kapacitor deploy
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
@@ -7,6 +7,7 @@ PWD=$(shell pwd)
 INFLUXDB_TAG  := monitoring-influxdb:1.2.2
 HEAPSTER_TAG  := monitoring-heapster:1.0.2
 GRAFANA_TAG   := monitoring-grafana:3.0.4
+KAPACITOR_TAG := monitoring-kapacitor:1.2
 HOOK_TAG := monitoring-hook:$(VER)
 
 REPO_URL := quay.io/gravitational
@@ -40,12 +41,15 @@ influxdb: influxdb-build
 grafana:
 	docker build --pull -t $(GRAFANA_TAG) $@
 
-all: heapster influxdb grafana hook
+kapacitor:
+	docker build --pull -t $(KAPACITOR_TAG) $@
+
+all: heapster influxdb grafana kapacitor hook
 
 clean: heapster-clean influxdb-clean
 
 .PHONY: deploy
 deploy:
-	$(foreach ct,$(INFLUXDB_TAG) $(HEAPSTER_TAG) $(GRAFANA_TAG), \
+	$(foreach ct,$(INFLUXDB_TAG) $(HEAPSTER_TAG) $(GRAFANA_TAG) $(KAPACITOR_TAG), \
 		docker tag $(ct) $(REPO_URL)/$(ct) ; \
 		docker push $(REPO_URL)/$(ct) ; )

@@ -3903,3 +3903,39 @@ data:
         "title": "Pods",
         "version": 14
     }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: kapacitor
+    name: kapacitor
+  name: kapacitor
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kapacitor
+  template:
+    metadata:
+      labels:
+        app: kapacitor
+    spec:
+      containers:
+        - name: kapacitor
+          image: monitoring-kapacitor:1.2
+          env:
+            - name: KAPACITOR_HOSTNAME
+              value: kapacitor.kube-system.svc.cluster.local
+            - name: KAPACITOR_INFLUXDB_0_URLS_0
+              value: influxdb.kube-system.svc.cluster.local
+          ports:
+            - containerPort: 9092
+          volumeMounts:
+            - mountPath: /var/lib/kapacitor
+              name: kapacitor-storage
+      volumes:
+        - name: kapacitor-storage
+          hostPath:
+            path: /var/lib/data/influxdb
