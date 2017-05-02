@@ -3926,10 +3926,16 @@ spec:
         - name: kapacitor
           image: monitoring-kapacitor:1.2
           env:
-            - name: KAPACITOR_HOSTNAME
-              value: kapacitor.kube-system.svc.cluster.local
-            - name: KAPACITOR_INFLUXDB_0_URLS_0
-              value: influxdb.kube-system.svc.cluster.local
+            - name: "KAPACITOR_HOSTNAME"
+              value: "kapacitor.kube-system.svc.cluster.local"
+            - name: "KAPACITOR_INFLUXDB_0_URLS_0"
+              value: "https://influxdb.kube-system.svc.cluster.local"
+            - name: "KAPACITOR_LOGGING_LEVEL"
+              value: "DEBUG"
+            - name: "KAPACITOR_KUBERNETES_ENABLED"
+              value: "true"
+            - name: "KAPACITOR_KUBERNETES_IN_CLUSTER"
+              value: "true"
           ports:
             - containerPort: 9092
           volumeMounts:
@@ -3939,3 +3945,16 @@ spec:
         - name: kapacitor-storage
           hostPath:
             path: /var/lib/data/influxdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kapacitor
+  namespace: kube-system
+spec:
+  ports:
+    - port: 9092
+      targetPort: 9092
+  selector:
+    app: kapacitor
+  type: NodePort

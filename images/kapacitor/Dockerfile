@@ -7,4 +7,5 @@ COPY entrypoint.sh /entrypoint.sh
 
 EXPOSE 9092
 
-ENTRYPOINT /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["kapacitord"]
