@@ -3941,10 +3941,16 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/kapacitor
               name: kapacitor-storage
+            - mountPath: /opt/alerts
+              name: kapacitor-alerts
       volumes:
         - name: kapacitor-storage
           hostPath:
-            path: /var/lib/data/influxdb
+            path: /var/lib/data/kapacitor
+        - name: kapacitor-alerts
+          configMap:
+            name: kapacitor-alerts
+
 ---
 apiVersion: v1
 kind: Service
