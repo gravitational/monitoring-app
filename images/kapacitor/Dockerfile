@@ -4,6 +4,7 @@ RUN apt-get update && \
     apt-get install -y curl
 
 COPY entrypoint.sh /entrypoint.sh
+COPY loadalerts.sh /loadalerts.sh
 
 EXPOSE 9092
 
