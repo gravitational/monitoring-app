@@ -3943,7 +3943,8 @@ spec:
               name: kapacitor-storage
         - name: alert-loader
           image: monitoring-kapacitor:1.2
-          command: ["/loadalerts.sh"]
+          args:
+            - /loadalerts.sh
           env:
             - name: "KAPACITOR_HOSTNAME"
               value: "kapacitor.kube-system.svc.cluster.local"
