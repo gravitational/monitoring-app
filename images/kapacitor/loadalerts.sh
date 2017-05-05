@@ -1,6 +1,6 @@
 #!/bin/bash
 
-URL=${URL:-http://${KAPACITOR_HOSTNAME}:${KAPACITOR_SERVICE_PORT}}
+URL=${URL:-http://localhost:9092}
 ALERTDIR=${ALERTDIR:-/opt/alerts}
 
 while true; do
