@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: telegraf
-        image: monitoring-telegraf:latest
+        image: monitoring-telegraf:1.2.1
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

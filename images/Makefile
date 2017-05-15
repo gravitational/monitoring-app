@@ -8,7 +8,7 @@ INFLUXDB_TAG  := monitoring-influxdb:1.2.2
 HEAPSTER_TAG  := monitoring-heapster:1.0.2
 GRAFANA_TAG   := monitoring-grafana:3.0.4
 KAPACITOR_TAG := monitoring-kapacitor:1.2
-TELEGRAF_TAG  := monitoring-telegraf:1.1.1
+TELEGRAF_TAG  := monitoring-telegraf:1.2.1
 HOOK_TAG := monitoring-hook:$(VER)
 
 REPO_URL := quay.io/gravitational

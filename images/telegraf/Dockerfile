@@ -2,7 +2,7 @@ FROM quay.io/gravitational/debian-grande:0.0.1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm \
-    TELEGRAF_VERSION=1.1.1
+    TELEGRAF_VERSION=1.2.1
 
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends curl tar && \
