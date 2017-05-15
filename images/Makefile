@@ -48,7 +48,7 @@ kapacitor:
 telegraf:
 	docker build --pull -t $(TELEGRAF_TAG) $@
 
-all: heapster influxdb grafana kapacitor hook
+all: heapster influxdb grafana kapacitor telegraf hook
 
 clean: heapster-clean influxdb-clean
 
