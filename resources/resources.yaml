@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   labels:
     k8s-app: heapster
+    component: heapster
     name: heapster
   name: heapster
   namespace: kube-system
@@ -46,7 +47,9 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
+    k8s-app: influxdb
     name: influxdb
+    component: influxdb
   name: influxdb
   namespace: kube-system
 spec:
@@ -98,6 +101,7 @@ metadata:
   labels:
     k8s-app: grafana
     name: grafana
+    component: grafana
   name: grafana
   namespace: kube-system
 spec:
@@ -3910,6 +3914,7 @@ metadata:
   labels:
     k8s-app: kapacitor
     name: kapacitor
+    component: kapacitor
   name: kapacitor
   namespace: kube-system
 spec:
