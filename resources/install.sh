@@ -10,3 +10,5 @@ else
 fi
 
 /opt/bin/kubectl create -f /var/lib/gravity/resources/resources.yaml
+/opt/bin/kubectl create -f /var/lib/gravity/resources/alerts.yaml
+

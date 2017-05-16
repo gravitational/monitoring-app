@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+KAPACITOR_HOSTNAME=${KAPACITOR_HOSTNAME:-$HOSTNAME}
+export KAPACITOR_HOSTNAME
+
+kapacitord

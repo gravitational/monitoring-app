@@ -2,7 +2,31 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
+    k8s-app: telegraf
+    component: telegraf
+    name: telegraf
+  name: telegraf
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: telegraf
+  template:
+    metadata:
+      labels:
+        k8s-app: telegraf
+    spec:
+      containers:
+      - name: telegraf
+        image: monitoring-telegraf:1.2.1
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
     k8s-app: heapster
+    component: heapster
     name: heapster
   name: heapster
   namespace: kube-system
@@ -46,7 +70,9 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
+    k8s-app: influxdb
     name: influxdb
+    component: influxdb
   name: influxdb
   namespace: kube-system
 spec:
@@ -98,6 +124,7 @@ metadata:
   labels:
     k8s-app: grafana
     name: grafana
+    component: grafana
   name: grafana
   namespace: kube-system
 spec:
@@ -3903,3 +3930,129 @@ data:
         "title": "Pods",
         "version": 14
     }
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: kapacitor
+    name: kapacitor
+    component: kapacitor
+  name: kapacitor
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kapacitor
+  template:
+    metadata:
+      labels:
+        app: kapacitor
+    spec:
+      containers:
+        - name: kapacitor
+          image: monitoring-kapacitor:1.2
+          env:
+            - name: "KAPACITOR_HOSTNAME"
+              value: "kapacitor.kube-system.svc.cluster.local"
+            - name: "KAPACITOR_INFLUXDB_0_URLS_0"
+              value: "http://influxdb.kube-system.svc.cluster.local:8086"
+            - name: "KAPACITOR_LOGGING_LEVEL"
+              value: "INFO"
+            - name: "KAPACITOR_KUBERNETES_ENABLED"
+              value: "true"
+            - name: "KAPACITOR_KUBERNETES_IN_CLUSTER"
+              value: "true"
+            - name: "KAPACITOR_SMTP_ENABLED"
+              value: "true"
+            - name: "KAPACITOR_SMTP_HOST"
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-configuration
+                  key: host
+            - name: "KAPACITOR_SMTP_PORT"
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-configuration
+                  key: port
+            - name: "KAPACITOR_SMTP_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-configuration
+                  key: user
+            - name: "KAPACITOR_SMTP_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-configuration
+                  key: pass
+            - name: "KAPACITOR_SMTP_TO_0"
+              valueFrom:
+                configMapKeyRef:
+                  name: alerting-addresses
+                  key: to
+            - name: "KAPACITOR_SMTP_FROM"
+              valueFrom:
+                configMapKeyRef:
+                  name: alerting-addresses
+                  key: from
+            - name: "KAPACITOR_SMTP_NO_VERIFY"
+              value: "true"
+            - name: "KAPACITOR_SMTP_GLOBAL"
+              value: "true"
+          ports:
+            - containerPort: 9092
+          volumeMounts:
+            - mountPath: /var/lib/kapacitor
+              name: kapacitor-storage
+        - name: alert-loader
+          image: monitoring-kapacitor:1.2
+          args:
+            - /loadalerts.sh
+          env:
+            - name: "KAPACITOR_HOSTNAME"
+              value: "kapacitor.kube-system.svc.cluster.local"
+          volumeMounts:
+            - mountPath: /opt/alerts
+              name: kapacitor-alerts
+      volumes:
+        - name: kapacitor-storage
+          hostPath:
+            path: /var/lib/data/kapacitor
+        - name: kapacitor-alerts
+          configMap:
+            name: kapacitor-alerts
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: smtp-configuration
+  namespace: kube-system
+data:
+  host: bG9jYWxob3N0
+  port: MjU=
+  user: dXNlcm5hbWU=
+  pass: cGFzc3dvcmQ=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alerting-addresses
+  namespace: kube-system
+data:
+  from: noreply@platform.gravitational.io
+  to: alerts@example.com
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kapacitor
+  namespace: kube-system
+spec:
+  ports:
+    - port: 9092
+      targetPort: 9092
+  selector:
+    app: kapacitor
+  type: NodePort
