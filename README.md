@@ -1,10 +1,10 @@
 # Gravity Cluster Monitoring
 
-This gravity app provides an InfluxDB, Heapster + Grafana based monitoring system.
+This gravity app provides an InfluxDB, Heapster + Grafana based monitoring system. Also provided is a Kapacitor deployment, for alerting.
 
 ## Overview
 
-As alluded to, there are 3 main components in the monitoring system: InfluxDB, Heapster and Grafana
+As alluded to, there are 4 main components in the monitoring system: InfluxDB, Heapster, Grafana and Kapacitor.
 
 ### InfluxDB
 
@@ -18,18 +18,9 @@ Heapster monitors Kubernetes components and reports statistics and information t
 
 Grafana is the dashboard system that provides visualization information on all the information stored in InfluxDB. It is exposed as the service `grafana.kube-system.svc.cluster.local`. Grafana credentials are generated during initial installation and placed into a Secret `grafana` in `kube-system` namespace.
 
-### Production
+### Kapacitor
 
-This app is automatically included with any `k8s-*` app and anything inheriting from it.
-
-## Development
-
-The `Makefile` has development targets for quick iteration. For example:
-
-```
-$ VER=0.0.16 make import  // reimport the app with version 0.0.16 into local OpsCenter during development
-$ OPS_URL=https://portal.gravitational.io VER=0.0.16 make import  // reimport the app into remote OpsCenter
-```
+Kapacitor is the alerting system, that streams data from InfluxDB and sends alerts as configured by the end user. It exposes the service `kapacitor.kube-system.svc.cluster.local`.
 
 ## Grafana integration
 
@@ -130,8 +121,20 @@ Each rollup is a JSON object with the following fields:
 * `field` - name of the field to apply rollup function to (e.g. "value")
 * `alias` - new name for the rolled up field (e.g. "value_max")
 
+## Kapacitor integration
+
+Kapacitor provides alerting for default and user-defined alerts.
+
+### Basic configuration
+
+To configure Kapacitor to send email alerts, change the values of the Kubernetes Secret `smtp-configuration`. To configure the 'to' and 'from' email addresses for sending alerts, update the `alerting-addresses` ConfigMap. You will need to reload any running Kapacitor pods after making these changes for them to take effect.
+
+### Custom and default alerts
+
+Alerts (written in [TICKscript](https://docs.influxdata.com/kapacitor/v1.2/tick/)) are automatically detected, loaded and enabled. They are read from the Kubernetes ConfigMap named `kapacitor-alerts`. To create new alerts, add your alert scripts as new key/values to that ConfigMap.
+
 ## Future work
 
  - [ ] Better InfluxDB persistence, availability work
  - [ ] More default Grafana Dashboards
- 
+
