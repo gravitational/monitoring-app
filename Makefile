@@ -27,6 +27,15 @@ hook:
 import: package
 	-$(GRAVITY) app delete --ops-url=$(OPS_URL) $(REPOSITORY)/$(NAME):$(VER) \
 		--force --insecure
-	$(GRAVITY) app import --vendor --glob=**/*.yaml \
-		--set-image=monitoring-hook:$(VER) --ops-url=$(OPS_URL) --repository=$(REPOSITORY) --name=$(NAME) \
-		--set-image=watcher:$(VER) --version=$(VER) --insecure .
+	$(GRAVITY) app import \
+		--insecure \
+		--vendor \
+		--include=resources --include=registry \
+		--glob=**/*.yaml \
+		--registry-url=apiserver:5000 \
+		--ops-url=$(OPS_URL) \
+		--repository=$(REPOSITORY) \
+		--name=$(NAME) \
+		--version=$(VER) \
+		--set-image=monitoring-hook:$(VER) \
+		--set-image=watcher:$(VER) .
