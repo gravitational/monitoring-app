@@ -30,7 +30,6 @@ hooks:
       spec:
         parallelism: 1
         completions: 1
-        activeDeadlineSeconds: 100
         template:
           metadata:
             name: monitoring-app-update
@@ -49,7 +48,6 @@ hooks:
       spec:
         parallelism: 1
         completions: 1
-        activeDeadlineSeconds: 100
         template:
           metadata:
             name: monitoring-app-rollback
