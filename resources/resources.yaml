@@ -2,20 +2,21 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    k8s-app: telegraf
+    app: monitoring
     component: telegraf
-    name: telegraf
   name: telegraf
   namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      k8s-app: telegraf
+      app: monitoring
+      component: telegraf
   template:
     metadata:
       labels:
-        k8s-app: telegraf
+        app: monitoring
+        component: telegraf
     spec:
       containers:
       - name: telegraf
@@ -25,20 +26,21 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    k8s-app: heapster
+    app: monitoring
     component: heapster
-    name: heapster
   name: heapster
   namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      k8s-app: heapster
+      app: monitoring
+      component: heapster
   template:
     metadata:
       labels:
-        k8s-app: heapster
+        app: monitoring
+        component: heapster
     spec:
       containers:
       - name: heapster
@@ -70,8 +72,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    k8s-app: influxdb
-    name: influxdb
+    app: monitoring
     component: influxdb
   name: influxdb
   namespace: kube-system
@@ -79,11 +80,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      name: influxdb
+      app: monitoring
+      component: influxdb
   template:
     metadata:
       labels:
-        name: influxdb
+        app: monitoring
+        component: influxdb
     spec:
       containers:
       - name: watcher
@@ -122,8 +125,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    k8s-app: grafana
-    name: grafana
+    app: monitoring
     component: grafana
   name: grafana
   namespace: kube-system
@@ -131,11 +133,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: grafana
+      app: monitoring
+      component: grafana
   template:
     metadata:
       labels:
-        app: grafana
+        app: monitoring
+        component: grafana
     spec:
       containers:
       - name: grafana
@@ -3935,8 +3939,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    k8s-app: kapacitor
-    name: kapacitor
+    app: monitoring
     component: kapacitor
   name: kapacitor
   namespace: kube-system
@@ -3944,11 +3947,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kapacitor
+      app: monitoring
+      component: kapacitor
   template:
     metadata:
       labels:
-        app: kapacitor
+        app: monitoring
+        component: kapacitor
     spec:
       containers:
         - name: kapacitor
