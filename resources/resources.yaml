@@ -66,7 +66,8 @@ spec:
     targetPort: 8082
     nodePort: 32500
   selector:
-    k8s-app: heapster
+    app: monitoring
+    component: heapster
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -119,7 +120,8 @@ spec:
     port: 8086
     nodePort: 32502
   selector:
-    name: influxdb
+    app: monitoring
+    component: influxdb
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -193,7 +195,8 @@ spec:
     port: 3000
     nodePort: 32503
   selector:
-    app: grafana
+    app: monitoring
+    component: grafana
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -4059,5 +4062,6 @@ spec:
     - port: 9092
       targetPort: 9092
   selector:
-    app: kapacitor
+    app: monitoring
+    component: kapacitor
   type: NodePort
