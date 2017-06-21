@@ -48,7 +48,7 @@ spec:
         command:
         - /usr/bin/dumb-init
         - /heapster
-        - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true
+        - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10255
         - --sink=influxdb:http://influxdb:8086
 ---
 apiVersion: v1
