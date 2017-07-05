@@ -18,6 +18,8 @@ spec:
         app: monitoring
         component: telegraf
     spec:
+      securityContext:
+        runAsUser: 1000
       containers:
       - name: telegraf
         image: monitoring-telegraf:1.2.1
@@ -42,6 +44,8 @@ spec:
         app: monitoring
         component: heapster
     spec:
+      securityContext:
+        runAsUser: 1000
       containers:
       - name: heapster
         image: monitoring-heapster:1.0.2
@@ -104,6 +108,8 @@ spec:
       containers:
       - name: watcher
         image: watcher:0.0.2
+        securityContext:
+          runAsUser: 1000
         args:
           - --mode=rollups
       - name: influxdb
@@ -174,6 +180,8 @@ spec:
             mountPath: /etc/grafana
       - name: watcher
         image: watcher:0.0.2
+        securityContext:
+          runAsUser: 1000
         args:
           - --mode=dashboards
         env:
@@ -4027,6 +4035,8 @@ spec:
               name: kapacitor-storage
         - name: alert-loader
           image: monitoring-kapacitor:1.2
+          securityContext:
+            runAsUser: 1000
           args:
             - /loadalerts.sh
           env:
