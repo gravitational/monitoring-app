@@ -48,8 +48,20 @@ spec:
         command:
         - /usr/bin/dumb-init
         - /heapster
-        - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10255
+        - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true&inClusterConfig=false&auth=/etc/kubernetes/kubelet.kubeconfig
         - --sink=influxdb:http://influxdb:8086
+        volumeMounts:
+        - name: certificates
+          mountPath: /var/state
+        - name: configs
+          mountPath: /etc/kubernetes
+      volumes:
+      - name: certificates
+        hostPath:
+          path: /var/state
+      - name: configs
+        hostPath:
+          path: /etc/kubernetes
 ---
 apiVersion: v1
 kind: Service
