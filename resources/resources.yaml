@@ -18,6 +18,8 @@ spec:
         app: monitoring
         component: telegraf
     spec:
+      securityContext:
+        runAsUser: 1000
       containers:
       - name: telegraf
         image: monitoring-telegraf:1.2.1
@@ -42,14 +44,28 @@ spec:
         app: monitoring
         component: heapster
     spec:
+      securityContext:
+        runAsUser: 1000
       containers:
       - name: heapster
         image: monitoring-heapster:1.0.2
         command:
         - /usr/bin/dumb-init
         - /heapster
-        - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10255
+        - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true&inClusterConfig=false&auth=/etc/kubernetes/kubelet.kubeconfig
         - --sink=influxdb:http://influxdb:8086
+        volumeMounts:
+        - name: certificates
+          mountPath: /var/state
+        - name: configs
+          mountPath: /etc/kubernetes
+      volumes:
+      - name: certificates
+        hostPath:
+          path: /var/state
+      - name: configs
+        hostPath:
+          path: /etc/kubernetes
 ---
 apiVersion: v1
 kind: Service
@@ -92,6 +108,8 @@ spec:
       containers:
       - name: watcher
         image: watcher:0.0.2
+        securityContext:
+          runAsUser: 1000
         args:
           - --mode=rollups
       - name: influxdb
@@ -162,6 +180,8 @@ spec:
             mountPath: /etc/grafana
       - name: watcher
         image: watcher:0.0.2
+        securityContext:
+          runAsUser: 1000
         args:
           - --mode=dashboards
         env:
@@ -4015,6 +4035,8 @@ spec:
               name: kapacitor-storage
         - name: alert-loader
           image: monitoring-kapacitor:1.2
+          securityContext:
+            runAsUser: 1000
           args:
             - /loadalerts.sh
           env:
