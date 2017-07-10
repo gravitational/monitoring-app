@@ -17,6 +17,8 @@ spec:
       labels:
         app: monitoring
         component: telegraf
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       securityContext:
         runAsUser: 1000
@@ -43,6 +45,8 @@ spec:
       labels:
         app: monitoring
         component: heapster
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       securityContext:
         runAsUser: 1000
@@ -104,6 +108,8 @@ spec:
       labels:
         app: monitoring
         component: influxdb
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       containers:
       - name: watcher
@@ -160,6 +166,8 @@ spec:
       labels:
         app: monitoring
         component: grafana
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       containers:
       - name: grafana
@@ -3977,6 +3985,8 @@ spec:
       labels:
         app: monitoring
         component: kapacitor
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       containers:
         - name: kapacitor
