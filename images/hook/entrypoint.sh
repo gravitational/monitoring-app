@@ -32,11 +32,7 @@ if [ $1 = "update" ]; then
     rig upsert -f /var/lib/gravity/resources/grafana-creds.yaml --debug
 
     echo "Creating new configmap 'grafana'"
-    if [ "$DEVMODE" = "true" ]; then
-        rig upsert -f /var/lib/gravity/resources/grafana-ini-dev.yaml --debug
-    else
-        rig upsert -f /var/lib/gravity/resources/grafana-ini-prod.yaml --debug
-    fi
+    rig upsert -f /var/lib/gravity/resources/grafana-ini.yaml --debug
 
     echo "Creating or updating resources"
     rig upsert -f /var/lib/gravity/resources/resources.yaml --debug
