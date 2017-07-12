@@ -121,9 +121,14 @@ spec:
       - name: influxdb
         image: monitoring-influxdb:1.2.2
         volumeMounts:
+        - mountPath: /etc
+          name: influxdb-config
         - mountPath: /data
           name: influxdb-storage
       volumes:
+      - name: influxdb-config
+        configMap:
+          name: influxdb
       - name: influxdb-storage
         hostPath:
           path: /var/lib/data/influxdb

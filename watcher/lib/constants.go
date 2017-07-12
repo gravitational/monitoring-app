@@ -29,6 +29,12 @@ const (
 
 	// InfluxDBDatabase is the name of the database where all metrics go
 	InfluxDBDatabase = "k8s"
+	// InfluxDBAdminUser is the InfluxDB admin username
+	InfluxDBAdminUser = "root"
+	// InfluxDBAdminPassword is the InfluxDB admin password
+	InfluxDBAdminPassword   = "root"
+	InfluxDBGrafanaUser     = "grafana"
+	InfluxDBGrafanaPassword = "grafana"
 
 	// InfluxDBRetentionPolicy is the name of the default retention policy
 	InfluxDBRetentionPolicy = "default"

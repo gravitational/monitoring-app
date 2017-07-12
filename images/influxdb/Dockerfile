@@ -10,7 +10,6 @@ RUN mkdir -p $INFLUXDB_HOME /data /logs
 
 ADD Dockerfile /
 ADD build/influx* $INFLUXDB_HOME/
-ADD config.toml /etc/influxdb.toml
 
 # volume used for storing database logs and data
 VOLUME ["/data"]

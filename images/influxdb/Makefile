@@ -18,7 +18,7 @@ $(OUT):
 	mkdir -p $(GOPATH)/src/github.com/influxdata
 	cd $(GOPATH)/src/github.com/influxdata && git clone https://github.com/influxdata/influxdb -b $(VER)
 	cd $(REPODIR) && python build.py --release --platform=linux --arch=static_amd64 --branch=$(version)
-	mv $(REPODIR)/build/influxd /targetdir/
+	mv $(REPODIR)/build/influxd $(REPODIR)/build/influx /targetdir/
 
 clean:
-	sudo rm build/influxd
+	sudo rm -rf build/influx*
