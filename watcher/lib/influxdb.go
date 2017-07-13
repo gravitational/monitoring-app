@@ -81,9 +81,12 @@ func (c *InfluxDBClient) CreateRollup(r Rollup) error {
 }
 
 var (
+	// createAdminQuery is the InfluxDB query to create admin user
 	createAdminQuery = "create user %v with password '%v' with all privileges"
-	createUserQuery  = "create user %v with password '%v'"
-	grantReadQuery   = "grant read on %q to %v"
+	// createUserQuery is the InfluxDB query to create a non-privileged user
+	createUserQuery = "create user %v with password '%v'"
+	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
+	grantReadQuery = "grant read on %q to %v"
 	// createDatabaseQuery is the InfluxDB query to create a database
 	createDatabaseQuery = "create database %q with duration %v"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy

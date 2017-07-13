@@ -188,6 +188,16 @@ spec:
               secretKeyRef:
                 name: grafana
                 key: password
+          - name: INFLUXDB_USER
+            valueFrom:
+              secretKeyRef:
+                name: grafana-influxdb-creds
+                key: username
+          - name: INFLUXDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: grafana-influxdb-creds
+                key: password
         volumeMounts:
           - name: config
             mountPath: /etc/grafana
@@ -212,6 +222,16 @@ spec:
         - name: config
           configMap:
             name: grafana
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: grafana-influxdb-creds
+  namespace: kube-system
+data:
+  username: Z3JhZmFuYQ==
+  password: Z3JhZmFuYQ==
 ---
 apiVersion: v1
 kind: Service
