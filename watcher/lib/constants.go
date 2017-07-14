@@ -35,7 +35,7 @@ const (
 	InfluxDBAdminPassword = "root" // "root" for backward compatibility
 	// InfluxDBGrafanaUser is the InfluxDB user for Grafana
 	InfluxDBGrafanaUser = "grafana"
-	// InfluxDBGrafanaPassword is the InfluxDB user for Grafana
+	// InfluxDBGrafanaPassword is the InfluxDB password for Grafana
 	InfluxDBGrafanaPassword = "grafana"
 
 	// InfluxDBRetentionPolicy is the name of the default retention policy
