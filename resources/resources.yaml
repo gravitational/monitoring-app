@@ -120,6 +120,11 @@ spec:
           - --mode=rollups
       - name: influxdb
         image: monitoring-influxdb:1.2.2
+        command:
+          - /usr/bin/dumb-init
+          - /influxdb/influxd
+          - -config
+          - /etc/influxdb/influxdb.toml
         volumeMounts:
         - mountPath: /etc/influxdb
           name: influxdb-config

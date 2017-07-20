@@ -16,5 +16,3 @@ VOLUME ["/data"]
 
 # volume used for storing debug logs
 VOLUME ["/logs"]
-
-CMD ["/usr/bin/dumb-init", "/influxdb/influxd", "-config", "/etc/influxdb/influxdb.toml"]
