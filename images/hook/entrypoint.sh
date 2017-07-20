@@ -11,14 +11,17 @@ if [ $1 = "update" ]; then
     echo "---> Starting update, changeset: $RIG_CHANGESET"
     rig cs delete --force -c cs/$RIG_CHANGESET
 
-    echo "---> Deleting old deployment 'heapster'"
+    echo "---> Deleting old 'heapster' resources"
     rig delete deployments/heapster --resource-namespace=kube-system --force
+    rig delete rc/heapster --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
 
-    echo "---> Deleting old deployment 'influxdb'"
+    echo "---> Deleting old 'influxdb' resources"
     rig delete deployments/influxdb --resource-namespace=kube-system --force
+    rig delete rc/influxdb --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
 
-    echo "---> Deleting old deployment 'grafana'"
+    echo "---> Deleting old 'grafana' resources"
     rig delete deployments/grafana --resource-namespace=kube-system --force
+    rig delete rc/grafana --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
 
     echo "---> Deleting old deployment 'telegraf'"
     rig delete deployments/telegraf --resource-namespace=kube-system --force
