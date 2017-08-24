@@ -4022,7 +4022,7 @@ spec:
     spec:
       containers:
         - name: kapacitor
-          image: monitoring-kapacitor:1.2
+          image: monitoring-kapacitor:1.3
           env:
             - name: "KAPACITOR_HOSTNAME"
               value: "kapacitor.kube-system.svc.cluster.local"

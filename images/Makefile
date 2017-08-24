@@ -7,7 +7,7 @@ PWD=$(shell pwd)
 INFLUXDB_TAG  := monitoring-influxdb:1.2.2
 HEAPSTER_TAG  := monitoring-heapster:1.4.1
 GRAFANA_TAG   := monitoring-grafana:3.0.4
-KAPACITOR_TAG := monitoring-kapacitor:1.2
+KAPACITOR_TAG := monitoring-kapacitor:1.3
 TELEGRAF_TAG  := monitoring-telegraf:1.2.1
 HOOK_TAG := monitoring-hook:$(VER)
 
