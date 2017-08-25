@@ -1,7 +1,7 @@
 .PHONY: all clean docker
 
 REPODIR:=$(GOPATH)/src/k8s.io/heapster
-VER=v1.0.2
+VER=v1.4.1
 PREFIX=gravity
 GOFLAGS=-a -installsuffix cgo --ldflags '-w'
 OUT=/targetdir/heapster
