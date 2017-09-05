@@ -5,7 +5,7 @@ metadata:
   namespace: kube-system
 data:
   influxdb.toml: |
-    reporting-disabled = false
+    reporting-disabled = true
     bind-address = ":8088"
 
     [meta]
