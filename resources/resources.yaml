@@ -24,7 +24,6 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
-        effect: NoExecute
       securityContext:
         runAsUser: 1000
       containers:
@@ -57,7 +56,6 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
-        effect: NoExecute
       nodeSelector:
         gravitational.io/k8s-role: master
       securityContext:
@@ -127,7 +125,6 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
-        effect: NoExecute
       containers:
       - name: watcher
         image: watcher:0.0.2
@@ -200,7 +197,6 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
-        effect: NoExecute
       containers:
       - name: grafana
         image: monitoring-grafana:3.0.4
@@ -276,7 +272,6 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
-        effect: NoExecute
       containers:
         - name: kapacitor
           image: monitoring-kapacitor:1.3
