@@ -57,6 +57,11 @@ spec:
       - name: telegraf
         image: monitoring-telegraf:1.4.0
         command: ["/usr/local/bin/run-node.sh"]
+        env:
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
