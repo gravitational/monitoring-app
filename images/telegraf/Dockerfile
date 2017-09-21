@@ -2,7 +2,7 @@ FROM quay.io/gravitational/debian-grande:0.0.1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm \
-    TELEGRAF_VERSION=1.2.1
+    TELEGRAF_VERSION=1.4.0
 
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends curl tar && \
@@ -21,7 +21,7 @@ RUN apt-get update && \
 
 ADD rootfs/ /
 
-RUN chmod a+rx /usr/local/bin/run.sh
+RUN chmod a+rx /usr/local/bin/run*.sh
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["/usr/local/bin/run.sh"]
