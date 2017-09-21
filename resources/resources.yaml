@@ -28,7 +28,34 @@ spec:
         runAsUser: 1000
       containers:
       - name: telegraf
-        image: monitoring-telegraf:1.2.1
+        image: monitoring-telegraf:1.4.0
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: telegraf-node
+  namespace: kube-system
+  labels:
+    app: monitoring
+    component: telegraf
+spec:
+  selector:
+    matchLabels:
+      app: monitoring
+      component: telegraf
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: telegraf
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
+    spec:
+      securityContext:
+        runAsUser: 1000
+      containers:
+      - name: telegraf
+        image: monitoring-telegraf:1.4.0
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
