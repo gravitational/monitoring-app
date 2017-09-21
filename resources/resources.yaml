@@ -56,6 +56,7 @@ spec:
       containers:
       - name: telegraf
         image: monitoring-telegraf:1.4.0
+        command: ["/usr/local/bin/run-node.sh"]
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
