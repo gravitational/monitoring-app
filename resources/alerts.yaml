@@ -32,3 +32,25 @@ data:
             .warn(lambda: "used" > 0.70)
             .crit(lambda: "used" > 0.80)
             .email()
+  etcd_down.tick: |
+    var period = 30s
+    var every = 30s
+    var critReset = lambda: "gauge" == 1
+
+    var data = stream
+        |from()
+            .measurement('etcd_up')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var trigger = data
+        |alert()
+            .message('{{ .Level}}: ETCD instance is down: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .email()
