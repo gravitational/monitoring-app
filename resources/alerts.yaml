@@ -53,4 +53,29 @@ data:
             .message('{{ .Level}}: ETCD instance is down: {{ index .Tags "nodename" }}')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
+            .stateChangesOnly(1h)
             .email()
+
+    var data_etcd_health = stream
+        |from()
+             .measurement('etcd_health')
+        |window()
+             .period(period)
+             .every(every)
+             .align()
+        |default()
+             .field('gauge', -1)
+
+    var etcd_health_deadman = data_etcd_health
+        |deadman(0.0, 3m)
+             .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
+             .email()
+             .log('/tmp/etcd_health.log')
+
+    var trigger_etcd_health = data_etcd_health
+        |alert()
+             .message('{{ .Level}}: ETCD cluster is unhealthy')
+             .crit(lambda: "gauge" == 0)
+             .stateChangesOnly(30m)
+             .critReset(critReset)
+             .email()
