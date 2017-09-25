@@ -70,7 +70,6 @@ data:
         |deadman(0.0, 3m)
              .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
              .email()
-             .log('/tmp/etcd_health.log')
 
     var trigger_etcd_health = data_etcd_health
         |alert()
