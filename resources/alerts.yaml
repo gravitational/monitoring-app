@@ -50,7 +50,7 @@ data:
 
     var trigger = data
         |alert()
-            .message('{{ .Level}}: ETCD instance is down: {{ index .Tags "nodename" }}')
+            .message('{{ .Level}} / ETCD: instance is down: {{ index .Tags "nodename" }}')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly(1h)
@@ -73,8 +73,59 @@ data:
 
     var trigger_etcd_health = data_etcd_health
         |alert()
-             .message('{{ .Level}}: ETCD cluster is unhealthy')
+             .message('{{ .Level}} / ETCD: cluster is unhealthy')
              .crit(lambda: "gauge" == 0)
              .stateChangesOnly(30m)
              .critReset(critReset)
              .email()
+
+    //
+    // latency between nodes
+    var info = 0.5 // s
+    var warn = 1   // s
+    var crit = 2   // s
+
+    var data_etcd_latency = stream
+        |from()
+            .measurement('etcd_followers_latency')
+            .groupBy('followerName')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |mean('gauge')
+            .as('stat')
+
+    var trigger_etcd_latency = data_etcd_latency
+        |alert()
+            .message('{{ .Level}} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}: {{ index .Fields "stat" }}')
+            .info(lambda: "stat" > info)
+            .warn(lambda: "stat" > warn)
+            .crit(lambda: "stat" > crit)
+            .email()
+
+    //
+    // rate of errors of RAFT requests
+    var infoRate = 10
+    var warnRate = 15
+    var critRate = 25
+    var data_etcd_raft_fail = stream
+        |from()
+            .measurement('etcd_followers_raft_fail')
+            .groupBy('followerName')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |derivative('gauge')
+            .as('rate')
+            .unit(10s)
+            .nonNegative()
+
+    var trigger_etcd_raft_fail = data_etcd_raft_fail
+        |alert()
+            .message('{{ .Level}} / ETCD: High rate of failed RAFT requests between leader and follower {{ index .Tags "followerName" }}: {{ index .Fields "rate"}}')
+            .info(lambda: "rate" > infoRate)
+            .warn(lambda: "rate" > warnRate)
+            .crit(lambda: "rate" > critRate)
+            .email()
