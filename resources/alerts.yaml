@@ -32,7 +32,7 @@ data:
             .warn(lambda: "used" > 0.70)
             .crit(lambda: "used" > 0.80)
             .email()
-  etcd_down.tick: |
+  etcd.tick: |
     var period = 30s
     var every = 30s
     var critReset = lambda: "gauge" == 1
