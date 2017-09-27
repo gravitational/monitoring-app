@@ -62,6 +62,13 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+        resources:
+          limits:
+            memory: "100Mi"
+            cpu: "100m"
+          requests:
+            memory: "50Mi"
+            cpu: "50m"
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
