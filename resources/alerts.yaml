@@ -33,11 +33,10 @@ data:
             .crit(lambda: "used" > 0.80)
             .email()
   etcd.tick: |
-    var period = 30s
-    var every = 30s
+    var period = 1m
+    var every = 1m
     var critReset = lambda: "gauge" == 1
-
-    var data = stream
+    var data_etcd_up = stream
         |from()
             .measurement('etcd_up')
             .groupBy('nodename')
@@ -48,43 +47,53 @@ data:
         |default()
             .field('gauge', -1)
 
-    var trigger = data
+    var trigger_etcd_up = data_etcd_up
         |alert()
-            .message('{{ .Level}} / ETCD: instance is down: {{ index .Tags "nodename" }}')
+            .message('{{ .Level }} / ETCD: instance is down: {{ index .Tags "nodename" }}')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly(1h)
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    ''')
             .email()
+
 
     var data_etcd_health = stream
         |from()
-             .measurement('etcd_health')
+            .measurement('etcd_health')
         |window()
-             .period(period)
-             .every(every)
-             .align()
+            .period(period)
+            .every(every)
+            .align()
         |default()
-             .field('gauge', -1)
+            .field('gauge', -1)
 
     var etcd_health_deadman = data_etcd_health
         |deadman(0.0, 3m)
-             .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
-             .email()
+            .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
+            .email()
 
     var trigger_etcd_health = data_etcd_health
         |alert()
-             .message('{{ .Level}} / ETCD: cluster is unhealthy')
-             .crit(lambda: "gauge" == 0)
-             .stateChangesOnly(30m)
-             .critReset(critReset)
-             .email()
+            .message('{{ .Level }} / ETCD: cluster is unhealthy')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly(30m)
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    ''')
+            .email()
 
-    //
-    // latency between nodes
-    var info = 0.5 // s
-    var warn = 1   // s
-    var crit = 2   // s
-
+    var info = 500    // ms
+    var warn = 1000   // ms
+    var crit = 2000   // ms
+    var infoLatReset = 200
+    var warnLatReset = 500
+    var critLatReset = 1000
     var data_etcd_latency = stream
         |from()
             .measurement('etcd_followers_latency')
@@ -94,21 +103,32 @@ data:
             .every(every)
             .align()
         |mean('gauge')
-            .as('stat')
+        |eval(lambda: ceil("mean" * 1000.0))
+            .as('latency')
 
     var trigger_etcd_latency = data_etcd_latency
         |alert()
-            .message('{{ .Level}} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}: {{ index .Fields "stat" }}')
-            .info(lambda: "stat" > info)
-            .warn(lambda: "stat" > warn)
-            .crit(lambda: "stat" > crit)
+            .message('{{ .Level }} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}')
+            .info(lambda: "latency" > info)
+            .infoReset(lambda: "latency" < infoLatReset)
+            .warn(lambda: "latency" > warn)
+            .warnReset(lambda: "latency" < warnLatReset)
+            .crit(lambda: "latency" > crit)
+            .critReset(lambda: "latency" < critLatReset)
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    ETCD instance: {{ index .Tags "followerName" }}
+    Latency: {{ index .Fields "latency" }}ms
+    ''')
             .email()
 
-    //
-    // rate of errors of RAFT requests
     var infoRate = 10
     var warnRate = 15
     var critRate = 25
+    var infoRateReset = 0
+    var warnRateReset = 10
+    var critRateReset = 15
     var data_etcd_raft_fail = stream
         |from()
             .measurement('etcd_followers_raft_fail')
@@ -124,8 +144,18 @@ data:
 
     var trigger_etcd_raft_fail = data_etcd_raft_fail
         |alert()
-            .message('{{ .Level}} / ETCD: High rate of failed RAFT requests between leader and follower {{ index .Tags "followerName" }}: {{ index .Fields "rate"}}')
+            .message('{{ .Level }} / ETCD: High rate of failed RAFT requests between leader and follower {{ index .Tags "followerName" }}')
             .info(lambda: "rate" > infoRate)
+            .infoReset(lambda: "rate" < infoRateReset)
             .warn(lambda: "rate" > warnRate)
+            .warnReset(lambda: "rate" < warnRateReset)
             .crit(lambda: "rate" > critRate)
+            .critReset(lambda: "rate" < critRateReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Number of failed requests in last minute: {{ index .Fields "rate"  | printf "%0.0f" }}
+        ''')
             .email()
