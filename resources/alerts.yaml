@@ -82,3 +82,50 @@ data:
     Usage: {{ index .Fields "percent_used"  | printf "%0.2f" }}%
     ''')
             .email()
+
+    var warnInodes = 90
+    var warnInodesReset = 80
+    var critInodes = 95
+    var critInodesReset = 90
+
+    var inodes_free = stream
+        |from()
+            .measurement('filesystem/inodes_free')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var inodes_total = stream
+        |from()
+            .measurement('filesystem/inodes')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used_inodes = inodes_free
+        |join(inodes_total)
+            .as('free', 'total')
+            .tolerance(30s)
+        |eval(lambda: (100.0 - (float("free.value") * 100.0) / float("total.value")))
+            .as('percent_used_inodes')
+
+    var trigger_inodes = percent_used_inodes
+        |alert()
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has low free inodes on {{ index .Tags "resource_id" }}')
+            .warn(lambda: "percent_used_inodes" > warnInodes)
+            .warnReset(lambda: "percent_used_inodes" < warnInodesReset)
+            .crit(lambda: "percent_used_inodes" > critInodes)
+            .critReset(lambda: "percent_used_inodes" < critInodesReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Resource: {{ index .Tags "resource_id" }}
+    Usage: {{ index .Fields "percent_used_inodes"  | printf "%0.2f" }}%
+    ''')
+            .email()
