@@ -1,3 +1,4 @@
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -54,21 +55,28 @@ spec:
       securityContext:
         runAsUser: 1000
       containers:
-      - name: telegraf
-        image: monitoring-telegraf:1.4.0
-        command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run-node.sh"]
-        env:
-          - name: NODE_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
-        resources:
-          limits:
-            memory: "100Mi"
-            cpu: "100m"
-          requests:
-            memory: "50Mi"
-            cpu: "50m"
+        - name: telegraf
+          image: monitoring-telegraf:1.4.0
+          command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run-node.sh"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            limits:
+              memory: "100Mi"
+              cpu: "100m"
+            requests:
+              memory: "50Mi"
+              cpu: "50m"
+          volumeMounts:
+            - name: certificates
+              mountPath: /var/lib/gravity/secrets
+      volumes:
+        - name: certificates
+          hostPath:
+            path: /var/lib/gravity/secrets
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
