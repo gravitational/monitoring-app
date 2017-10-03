@@ -88,41 +88,6 @@ data:
     ''')
             .email()
 
-    var info = 500    // ms
-    var warn = 1000   // ms
-    var crit = 2000   // ms
-    var infoLatReset = 200
-    var warnLatReset = 500
-    var critLatReset = 1000
-    var data_etcd_latency = stream
-        |from()
-            .measurement('etcd_followers_latency')
-            .groupBy('followerName')
-        |window()
-            .period(period)
-            .every(every)
-            .align()
-        |mean('gauge')
-        |eval(lambda: ceil("mean" * 1000.0))
-            .as('latency')
-
-    var trigger_etcd_latency = data_etcd_latency
-        |alert()
-            .message('{{ .Level }} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}')
-            .info(lambda: "latency" > info)
-            .infoReset(lambda: "latency" < infoLatReset)
-            .warn(lambda: "latency" > warn)
-            .warnReset(lambda: "latency" < warnLatReset)
-            .crit(lambda: "latency" > crit)
-            .critReset(lambda: "latency" < critLatReset)
-            .details('''
-    <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    ETCD instance: {{ index .Tags "followerName" }}
-    Latency: {{ index .Fields "latency" }}ms
-    ''')
-            .email()
-
     var infoRate = 10
     var warnRate = 15
     var critRate = 25
@@ -158,4 +123,38 @@ data:
     Nodename: {{ index .Tags "nodename" }}
     Number of failed requests in last minute: {{ index .Fields "rate"  | printf "%0.0f" }}
         ''')
+            .email()
+
+  etcd_latency_batch.tick: |
+    var period = 5m
+    var every = 1m
+    var data_etcd_latency = batch
+        |query('''SELECT (DERIVATIVE(count,1m) * 0.95) AS count, DERIVATIVE("0.512",1m) AS v512, DERIVATIVE("1.024",1m) AS v1024 FROM "k8s"."default"."etcd_rafthttp_message_sent_latency_seconds" WHERE "msgType" = 'MsgHeartbeat' AND "sendingType" = 'message' ''')
+            .period(period)
+            .every(every)
+            .groupBy('remoteID')
+
+    var count = data_etcd_latency
+        |mean('count')
+    var v512 = data_etcd_latency
+        |mean('v512')
+    var v1024 = data_etcd_latency
+        |mean('v1024')
+
+    var trigger_etcd_latency = count
+        |join(v512,v1024)
+            .as('count', 'v512', 'v1024')
+            .tolerance(10s)
+
+    trigger_etcd_latency
+        |alert()
+            .message('{{ .Level }} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}')
+            .warn(lambda: "count.mean" > "v512.mean")
+            .crit(lambda: "count.mean" > "v1024.mean")
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    ETCD instance: {{ index .Tags "followerName" }}
+    Latency greater than: {{ if eq .Level "WARNING" }}512{{ else }}1024{{ end }}ms
+    ''')
             .email()
