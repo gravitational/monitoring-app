@@ -38,7 +38,7 @@ data:
     var critReset = lambda: "gauge" == 1
     var data_etcd_up = stream
         |from()
-            .measurement('etcd_up')
+            .measurement('planet_etcd_up')
             .groupBy('nodename')
         |window()
             .period(period)
@@ -63,7 +63,7 @@ data:
 
     var data_etcd_health = stream
         |from()
-            .measurement('etcd_health')
+            .measurement('planet_etcd_health')
         |window()
             .period(period)
             .every(every)
@@ -72,7 +72,7 @@ data:
             .field('gauge', -1)
 
     var etcd_health_deadman = data_etcd_health
-        |deadman(0.0, 3m)
+        |deadman(0.0, 5m)
             .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
             .email()
 
@@ -81,48 +81,11 @@ data:
             .message('{{ .Level }} / ETCD: cluster is unhealthy')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
-            .stateChangesOnly(30m)
+            .stateChangesOnly(1h)
             .details('''
     <b>{{ .Message }}</b>
     Level: {{ .Level }}
     ''')
-            .email()
-
-    var infoRate = 10
-    var warnRate = 15
-    var critRate = 25
-    var infoRateReset = 0
-    var warnRateReset = 10
-    var critRateReset = 15
-    var data_etcd_raft_fail = stream
-        |from()
-            .measurement('etcd_followers_raft_fail')
-            .groupBy('followerName')
-        |window()
-            .period(period)
-            .every(every)
-            .align()
-        |derivative('gauge')
-            .as('rate')
-            .unit(10s)
-            .nonNegative()
-
-    var trigger_etcd_raft_fail = data_etcd_raft_fail
-        |alert()
-            .message('{{ .Level }} / ETCD: High rate of failed RAFT requests between leader and follower {{ index .Tags "followerName" }}')
-            .info(lambda: "rate" > infoRate)
-            .infoReset(lambda: "rate" < infoRateReset)
-            .warn(lambda: "rate" > warnRate)
-            .warnReset(lambda: "rate" < warnRateReset)
-            .crit(lambda: "rate" > critRate)
-            .critReset(lambda: "rate" < critRateReset)
-            .stateChangesOnly()
-            .details('''
-    <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
-    Number of failed requests in last minute: {{ index .Fields "rate"  | printf "%0.0f" }}
-        ''')
             .email()
 
   etcd_latency_batch.tick: |
@@ -156,5 +119,62 @@ data:
     Level: {{ .Level }}
     ETCD instance: {{ index .Tags "followerName" }}
     Latency greater than: {{ if eq .Level "WARNING" }}512{{ else }}1024{{ end }}ms
+    ''')
+            .email()
+
+  networking_params.tick: |
+    var period = 5m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_br_netfilter = stream
+        |from()
+            .measurement('planet_sysctl_br_netfilter')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var deadman_br_netfilter = data_br_netfilter
+        |deadman(0.0, 5m)
+            .message('br_netfilter module is not loaded on node {{ index .Tags "nodename" }}')
+            .email()
+
+    var trigger_br_netfilter = data_br_netfilter
+        |alert()
+            .message('{{ .Level }} / Networking: bridge netfilter is off on node: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    ''')
+            .email()
+
+    var data_ipv4_forwarding = stream
+        |from()
+            .measurement('planet_sysctl_ipv4_forwarding')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var trigger_ipv4_forwarding = data_ipv4_forwarding
+        |alert()
+            .message('{{ .Level }} / Networking: IPv4 Forwarding is off on node: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
     ''')
             .email()
