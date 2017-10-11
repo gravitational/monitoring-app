@@ -49,6 +49,8 @@ data:
             .critReset(lambda: "avg_percent_used" < critReset)
             .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/high_cpu.log')
+            .mode(0644)
 
   high_memory.tick: |
     var period = 5m
@@ -95,3 +97,5 @@ data:
             .critReset(lambda: "avg_percent_used" < critReset)
             .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/high_memory.log')
+            .mode(0644)
