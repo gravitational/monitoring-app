@@ -218,3 +218,18 @@ data:
             .email()
             .log('/var/lib/kapacitor/logs/docker_health.log')
             .mode(0644)
+
+  influxdb_health_batch.tick: |
+    var period = 5m
+    var every = 1m
+    var data_influxdb_health = batch
+        |query('''SELECT * FROM "_internal"."monitor"."write"''')
+            .period(period)
+            .every(every)
+
+    var etcd_influxdb_health = data_influxdb_health
+        |deadman(0.0, 5m)
+            .message('InfluxDB is down or networking connection between Kapacitor and InfluxDB is lost')
+            .email()
+            .log('/var/lib/kapacitor/logs/influxdb_health.log')
+            .mode(0644)
