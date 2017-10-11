@@ -59,7 +59,8 @@ data:
     Nodename: {{ index .Tags "nodename" }}
     ''')
             .email()
-
+            .log('/var/lib/kapacitor/logs/etcd_down.log')
+            .mode(0644)
 
     var data_etcd_health = stream
         |from()
@@ -75,6 +76,8 @@ data:
         |deadman(0.0, 5m)
             .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
             .email()
+            .log('/var/lib/kapacitor/logs/etcd_health.log')
+            .mode(0644)
 
     var trigger_etcd_health = data_etcd_health
         |alert()
@@ -87,6 +90,8 @@ data:
     Level: {{ .Level }}
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/etcd_health.log')
+            .mode(0644)
 
   etcd_latency_batch.tick: |
     var period = 5m
@@ -121,6 +126,8 @@ data:
     Latency greater than: {{ if eq .Level "WARNING" }}512{{ else }}1024{{ end }}ms
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/etcd_latency.log')
+            .mode(0644)
 
   networking_params.tick: |
     var period = 5m
@@ -154,6 +161,8 @@ data:
     Nodename: {{ index .Tags "nodename" }}
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/br_netfilter.log')
+            .mode(0644)
 
     var data_ipv4_forwarding = stream
         |from()
@@ -178,3 +187,5 @@ data:
     Nodename: {{ index .Tags "nodename" }}
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/ipv4_forwarding.log')
+            .mode(0644)
