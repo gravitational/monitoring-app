@@ -47,6 +47,8 @@ data:
             .message('Node {{ index .Tags "nodename" }} is down')
             .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/node_down.log')
+            .mode(0644)
 
     var uptime = stream
         |from()
@@ -72,3 +74,5 @@ data:
     Uptime: {{ index .Fields "uptime" }} sec
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/uptime.log')
+            .mode(0644)
