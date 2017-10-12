@@ -233,3 +233,33 @@ data:
             .email()
             .log('/var/lib/kapacitor/logs/influxdb_health.log')
             .mode(0644)
+
+  kubernetes_node.tick: |
+    var period = 5m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_kubernetes = stream
+        |from()
+            .measurement('planet_k8s_node_ready')
+            .groupBy('node')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var trigger_kubernetes = data_kubernetes
+        |alert()
+            .message('{{ .Level }} / Kubernetes node is not ready: {{ index .Tags "node" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "node" }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/kubernetes_health.log')
+            .mode(0644)
