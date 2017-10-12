@@ -38,7 +38,7 @@ data:
     var critReset = lambda: "gauge" == 1
     var data_etcd_up = stream
         |from()
-            .measurement('planet_etcd_up')
+            .measurement('satellite_etcd_up')
             .groupBy('nodename')
         |window()
             .period(period)
@@ -64,7 +64,7 @@ data:
 
     var data_etcd_health = stream
         |from()
-            .measurement('planet_etcd_health')
+            .measurement('satellite_etcd_health')
         |window()
             .period(period)
             .every(every)
@@ -135,7 +135,7 @@ data:
     var critReset = lambda: "gauge" == 1
     var data_br_netfilter = stream
         |from()
-            .measurement('planet_sysctl_br_netfilter')
+            .measurement('satellite_sysctl_br_netfilter')
             .groupBy('nodename')
         |window()
             .period(period)
@@ -166,7 +166,7 @@ data:
 
     var data_ipv4_forwarding = stream
         |from()
-            .measurement('planet_sysctl_ipv4_forwarding')
+            .measurement('satellite_sysctl_ipv4_forwarding')
             .groupBy('nodename')
         |window()
             .period(period)
@@ -195,7 +195,7 @@ data:
     var critReset = lambda: "gauge" == 1
     var data_docker = stream
         |from()
-            .measurement('planet_docker_health')
+            .measurement('satellite_docker_health')
             .groupBy('nodename')
         |window()
             .period(period)
@@ -240,7 +240,7 @@ data:
     var critReset = lambda: "gauge" == 1
     var data_kubernetes = stream
         |from()
-            .measurement('planet_k8s_node_ready')
+            .measurement('satellite_k8s_node_ready')
             .groupBy('node')
         |window()
             .period(period)
