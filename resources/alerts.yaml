@@ -5,33 +5,100 @@ metadata:
   namespace: kube-system
 data:
   high_cpu.tick: |
-    stream
+    var period = 5m
+    var every = 1m
+    var warnRate = 75
+    var warnReset = 50
+    var critRate = 90
+    var critReset = 75
+
+    var usage_rate = stream
         |from()
-            .measurement('cpu/node_utilization')
+            .measurement('cpu/usage_rate')
             .groupBy('nodename')
+            .where(lambda: "type" == 'node')
         |window()
-            .period(5m)
-            .every(5m)
-        |mean('value').as('used')
+            .period(period)
+            .every(every)
+
+    var cpu_total = stream
+        |from()
+            .measurement('cpu/node_capacity')
+            .groupBy('nodename')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used = usage_rate
+        |join(cpu_total)
+            .as('usage_rate', 'total')
+            .tolerance(30s)
+            .streamName('percent_used')
+        |eval(lambda: (float("usage_rate.value") * 100.0) / float("total.value"))
+            .as('percent_used')
+        |mean('percent_usage')
+            .as('avg_percent_used')
+
+    var trigger = percent_used
         |alert()
-            .message('{{ .Level}}: {{ .Name }}/{{ index .Tags "nodename" }} has high cpu usage: {{ index .Fields "used" }}%')
-            .warn(lambda: "used" > 0.70)
-            .crit(lambda: "used" > 0.80)
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has high cpu usage: {{ index .Fields "avg_percent_used" }}%')
+            .warn(lambda: "avg_percent_used" > warnRate)
+            .warnReset(lambda: "avg_percent_used" < warnReset)
+            .crit(lambda: "avg_percent_used" > critRate)
+            .critReset(lambda: "avg_percent_used" < critReset)
+            .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/high_cpu.log')
+            .mode(0644)
+
   high_memory.tick: |
-    stream
+    var period = 5m
+    var every = 1m
+    var warnRate = 80
+    var warnReset = 70
+    var critRate = 90
+    var critReset = 80
+
+    var usage = stream
         |from()
-            .measurement('memory/node_utilization')
+            .measurement('memory/working_set')
             .groupBy('nodename')
+            .where(lambda: "type" == 'node')
         |window()
-            .period(5m)
-            .every(5m)
-        |mean('value').as('used')
+            .period(period)
+            .every(every)
+
+    var memory_total = stream
+        |from()
+            .measurement('memory/node_allocatable')
+            .groupBy('nodename')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used = usage
+        |join(memory_total)
+            .as('usage', 'total')
+            .tolerance(30s)
+            .streamName('percent_used')
+        |eval(lambda: (float("usage.value") * 100.0) / float("total.value"))
+            .as('percent_usage')
+        |mean('percent_usage')
+            .as('avg_percent_used')
+
+    var trigger = percent_used
         |alert()
-            .message('{{ .Level}}: {{ .Name }}/{{ index .Tags "nodename" }} has high memory usage: {{ index .Fields "used" }}%')
-            .warn(lambda: "used" > 0.70)
-            .crit(lambda: "used" > 0.80)
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has high memory usage: {{ index .Fields "avg_percent_used" }}%')
+            .warn(lambda: "avg_percent_used" > warnRate)
+            .warnReset(lambda: "avg_percent_used" < warnReset)
+            .crit(lambda: "avg_percent_used" > critRate)
+            .critReset(lambda: "avg_percent_used" < critReset)
+            .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/high_memory.log')
+            .mode(0644)
 
   filesystem.tick: |
     var period = 1m
@@ -134,4 +201,3 @@ data:
             .email()
             .log('/var/lib/kapacitor/logs/inodes.log')
             .mode(0644)
-
