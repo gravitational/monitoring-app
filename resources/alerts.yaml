@@ -5,33 +5,203 @@ metadata:
   namespace: kube-system
 data:
   high_cpu.tick: |
-    stream
+    var period = 5m
+    var every = 1m
+    var warnRate = 75
+    var warnReset = 50
+    var critRate = 90
+    var critReset = 75
+
+    var usage_rate = stream
         |from()
-            .measurement('cpu/node_utilization')
+            .measurement('cpu/usage_rate')
             .groupBy('nodename')
+            .where(lambda: "type" == 'node')
         |window()
-            .period(5m)
-            .every(5m)
-        |mean('value').as('used')
+            .period(period)
+            .every(every)
+
+    var cpu_total = stream
+        |from()
+            .measurement('cpu/node_capacity')
+            .groupBy('nodename')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used = usage_rate
+        |join(cpu_total)
+            .as('usage_rate', 'total')
+            .tolerance(30s)
+            .streamName('percent_used')
+        |eval(lambda: (float("usage_rate.value") * 100.0) / float("total.value"))
+            .as('percent_used')
+        |mean('percent_usage')
+            .as('avg_percent_used')
+
+    var trigger = percent_used
         |alert()
-            .message('{{ .Level}}: {{ .Name }}/{{ index .Tags "nodename" }} has high cpu usage: {{ index .Fields "used" }}%')
-            .warn(lambda: "used" > 0.70)
-            .crit(lambda: "used" > 0.80)
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has high cpu usage: {{ index .Fields "avg_percent_used" }}%')
+            .warn(lambda: "avg_percent_used" > warnRate)
+            .warnReset(lambda: "avg_percent_used" < warnReset)
+            .crit(lambda: "avg_percent_used" > critRate)
+            .critReset(lambda: "avg_percent_used" < critReset)
+            .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/high_cpu.log')
+            .mode(0644)
+
   high_memory.tick: |
-    stream
+    var period = 5m
+    var every = 1m
+    var warnRate = 80
+    var warnReset = 70
+    var critRate = 90
+    var critReset = 80
+
+    var usage = stream
         |from()
-            .measurement('memory/node_utilization')
+            .measurement('memory/working_set')
             .groupBy('nodename')
+            .where(lambda: "type" == 'node')
         |window()
-            .period(5m)
-            .every(5m)
-        |mean('value').as('used')
+            .period(period)
+            .every(every)
+
+    var memory_total = stream
+        |from()
+            .measurement('memory/node_allocatable')
+            .groupBy('nodename')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used = usage
+        |join(memory_total)
+            .as('usage', 'total')
+            .tolerance(30s)
+            .streamName('percent_used')
+        |eval(lambda: (float("usage.value") * 100.0) / float("total.value"))
+            .as('percent_usage')
+        |mean('percent_usage')
+            .as('avg_percent_used')
+
+    var trigger = percent_used
         |alert()
-            .message('{{ .Level}}: {{ .Name }}/{{ index .Tags "nodename" }} has high memory usage: {{ index .Fields "used" }}%')
-            .warn(lambda: "used" > 0.70)
-            .crit(lambda: "used" > 0.80)
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has high memory usage: {{ index .Fields "avg_percent_used" }}%')
+            .warn(lambda: "avg_percent_used" > warnRate)
+            .warnReset(lambda: "avg_percent_used" < warnReset)
+            .crit(lambda: "avg_percent_used" > critRate)
+            .critReset(lambda: "avg_percent_used" < critReset)
+            .stateChangesOnly()
             .email()
+            .log('/var/lib/kapacitor/logs/high_memory.log')
+            .mode(0644)
+
+  filesystem.tick: |
+    var period = 1m
+    var every = 1m
+    var warnRate = 80
+    var warnReset = 70
+    var critRate = 90
+    var critReset = 80
+
+    var usage = stream
+        |from()
+            .measurement('filesystem/usage')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var total = stream
+        |from()
+            .measurement('filesystem/limit')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used = usage
+        |join(total)
+            .as('usage', 'total')
+            .tolerance(30s)
+            .streamName('percent_used')
+        |eval(lambda: (float("usage.value") * 100.0) / float("total.value"))
+            .as('percent_used')
+
+    var trigger = percent_used
+        |alert()
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has low free space on {{ index .Tags "resource_id" }}')
+            .warn(lambda: "percent_used" > warnRate)
+            .warnReset(lambda: "percent_used" < warnReset)
+            .crit(lambda: "percent_used" > critRate)
+            .critReset(lambda: "percent_used" < critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Resource: {{ index .Tags "resource_id" }}
+    Usage: {{ index .Fields "percent_used"  | printf "%0.2f" }}%
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/filesystem.log')
+            .mode(0644)
+
+    var warnInodes = 90
+    var warnInodesReset = 80
+    var critInodes = 95
+    var critInodesReset = 90
+
+    var inodes_free = stream
+        |from()
+            .measurement('filesystem/inodes_free')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var inodes_total = stream
+        |from()
+            .measurement('filesystem/inodes')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used_inodes = inodes_free
+        |join(inodes_total)
+            .as('free', 'total')
+            .tolerance(30s)
+        |eval(lambda: (100.0 - (float("free.value") * 100.0) / float("total.value")))
+            .as('percent_used_inodes')
+
+    var trigger_inodes = percent_used_inodes
+        |alert()
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has low free inodes on {{ index .Tags "resource_id" }}')
+            .warn(lambda: "percent_used_inodes" > warnInodes)
+            .warnReset(lambda: "percent_used_inodes" < warnInodesReset)
+            .crit(lambda: "percent_used_inodes" > critInodes)
+            .critReset(lambda: "percent_used_inodes" < critInodesReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Resource: {{ index .Tags "resource_id" }}
+    Usage: {{ index .Fields "percent_used_inodes"  | printf "%0.2f" }}%
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/inodes.log')
+            .mode(0644)
+
   uptime.tick: |
     var period = 1m
     var every = 1m
@@ -74,5 +244,5 @@ data:
     Uptime: {{ index .Fields "uptime" }} sec
     ''')
             .email()
-            .log('/var/lib/kapacitor/logs/uptime.log')
+            .log('/var/lib/kapacitor/logs/uptime.log')            
             .mode(0644)
