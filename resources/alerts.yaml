@@ -32,6 +32,7 @@ data:
             .warn(lambda: "used" > 0.70)
             .crit(lambda: "used" > 0.80)
             .email()
+
   filesystem.tick: |
     var period = 1m
     var every = 1m
@@ -82,6 +83,8 @@ data:
     Usage: {{ index .Fields "percent_used"  | printf "%0.2f" }}%
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/filesystem.log')
+            .mode(0644)
 
     var warnInodes = 90
     var warnInodesReset = 80
@@ -129,3 +132,6 @@ data:
     Usage: {{ index .Fields "percent_used_inodes"  | printf "%0.2f" }}%
     ''')
             .email()
+            .log('/var/lib/kapacitor/logs/inodes.log')
+            .mode(0644)
+
