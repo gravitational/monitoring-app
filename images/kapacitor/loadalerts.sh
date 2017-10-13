@@ -9,7 +9,11 @@ while true; do
         alertname="${filename%.*}"
         if ! kapacitor -url $URL list tasks | grep -q $alertname ; then
             echo "alert $alertname doesn't exist, creating"
-            kapacitor -url $URL define $alertname -type stream -dbrp k8s.default -tick $alert
+            if [[ "$alertname" == *"batch"* ]]; then
+                kapacitor -url $URL define $alertname -type batch -dbrp k8s.default -tick $alert
+            else
+                kapacitor -url $URL define $alertname -type stream -dbrp k8s.default -tick $alert
+            fi
             kapacitor -url $URL enable $alertname
         fi
     done

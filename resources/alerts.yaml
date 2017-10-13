@@ -244,5 +244,238 @@ data:
     Uptime: {{ index .Fields "uptime" }} sec
     ''')
             .email()
-            .log('/var/lib/kapacitor/logs/uptime.log')            
+            .log('/var/lib/kapacitor/logs/uptime.log')
+            .mode(0644)
+
+  etcd.tick: |
+    var period = 1m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_etcd_up = stream
+        |from()
+            .measurement('satellite_etcd_up')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', 0)
+
+    var trigger_etcd_up = data_etcd_up
+        |alert()
+            .message('{{ .Level }} / ETCD: instance is down: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly(1h)
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/etcd_down.log')
+            .mode(0644)
+
+    var data_etcd_health = stream
+        |from()
+            .measurement('satellite_etcd_health')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var etcd_health_deadman = data_etcd_health
+        |deadman(0.0, 5m)
+            .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
+            .email()
+            .log('/var/lib/kapacitor/logs/etcd_health.log')
+            .mode(0644)
+
+    var trigger_etcd_health = data_etcd_health
+        |alert()
+            .message('{{ .Level }} / ETCD: cluster is unhealthy')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly(1h)
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/etcd_health.log')
+            .mode(0644)
+
+  etcd_latency_batch.tick: |
+    var period = 5m
+    var every = 1m
+    var data_etcd_latency = batch
+        |query('''SELECT (DERIVATIVE(count,1m) * 0.95) AS count, DERIVATIVE("0.512",1m) AS v512, DERIVATIVE("1.024",1m) AS v1024 FROM "k8s"."default"."etcd_rafthttp_message_sent_latency_seconds" WHERE "msgType" = 'MsgHeartbeat' AND "sendingType" = 'message' ''')
+            .period(period)
+            .every(every)
+            .groupBy('remoteID')
+
+    var count = data_etcd_latency
+        |mean('count')
+    var v512 = data_etcd_latency
+        |mean('v512')
+    var v1024 = data_etcd_latency
+        |mean('v1024')
+
+    var trigger_etcd_latency = count
+        |join(v512,v1024)
+            .as('count', 'v512', 'v1024')
+            .tolerance(10s)
+
+    trigger_etcd_latency
+        |alert()
+            .message('{{ .Level }} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}')
+            .warn(lambda: "count.mean" > "v512.mean")
+            .crit(lambda: "count.mean" > "v1024.mean")
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    ETCD instance: {{ index .Tags "followerName" }}
+    Latency greater than: {{ if eq .Level "WARNING" }}512{{ else }}1024{{ end }}ms
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/etcd_latency.log')
+            .mode(0644)
+
+  networking_params.tick: |
+    var period = 5m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_br_netfilter = stream
+        |from()
+            .measurement('satellite_sysctl_br_netfilter')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var deadman_br_netfilter = data_br_netfilter
+        |deadman(0.0, 5m)
+            .message('br_netfilter module is not loaded on node {{ index .Tags "nodename" }}')
+            .email()
+
+    var trigger_br_netfilter = data_br_netfilter
+        |alert()
+            .message('{{ .Level }} / Networking: bridge netfilter is disabled on node: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/br_netfilter.log')
+            .mode(0644)
+
+    var data_ipv4_forwarding = stream
+        |from()
+            .measurement('satellite_sysctl_ipv4_forwarding')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var trigger_ipv4_forwarding = data_ipv4_forwarding
+        |alert()
+            .message('{{ .Level }} / Networking: IPv4 Forwarding is disabled on node: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/ipv4_forwarding.log')
+            .mode(0644)
+
+  docker.tick: |
+    var period = 5m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_docker = stream
+        |from()
+            .measurement('satellite_docker_health')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var trigger_docker = data_docker
+        |alert()
+            .message('{{ .Level }} / Docker daemon is down on host: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/docker_health.log')
+            .mode(0644)
+
+  influxdb_health_batch.tick: |
+    var period = 5m
+    var every = 1m
+    var data_influxdb_health = batch
+        |query('''SELECT * FROM "_internal"."monitor"."write"''')
+            .period(period)
+            .every(every)
+
+    var deadman_influxdb_health = data_influxdb_health
+        |deadman(0.0, 5m)
+            .message('InfluxDB is down or no connection between Kapacitor and InfluxDB')
+            .email()
+            .log('/var/lib/kapacitor/logs/influxdb_health.log')
+            .mode(0644)
+
+  kubernetes_node.tick: |
+    var period = 5m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_kubernetes = stream
+        |from()
+            .measurement('satellite_k8s_node_ready')
+            .groupBy('node')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+
+    var trigger_kubernetes = data_kubernetes
+        |alert()
+            .message('{{ .Level }} / Kubernetes node is not ready: {{ index .Tags "node" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "node" }}
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/kubernetes_health.log')
             .mode(0644)
