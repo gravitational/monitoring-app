@@ -45,7 +45,7 @@ data:
             .every(every)
             .align()
         |default()
-            .field('gauge', -1)
+            .field('gauge', 0)
 
     var trigger_etcd_up = data_etcd_up
         |alert()
