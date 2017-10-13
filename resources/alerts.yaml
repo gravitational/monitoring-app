@@ -151,7 +151,7 @@ data:
 
     var trigger_br_netfilter = data_br_netfilter
         |alert()
-            .message('{{ .Level }} / Networking: bridge netfilter is off on node: {{ index .Tags "nodename" }}')
+            .message('{{ .Level }} / Networking: bridge netfilter is disabled on node: {{ index .Tags "nodename" }}')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly()
@@ -177,7 +177,7 @@ data:
 
     var trigger_ipv4_forwarding = data_ipv4_forwarding
         |alert()
-            .message('{{ .Level }} / Networking: IPv4 Forwarding is off on node: {{ index .Tags "nodename" }}')
+            .message('{{ .Level }} / Networking: IPv4 Forwarding is disabled on node: {{ index .Tags "nodename" }}')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly()
@@ -189,6 +189,7 @@ data:
             .email()
             .log('/var/lib/kapacitor/logs/ipv4_forwarding.log')
             .mode(0644)
+
   docker.tick: |
     var period = 5m
     var every = 1m
@@ -227,9 +228,9 @@ data:
             .period(period)
             .every(every)
 
-    var etcd_influxdb_health = data_influxdb_health
+    var deadman_influxdb_health = data_influxdb_health
         |deadman(0.0, 5m)
-            .message('InfluxDB is down or networking connection between Kapacitor and InfluxDB is lost')
+            .message('InfluxDB is down or no connection between Kapacitor and InfluxDB')
             .email()
             .log('/var/lib/kapacitor/logs/influxdb_health.log')
             .mode(0644)
