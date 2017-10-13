@@ -201,3 +201,48 @@ data:
             .email()
             .log('/var/lib/kapacitor/logs/inodes.log')
             .mode(0644)
+
+  uptime.tick: |
+    var period = 1m
+    var every = 1m
+    var warn = 300 // seconds
+    var warnReset = 600 // seconds
+
+    var node_down = stream
+        |from()
+            .measurement('uptime')
+            .groupBy('*')
+            .where(lambda: "type" == 'node')
+        |deadman(0.0, 5m)
+            .message('Node {{ index .Tags "nodename" }} is down')
+            .stateChangesOnly()
+            .email()
+            .log('/var/lib/kapacitor/logs/node_down.log')
+            .mode(0644)
+
+    var uptime = stream
+        |from()
+            .measurement('uptime')
+            .groupBy('nodename')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+        |eval(lambda: ceil(float("value") / 1000.0))
+            .as('uptime')
+
+    var trigger = uptime
+        |alert()
+            .message('{{ .Level }} / Node {{ index .Tags "nodename" }} was rebooted')
+            .warn(lambda: "uptime" < warn)
+            .warnReset(lambda: "uptime" > warnReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Uptime: {{ index .Fields "uptime" }} sec
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/uptime.log')            
+            .mode(0644)
