@@ -32,3 +32,106 @@ data:
             .warn(lambda: "used" > 0.70)
             .crit(lambda: "used" > 0.80)
             .email()
+
+  filesystem.tick: |
+    var period = 1m
+    var every = 1m
+    var warnRate = 80
+    var warnReset = 70
+    var critRate = 90
+    var critReset = 80
+
+    var usage = stream
+        |from()
+            .measurement('filesystem/usage')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var total = stream
+        |from()
+            .measurement('filesystem/limit')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used = usage
+        |join(total)
+            .as('usage', 'total')
+            .tolerance(30s)
+            .streamName('percent_used')
+        |eval(lambda: (float("usage.value") * 100.0) / float("total.value"))
+            .as('percent_used')
+
+    var trigger = percent_used
+        |alert()
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has low free space on {{ index .Tags "resource_id" }}')
+            .warn(lambda: "percent_used" > warnRate)
+            .warnReset(lambda: "percent_used" < warnReset)
+            .crit(lambda: "percent_used" > critRate)
+            .critReset(lambda: "percent_used" < critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Resource: {{ index .Tags "resource_id" }}
+    Usage: {{ index .Fields "percent_used"  | printf "%0.2f" }}%
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/filesystem.log')
+            .mode(0644)
+
+    var warnInodes = 90
+    var warnInodesReset = 80
+    var critInodes = 95
+    var critInodesReset = 90
+
+    var inodes_free = stream
+        |from()
+            .measurement('filesystem/inodes_free')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var inodes_total = stream
+        |from()
+            .measurement('filesystem/inodes')
+            .groupBy('nodename', 'resource_id')
+            .where(lambda: "type" == 'node')
+        |window()
+            .period(period)
+            .every(every)
+
+    var percent_used_inodes = inodes_free
+        |join(inodes_total)
+            .as('free', 'total')
+            .tolerance(30s)
+        |eval(lambda: (100.0 - (float("free.value") * 100.0) / float("total.value")))
+            .as('percent_used_inodes')
+
+    var trigger_inodes = percent_used_inodes
+        |alert()
+            .message('{{ .Level}} / Node {{ index .Tags "nodename" }} has low free inodes on {{ index .Tags "resource_id" }}')
+            .warn(lambda: "percent_used_inodes" > warnInodes)
+            .warnReset(lambda: "percent_used_inodes" < warnInodesReset)
+            .crit(lambda: "percent_used_inodes" > critInodes)
+            .critReset(lambda: "percent_used_inodes" < critInodesReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    Level: {{ .Level }}
+    Nodename: {{ index .Tags "nodename" }}
+    Resource: {{ index .Tags "resource_id" }}
+    Usage: {{ index .Fields "percent_used_inodes"  | printf "%0.2f" }}%
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/inodes.log')
+            .mode(0644)
+
