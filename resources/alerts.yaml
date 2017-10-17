@@ -48,6 +48,12 @@ data:
             .crit(lambda: "avg_percent_used" > critRate)
             .critReset(lambda: "avg_percent_used" < critReset)
             .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    <p>Usage: {{ index .Fields "avg_percent_used"  | printf "%0.2f" }}%</p>
+    ''')
             .email()
             .log('/var/lib/kapacitor/logs/high_cpu.log')
             .mode(0644)
@@ -96,6 +102,12 @@ data:
             .crit(lambda: "avg_percent_used" > critRate)
             .critReset(lambda: "avg_percent_used" < critReset)
             .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    <p>Usage: {{ index .Fields "avg_percent_used"  | printf "%0.2f" }}%</p>
+    ''')
             .email()
             .log('/var/lib/kapacitor/logs/high_memory.log')
             .mode(0644)
@@ -144,10 +156,10 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
-    Resource: {{ index .Tags "resource_id" }}
-    Usage: {{ index .Fields "percent_used"  | printf "%0.2f" }}%
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    <p>Resource: {{ index .Tags "resource_id" }}</p>
+    <p>Usage: {{ index .Fields "percent_used"  | printf "%0.2f" }}%</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/filesystem.log')
@@ -193,10 +205,10 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
-    Resource: {{ index .Tags "resource_id" }}
-    Usage: {{ index .Fields "percent_used_inodes"  | printf "%0.2f" }}%
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    <p>Resource: {{ index .Tags "resource_id" }}</p>
+    <p>Usage: {{ index .Fields "percent_used_inodes"  | printf "%0.2f" }}%</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/inodes.log')
@@ -239,9 +251,9 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
-    Uptime: {{ index .Fields "uptime" }} sec
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    <p>Uptime: {{ index .Fields "uptime" }} sec</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/uptime.log')
@@ -264,14 +276,14 @@ data:
 
     var trigger_etcd_up = data_etcd_up
         |alert()
-            .message('{{ .Level }} / ETCD: instance is down: {{ index .Tags "nodename" }}')
+            .message('{{ .Level }} / etcd: instance is down: {{ index .Tags "nodename" }}')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly(1h)
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/etcd_down.log')
@@ -289,14 +301,14 @@ data:
 
     var etcd_health_deadman = data_etcd_health
         |deadman(0.0, 5m)
-            .message('ETCD cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
+            .message('etcd cluster is {{ if eq .Level "OK" }}alive{{ else }}unhealthy{{ end }}')
             .email()
             .log('/var/lib/kapacitor/logs/etcd_health.log')
             .mode(0644)
 
     var trigger_etcd_health = data_etcd_health
         |alert()
-            .message('{{ .Level }} / ETCD: cluster is unhealthy')
+            .message('{{ .Level }} / etcd: cluster is unhealthy')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly(1h)
@@ -331,14 +343,14 @@ data:
 
     trigger_etcd_latency
         |alert()
-            .message('{{ .Level }} / ETCD: High latency between leader and follower {{ index .Tags "followerName" }}')
+            .message('{{ .Level }} / etcd: High latency between leader and follower {{ index .Tags "followerName" }}')
             .warn(lambda: "count.mean" > "v512.mean")
             .crit(lambda: "count.mean" > "v1024.mean")
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    ETCD instance: {{ index .Tags "followerName" }}
-    Latency greater than: {{ if eq .Level "WARNING" }}512{{ else }}1024{{ end }}ms
+    <p>Level: {{ .Level }}</p>
+    <p>etcd instance: {{ index .Tags "followerName" }}</p>
+    <p>Latency greater than: {{ if eq .Level "WARNING" }}512{{ else }}1024{{ end }}ms</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/etcd_latency.log')
@@ -372,8 +384,8 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/br_netfilter.log')
@@ -398,8 +410,8 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/ipv4_forwarding.log')
@@ -428,8 +440,8 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "nodename" }}
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/docker_health.log')
@@ -473,8 +485,8 @@ data:
             .stateChangesOnly()
             .details('''
     <b>{{ .Message }}</b>
-    Level: {{ .Level }}
-    Nodename: {{ index .Tags "node" }}
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "node" }}</p>
     ''')
             .email()
             .log('/var/lib/kapacitor/logs/kubernetes_health.log')
