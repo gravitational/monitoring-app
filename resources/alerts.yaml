@@ -36,7 +36,7 @@ data:
             .tolerance(30s)
             .streamName('percent_used')
         |eval(lambda: (float("usage_rate.value") * 100.0) / float("total.value"))
-            .as('percent_used')
+            .as('percent_usage')
         |mean('percent_usage')
             .as('avg_percent_used')
 
@@ -439,7 +439,7 @@ data:
     var period = 5m
     var every = 1m
     var data_influxdb_health = batch
-        |query('''SELECT * FROM "_internal"."monitor"."write"''')
+        |query('''SELECT * FROM "k8s"."default"."cpu/usage"''')
             .period(period)
             .every(every)
 
