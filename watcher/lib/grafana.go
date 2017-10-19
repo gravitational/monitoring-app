@@ -55,6 +55,7 @@ func (c *GrafanaClient) CreateDashboard(data string) error {
 
 	response, err := c.PostJSON(c.Endpoint("api", "dashboards", "db"), CreateDashboardRequest{
 		Dashboard: dashboardJSON,
+		Overwrite: true,
 	})
 	if err != nil {
 		return trace.Wrap(err)
