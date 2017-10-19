@@ -36,7 +36,7 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 
 // WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix in the system
 // namespace and submits them to the provided channel
-func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, ch chan<- string) {
+func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, ch chan<- map[string]string) {
 	for {
 		select {
 		case <-time.After(time.Second):
@@ -51,7 +51,7 @@ func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, c
 	}
 }
 
-func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- string) error {
+func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- map[string]string) error {
 	log.Infof("restarting watch")
 
 	watcher, err := c.ConfigMaps("kube-system").Watch(metav1.ListOptions{})
@@ -80,9 +80,7 @@ func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch c
 			}
 
 			log.Infof("detected configmap: %v", configMap.Name)
-			for _, v := range configMap.Data {
-				ch <- v
-			}
+			ch <- configMap.Data
 		case <-ctx.Done():
 			log.Infof("stopping watcher")
 			return nil
