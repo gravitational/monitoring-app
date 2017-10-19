@@ -30,7 +30,7 @@ func runRollupsWatcher() error {
 		return trace.Wrap(err)
 	}
 
-	ch := make(chan string)
+	ch := make(chan map[string]string)
 	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.RollupsPrefix, ch)
 	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
 	return nil
@@ -38,7 +38,7 @@ func runRollupsWatcher() error {
 
 // receiveAndCreateRollups listens on the provided channel that receives new rollups data and creates
 // them in InfluxDB using the provided client
-func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch <-chan string) {
+func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch <-chan map[string]string) {
 	for {
 		select {
 		case data, ok := <-ch:
@@ -47,17 +47,19 @@ func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch
 				return
 			}
 
-			var rollups []lib.Rollup
-			err := json.Unmarshal([]byte(data), &rollups)
-			if err != nil {
-				log.Errorf("failed to unmarshal: %v %v", data, trace.DebugReport(err))
-				continue
-			}
-
-			for _, rollup := range rollups {
-				err := client.CreateRollup(rollup)
+			for _, v := range data {
+				var rollups []lib.Rollup
+				err := json.Unmarshal([]byte(v), &rollups)
 				if err != nil {
-					log.Errorf("failed to create rollup: %v %v", rollup, trace.DebugReport(err))
+					log.Errorf("failed to unmarshal: %v %v", data, trace.DebugReport(err))
+					continue
+				}
+
+				for _, rollup := range rollups {
+					err := client.CreateRollup(rollup)
+					if err != nil {
+						log.Errorf("failed to create rollup: %v %v", rollup, trace.DebugReport(err))
+					}
 				}
 			}
 		case <-ctx.Done():
