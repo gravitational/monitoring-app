@@ -43,14 +43,122 @@ const (
 	PasswordEnv = "KAPACITOR_PASSWORD"
 )
 
-// ClientInterface represents a connection to a kapacitor instance
-type ClientInterface interface {
+// Client communicates to Kapacitor
+type Client struct {
+	clientInterface
+}
+
+// NewClient creates a client that interfaces with Kapacitor tasks
+func NewClient() (*Client, error) {
+	username := os.Getenv(UsernameEnv)
+	password := os.Getenv(PasswordEnv)
+
+	client, err := newClientInterface(APIAddress, username, password)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return &Client{
+		client,
+	}, nil
+}
+
+// Health checks the status of Kapacitor HTTP API
+func (k *Client) Health() error {
+	_, _, err := k.Ping()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// CreateAlert creates an alert task in Kapacitor
+func (k *Client) CreateAlert(name string, script string) error {
+	taskType := client.StreamTask
+	taskTypePipeline := pipeline.StreamEdge
+	if strings.Contains(name, "batch") {
+		taskType = client.BatchTask
+		taskTypePipeline = pipeline.BatchEdge
+	}
+
+	if err := validateTick(script, taskTypePipeline); err != nil {
+		return trace.Wrap(err)
+	}
+
+	policies := []client.DBRP{client.DBRP{
+		Database:        Database,
+		RetentionPolicy: RetentionPolicy,
+	}}
+
+	opts := client.CreateTaskOptions{
+		ID:         name,
+		Type:       taskType,
+		DBRPs:      policies,
+		TICKscript: script,
+		Status:     client.Enabled,
+	}
+
+	if _, err := k.CreateTask(opts); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// UpdateSMTPConfig updates Kapacitor SMTP configuration
+func (k *Client) UpdateSMTPConfig(host string, port int, username, password string) error {
+	link := k.ConfigElementLink("smtp", "")
+	updateAction := client.ConfigUpdateAction{
+		Set: map[string]interface{}{
+			"host":     host,
+			"port":     port,
+			"username": username,
+			"password": password,
+		},
+	}
+	return trace.Wrap(k.ConfigUpdate(link, updateAction))
+}
+
+// UpdateAlertTarget updates Kapacitor alert target configuration
+func (k *Client) UpdateAlertTarget(email string) error {
+	link := k.ConfigElementLink("smtp", "")
+	updateAction := client.ConfigUpdateAction{
+		Set: map[string]interface{}{
+			"to": []string{email},
+		},
+	}
+	return trace.Wrap(k.ConfigUpdate(link, updateAction))
+}
+
+func validateTick(script string, tickType pipeline.EdgeType) error {
+	scope := stateful.NewScope()
+	predefinedVars := map[string]tick.Var{}
+	_, err := pipeline.CreatePipeline(script, tickType, scope, &deadman{}, predefinedVars)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// deadman is an empty implementation of a kapacitor DeadmanService to allow CreatePipeline
+var _ pipeline.DeadmanService = &deadman{}
+
+type deadman struct{}
+
+func (d deadman) Interval() time.Duration { return 0 }
+func (d deadman) Threshold() float64      { return 0 }
+func (d deadman) Id() string              { return "" }
+func (d deadman) Message() string         { return "" }
+func (d deadman) Global() bool            { return false }
+
+// clientInterface represents a connection to a Kapacitor instance
+type clientInterface interface {
 	CreateTask(opt client.CreateTaskOptions) (client.Task, error)
+	ConfigUpdate(link client.Link, action client.ConfigUpdateAction) error
+	ConfigElementLink(section, element string) client.Link
 	Ping() (time.Duration, string, error)
 }
 
-// NewClientInterface creates a Kapacitor client connection
-func NewClientInterface(url, username, password string) (ClientInterface, error) {
+// newClientInterface creates a Kapacitor client connection
+func newClientInterface(url, username, password string) (clientInterface, error) {
 	var creds *client.Credentials
 	if username != "" && password != "" {
 		creds = &client.Credentials{
@@ -67,102 +175,15 @@ func NewClientInterface(url, username, password string) (ClientInterface, error)
 		return nil, trace.Wrap(err)
 	}
 
-	return &PaginatingClientInterface{clt, FetchRate}, nil
+	return &paginatingClient{clt, FetchRate}, nil
 }
 
-// ensure PaginatingClientInterface is a ClientInterface
-var _ ClientInterface = &PaginatingClientInterface{}
+// ensure paginatingClient is a clientInterface
+var _ clientInterface = &paginatingClient{}
 
-// PaginatingClientInterface is a Kapacitor client that automatically prefetches
+// paginatingClient is a Kapacitor client that automatically prefetches
 // data from kapacitor FetchRate elements at a time
-type PaginatingClientInterface struct {
-	ClientInterface
+type paginatingClient struct {
+	*client.Client
 	FetchRate int // specifies the number of elements to fetch from Kapacitor at a time
 }
-
-// Client communicates to Kapacitor
-type Client struct {
-	ClientInterface
-}
-
-// NewClient creates a client that interfaces with Kapacitor tasks
-func NewClient() (*Client, error) {
-	username := os.Getenv(UsernameEnv)
-	password := os.Getenv(PasswordEnv)
-
-	kapaClient, err := NewClientInterface(APIAddress, username, password)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return &Client{
-		kapaClient,
-	}, nil
-}
-
-// Health checks the status of Kapacitor HTTP API
-func (k *Client) Health() error {
-	_, _, err := k.Ping()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	return nil
-}
-
-// CreateAlert creates alert task in Kapacitor
-func (k *Client) CreateAlert(name string, script string) error {
-	taskType := client.StreamTask
-	taskTypePipeline := pipeline.StreamEdge
-	if strings.Contains(name, "batch") {
-		taskType = client.BatchTask
-		taskTypePipeline = pipeline.BatchEdge
-	}
-
-	if err := validateTick(script, taskTypePipeline); err != nil {
-		return trace.Wrap(err)
-	}
-
-	dbrps := []client.DBRP{client.DBRP{
-		Database:        Database,
-		RetentionPolicy: RetentionPolicy,
-	}}
-
-	opts := client.CreateTaskOptions{
-		ID:         name,
-		Type:       taskType,
-		DBRPs:      dbrps,
-		TICKscript: script,
-		Status:     client.Enabled,
-	}
-
-	if _, err := k.CreateTask(opts); err != nil {
-		return trace.Wrap(err)
-	}
-	return nil
-}
-
-func validateTick(script string, tickType pipeline.EdgeType) error {
-	scope := stateful.NewScope()
-	predefinedVars := map[string]tick.Var{}
-	_, err := pipeline.CreatePipeline(script, tickType, scope, &deadman{}, predefinedVars)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	return nil
-}
-
-// deadman is an empty implementation of a kapacitor DeadmanService to allow CreatePipeline
-var _ pipeline.DeadmanService = &deadman{}
-
-type deadman struct {
-	interval  time.Duration
-	threshold float64
-	id        string
-	message   string
-	global    bool
-}
-
-func (d deadman) Interval() time.Duration { return d.interval }
-func (d deadman) Threshold() float64      { return d.threshold }
-func (d deadman) Id() string              { return d.id }
-func (d deadman) Message() string         { return d.message }
-func (d deadman) Global() bool            { return d.global }

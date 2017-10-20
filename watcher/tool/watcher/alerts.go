@@ -18,54 +18,208 @@ package main
 
 import (
 	"context"
+	"strconv"
+
+	"k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/gravitational/monitoring-app/watcher/lib"
 	"github.com/gravitational/monitoring-app/watcher/lib/kapacitor"
 
+	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func runAlertsWatcher() error {
-	kubernetesClient, err := lib.NewKubernetesClient()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
+func runAlertsWatcher(kubernetesClient *lib.KubernetesClient) error {
 	kapacitorClient, err := kapacitor.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	ch := make(chan map[string]string)
-	alertLabel := &lib.KubernetesLabel{
-		Key:   AlertsLabelKey,
-		Value: AlertsLabelValue,
+	alertCh := make(chan map[string]string)
+	alertTargetCh := make(chan map[string]string)
+	alertLabel := lib.KubernetesLabel{
+		Key:   lib.MonitoringLabel,
+		Value: lib.MonitoringUpdateAlert,
 	}
-	go kubernetesClient.WatchConfigMaps(context.TODO(), "", alertLabel, ch)
-	receiveAndCreateAlerts(context.TODO(), kapacitorClient, ch)
+	configmaps := []lib.ConfigMap{
+		{lib.MatchLabel(alertLabel), alertCh},
+		{lib.MatchName(lib.AlertTargetConfigMap), alertTargetCh},
+	}
+	smtpCh := make(chan map[string][]byte)
+	secrets := []lib.Secret{
+		{lib.MatchName(lib.SmtpSecret), smtpCh},
+	}
+
+	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
+	go kubernetesClient.WatchSecrets(context.TODO(), secrets...)
+	receiverLoop(context.TODO(), kubernetesClient.Clientset, kapacitorClient,
+		alertCh, alertTargetCh, smtpCh)
 
 	return nil
 }
 
-func receiveAndCreateAlerts(ctx context.Context, client *kapacitor.Client, ch <-chan map[string]string) {
+func receiverLoop(ctx context.Context, kubeClient *kubernetes.Clientset, kClient *kapacitor.Client,
+	alertCh, alertTargetCh <-chan map[string]string, smtpCh <-chan map[string][]byte) {
 	for {
 		select {
-		case data, ok := <-ch:
-			if !ok {
-				log.Warn("alerts channel closed")
-				return
+		case update := <-alertCh:
+			spec := []byte(update[lib.ResourceSpecKey])
+			if err := createAlert(kClient, spec); err != nil {
+				log.Warnf("failed to create alert: %v", trace.DebugReport(err))
 			}
-
-			for k, v := range data {
-				err := client.CreateAlert(k, v)
-				if err != nil {
-					log.Errorf("failed to create alert task: %v", trace.DebugReport(err))
-				}
+		case update := <-smtpCh:
+			spec := update[lib.ResourceSpecKey]
+			client := kubeClient.Secrets(api.NamespaceSystem)
+			if err := updateSMTPConfig(client, kClient, spec); err != nil {
+				log.Warnf("failed to update SMTP configuration: %v", trace.DebugReport(err))
+			}
+		case update := <-alertTargetCh:
+			spec := []byte(update[lib.ResourceSpecKey])
+			client := kubeClient.ConfigMaps(api.NamespaceSystem)
+			if err := updateAlertTarget(client, kClient, spec); err != nil {
+				log.Warnf("failed to update alert target: %v", trace.DebugReport(err))
 			}
 		case <-ctx.Done():
-			log.Debugln("stopping")
+			log.Debug("stopping")
 			return
 		}
 	}
+}
+
+func createAlert(client *kapacitor.Client, spec []byte) error {
+	var alert alert
+	err := yaml.Unmarshal(spec, &alert)
+	if err != nil {
+		return trace.Wrap(err, "failed to unmarshal %s", spec)
+	}
+
+	err = client.CreateAlert(alert.Name, alert.Spec.Formula)
+	if err != nil {
+		return trace.Wrap(err, "failed to create task")
+	}
+	return nil
+}
+
+func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte) error {
+	log.Debugf("update SMTP config from spec %s", spec)
+	var config smtpConfig
+	err := yaml.Unmarshal(spec, &config)
+	if err != nil {
+		return trace.Wrap(err, "failed to unmarshal %s", spec)
+	}
+
+	portS := strconv.FormatInt(int64(config.Spec.Port), 10)
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.KapacitorSMTPSecret,
+			Namespace: api.NamespaceSystem,
+		},
+		Data: map[string][]byte{
+			"host": []byte(config.Spec.Host),
+			"port": []byte(portS),
+			"user": []byte(config.Spec.Username),
+			"pass": []byte(config.Spec.Password),
+		},
+	}
+
+	_, err = client.Update(secret)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = kClient.UpdateSMTPConfig(config.Spec.Host, config.Spec.Port, config.Spec.Username,
+		config.Spec.Password)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte) error {
+	log.Debugf("update alert target from spec %s", spec)
+	var target alertTarget
+	err := yaml.Unmarshal(spec, &target)
+	if err != nil {
+		return trace.Wrap(err, "failed to unmarshal %s", spec)
+	}
+
+	config := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.KapacitorAlertTargetConfigMap,
+			Namespace: api.NamespaceSystem,
+		},
+		Data: map[string]string{
+			"from": lib.KapacitorAlertFrom,
+			"to":   target.Spec.Email,
+		},
+	}
+
+	_, err = client.Update(config)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	err = kClient.UpdateAlertTarget(target.Spec.Email)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+// alert defines the monitoring alert resource
+type alert struct {
+	Metadata `json:"metadata" yaml:"metadata"`
+	// Spec defines the alert
+	Spec alertSpec `json:"spec" yaml:"spec"`
+}
+
+// smtpConfig defines the cluster SMTP configuration resource
+type smtpConfig struct {
+	Metadata `json:"metadata" yaml:"metadata"`
+	// Spec defines the SMTP configuration
+	Spec smtpConfigSpec `json:"spec" yaml:"spec"`
+}
+
+// alertTarget defines the monitoring alert target resource
+type alertTarget struct {
+	Metadata `json:"metadata" yaml:"metadata"`
+	// Spec defines the alert target
+	Spec alertTargetSpec `json:"spec" yaml:"spec"`
+}
+
+// Metadata defines the common resource metadata
+type Metadata struct {
+	// Name is the name of the resource
+	Name string `json:"name" yaml:"name"`
+}
+
+// alertSpec defines a monitoring alert
+type alertSpec struct {
+	// Formula specifies the Kapacitor formula
+	Formula string `json:"formula" yaml:"formula"`
+}
+
+// smtpConfigSpec defines a SMTP configuration
+type smtpConfigSpec struct {
+	// Host specifies the SMTP service host
+	Host string `json:"host" yaml:"host"`
+	// Port specifies the SMTP service port
+	Port int `json:"port" yaml:"port"`
+	// Username specifies the name of the user to connect
+	Username string `json:"username" yaml:"username"`
+	// Password specifies the password to connect
+	Password string `json:"password" yaml:"password"`
+}
+
+// alertTargetSpec defines a monitoring alert target
+type alertTargetSpec struct {
+	// Email specifies the recipient's email
+	Email string `json:"email" yaml:"email"`
 }

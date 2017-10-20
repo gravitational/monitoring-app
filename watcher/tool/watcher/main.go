@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/monitoring-app/watcher/lib"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -15,21 +15,30 @@ func main() {
 	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", lib.AllModes))
 	flag.Parse()
 
-	if !lib.OneOf(mode, lib.AllModes) {
-		fmt.Printf("invalid mode")
-		os.Exit(255)
+	client, err := lib.NewKubernetesClient()
+	if err != nil {
+		exitWithError(err)
 	}
 
-	var err error
-	if mode == lib.ModeDashboards {
-		err = runDashboardsWatcher()
-	} else {
-		err = runRollupsWatcher()
+	switch mode {
+	case lib.ModeDashboards:
+		err = runDashboardsWatcher(client)
+	case lib.ModeRollups:
+		err = runRollupsWatcher(client)
+	case lib.ModeAlerts:
+		err = runAlertsWatcher(client)
+	default:
+		fmt.Printf("ERROR: unknown mode %q\n", mode)
+		os.Exit(255)
 	}
 
 	if err != nil {
-		log.Error(trace.DebugReport(err))
-		fmt.Printf("ERROR: %v\n", err.Error())
-		os.Exit(255)
+		exitWithError(err)
 	}
+}
+
+func exitWithError(err error) {
+	log.Error(trace.DebugReport(err))
+	fmt.Printf("ERROR: %v\n", err.Error())
+	os.Exit(255)
 }

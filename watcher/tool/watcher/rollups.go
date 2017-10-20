@@ -9,12 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func runRollupsWatcher() error {
-	kubernetesClient, err := lib.NewKubernetesClient()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
+func runRollupsWatcher(kubernetesClient *lib.KubernetesClient) error {
 	influxDBClient, err := lib.NewInfluxDBClient()
 	if err != nil {
 		return trace.Wrap(err)
@@ -31,7 +26,7 @@ func runRollupsWatcher() error {
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.RollupsPrefix, &lib.KubernetesLabel{}, ch)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.ConfigMap{lib.MatchPrefix(lib.RollupsPrefix), ch})
 	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
 	return nil
 }
@@ -41,12 +36,7 @@ func runRollupsWatcher() error {
 func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch <-chan map[string]string) {
 	for {
 		select {
-		case data, ok := <-ch:
-			if !ok {
-				log.Warningf("rollups channel closed")
-				return
-			}
-
+		case data := <-ch:
 			for _, v := range data {
 				var rollups []lib.Rollup
 				err := json.Unmarshal([]byte(v), &rollups)
@@ -63,7 +53,7 @@ func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch
 				}
 			}
 		case <-ctx.Done():
-			log.Infof("stopping")
+			log.Debug("stopping")
 			return
 		}
 	}

@@ -9,6 +9,10 @@ const (
 	// ModeRollups is the mode in which watcher polls for new rollups
 	ModeRollups = "rollups"
 
+	// ModeAlerts is the mode in which watcher polls for new alerts and
+	// monitoring configuration updates
+	ModeAlerts = "alerts"
+
 	// GrafanaAPIAddress is the API address of Grafana running in the same pod
 	GrafanaAPIAddress = "http://localhost:3000"
 
@@ -74,15 +78,46 @@ const (
 	// FunctionPercentile is the percentile function
 	FunctionPercentile = "percentile"
 
-	// AlertsLabelKey is the label key of configmaps with alerts data for Kapacitor
-	AlertsLabelKey = "monitoring"
-	// AlertsLabelValue is the label value of configmaps with alerts data for Kapacitor
-	AlertsLabelValue = "alert"
+	// MonitoringLabel is the label for resources with configuration updates
+	MonitoringLabel = "monitoring"
+	// MonitoringUpdateAlert defines the update for an alert
+	MonitoringUpdateAlert = "alert"
+	// MonitoringUpdateAlertTarget defines the update for an alert target
+	MonitoringUpdateAlertTarget = "alerttarget"
+
+	// ResourceSpecKey specifies the name of the key with raw resource specification
+	ResourceSpecKey = "spec"
+
+	// SmtpSecret specifies the name of the secret with SMTP configuration update
+	SmtpSecret = "smtp-configuration-update"
+	// AlertTargetConfigMap specifies the name of the configmap with alert target update
+	AlertTargetConfigMap = "alert-target-update"
+
+	// KapacitorAlertFrom specifies default sender's email for alert email notifications
+	KapacitorAlertFrom = "noreply@gravitational.com"
+
+	// KapacitorSMTPSecret specifies the name of the kapacitor's SMTP configuration secret
+	KapacitorSMTPSecret = "smtp-configuration"
+
+	// KapacitorAlertTargetConfigMap specifies the name of the kapacitor's alert target configmap
+	KapacitorAlertTargetConfigMap = "alerting-addresses"
+
+	// AppLabel specifies the name of the label to define the type of an application
+	AppLabel = "app"
+	// ComponentLabel specifies the name of the label to define a sub-component
+	ComponentLabel = "component"
+
+	// MonitoringApp defines the monitoring application label
+	MonitoringApp = "monitoring"
+
+	// ComponentKapacitor defines the Kapacitor monitoring application component
+	ComponentKapacitor = "kapacitor"
 )
 
 var (
 	// AllModes contains names of all modes the watcher can run in
 	AllModes = []string{
+		ModeAlerts,
 		ModeDashboards,
 		ModeRollups,
 	}

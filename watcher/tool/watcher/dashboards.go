@@ -8,12 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func runDashboardsWatcher() error {
-	kubernetesClient, err := lib.NewKubernetesClient()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
+func runDashboardsWatcher(kubernetesClient *lib.KubernetesClient) error {
 	grafanaClient, err := lib.NewGrafanaClient()
 	if err != nil {
 		return trace.Wrap(err)
@@ -25,7 +20,8 @@ func runDashboardsWatcher() error {
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.DashboardPrefix, &lib.KubernetesLabel{}, ch)
+	go kubernetesClient.WatchConfigMaps(context.TODO(),
+		lib.ConfigMap{lib.MatchPrefix(lib.DashboardPrefix), ch})
 	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
 }
@@ -35,12 +31,7 @@ func runDashboardsWatcher() error {
 func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, ch <-chan map[string]string) {
 	for {
 		select {
-		case data, ok := <-ch:
-			if !ok {
-				log.Warningf("dashboards channel closed")
-				return
-			}
-
+		case data := <-ch:
 			for _, v := range data {
 				err := client.CreateDashboard(v)
 
@@ -49,7 +40,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, 
 				}
 			}
 		case <-ctx.Done():
-			log.Debugln("stopping")
+			log.Debug("stopping")
 			return
 		}
 	}
