@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/context"
 	. "gopkg.in/check.v1"
@@ -105,7 +105,6 @@ func (s *TraceSuite) TestWrapStdlibErrors(c *C) {
 }
 
 func (s *TraceSuite) TestLogFormatter(c *C) {
-
 	for _, f := range []log.Formatter{&TextFormatter{}, &JSONFormatter{}} {
 		log.SetFormatter(f)
 
@@ -120,6 +119,113 @@ func (s *TraceSuite) TestLogFormatter(c *C) {
 		log.SetOutput(buf)
 		log.WithFields(log.Fields{"a": "b"}).Infof("hello")
 		c.Assert(line(buf.String()), Matches, ".*trace_test.go.*")
+	}
+}
+
+type panicker string
+
+func (p panicker) String() string {
+	panic(p)
+}
+
+func (s *TraceSuite) TestTextFormatter(c *C) {
+	padding := 6
+	f := &TextFormatter{
+		DisableTimestamp: true,
+		ComponentPadding: padding,
+	}
+	log.SetFormatter(f)
+
+	type testCase struct {
+		log     func()
+		match   string
+		comment string
+	}
+
+	testCases := []testCase{
+		{
+			comment: "padding fits in",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "test",
+				}).Infof("hello")
+			},
+			match: `^INFO \[TEST\] hello.*`,
+		},
+		{
+			comment: "padding overflow",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "longline",
+				}).Infof("hello")
+			},
+			match: `^INFO \[LONG\] hello.*`,
+		},
+		{
+			comment: "padded with extra spaces",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "abc",
+				}).Infof("hello")
+			},
+			match: `^INFO \[ABC\]  hello.*`,
+		},
+		{
+			comment: "missing component will be padded",
+			log: func() {
+				log.Infof("hello")
+			},
+			match: `^INFO        hello.*`,
+		},
+		{
+			comment: "panic in component is handled",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: panicker("panic"),
+				}).Infof("hello")
+			},
+			match: `.*panic.*`,
+		},
+		{
+			comment: "nested fields are reflected",
+			log: func() {
+				log.WithFields(log.Fields{
+					ComponentFields: log.Fields{"key": "value"},
+				}).Infof("hello")
+			},
+			match: `.*key:value.*`,
+		},
+		{
+			comment: "fields are reflected",
+			log: func() {
+				log.WithFields(log.Fields{
+					"a": "b",
+				}).Infof("hello")
+			},
+			match: `.*a:b.*`,
+		},
+		{
+			comment: "non control characters are quoted",
+			log: func() {
+				log.Infof("\n")
+			},
+			match: `.*"\\n".*`,
+		},
+		{
+			comment: "printable strings are not quoted",
+			log: func() {
+				log.Infof("printable string")
+			},
+			match: `.*[^"]printable string[^"].*`,
+		},
+	}
+
+	for i, tc := range testCases {
+		comment := Commentf("test case %v %v, expected match: %v", i+1, tc.comment, tc.match)
+		buf := &bytes.Buffer{}
+		log.SetOutput(buf)
+		tc.log()
+		c.Assert(line(buf.String()), Matches, tc.match, comment)
 	}
 }
 
@@ -206,6 +312,18 @@ func (s *TraceSuite) TestWriteExternalErrors(c *C) {
 	WriteError(w, err)
 	c.Assert(w.StatusCode, Equals, http.StatusInternalServerError)
 	c.Assert(strings.Replace(string(w.Body), "\n", "", -1), Matches, "*.snap.*")
+}
+
+type netError struct {
+}
+
+func (e *netError) Error() string   { return "net" }
+func (e *netError) Timeout() bool   { return true }
+func (e *netError) Temporary() bool { return true }
+
+func (s *TraceSuite) TestConvert(c *C) {
+	err := ConvertSystemError(&netError{})
+	c.Assert(IsConnectionProblem(err), Equals, true, Commentf("failed to detect network error"))
 }
 
 func (s *TraceSuite) TestAggregates(c *C) {

@@ -236,10 +236,9 @@ func ConvertSystemError(err error) error {
 	}
 	switch realErr := innerError.(type) {
 	case *net.OpError:
-		message := fmt.Sprintf("failed to connect to server %v", realErr.Addr)
 		return WrapWithMessage(&ConnectionProblemError{
-			Message: message,
-			Err:     realErr}, message)
+			Message: realErr.Error(),
+			Err:     realErr}, realErr.Error())
 	case *os.PathError:
 		message := fmt.Sprintf("failed to execute command %v error:  %v", realErr.Path, realErr.Err)
 		return WrapWithMessage(&AccessDeniedError{
@@ -247,9 +246,13 @@ func ConvertSystemError(err error) error {
 		}, message)
 	case x509.SystemRootsError, x509.UnknownAuthorityError:
 		return wrapWithDepth(&TrustError{Err: innerError}, 2)
-	default:
-		return err
 	}
+	if _, ok := innerError.(net.Error); ok {
+		return WrapWithMessage(&ConnectionProblemError{
+			Message: innerError.Error(),
+			Err:     innerError}, innerError.Error())
+	}
+	return err
 }
 
 // ConnectionProblem returns new instance of ConnectionProblemError
@@ -268,7 +271,10 @@ type ConnectionProblemError struct {
 
 // Error is debug - friendly error message
 func (c *ConnectionProblemError) Error() string {
-	return fmt.Sprintf("%v: %v", c.Message, c.Err)
+	if c.Err == nil {
+		return c.Message
+	}
+	return c.Err.Error()
 }
 
 // IsConnectionProblemError indicates that this error is of ConnectionProblemError type
@@ -395,4 +401,45 @@ func IsOAuth2(e error) bool {
 // IsEOF returns true if the passed error is io.EOF
 func IsEOF(e error) bool {
 	return Unwrap(e) == io.EOF
+}
+
+// Retry return new instance of RetryError which indicates a transient error type
+func Retry(err error, message string, args ...interface{}) error {
+	return WrapWithMessage(&RetryError{
+		Message: fmt.Sprintf(message, args...),
+		Err:     err,
+	}, message, args...)
+}
+
+// RetryError indicates a transient error type
+type RetryError struct {
+	Message string `json:"message"`
+	Err     error  `json:"-"`
+}
+
+// Error is debug-friendly error message
+func (c *RetryError) Error() string {
+	if c.Err == nil {
+		return c.Message
+	}
+	return c.Err.Error()
+}
+
+// IsRetryError indicates that this error is of RetryError type
+func (c *RetryError) IsRetryError() bool {
+	return true
+}
+
+// OrigError returns original error (in this case this is the error itself)
+func (c *RetryError) OrigError() error {
+	return c
+}
+
+// IsRetryError returns whether this error is of ConnectionProblemError
+func IsRetryError(e error) bool {
+	type ad interface {
+		IsRetryError() bool
+	}
+	_, ok := Unwrap(e).(ad)
+	return ok
 }

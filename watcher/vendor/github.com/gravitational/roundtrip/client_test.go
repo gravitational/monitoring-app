@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -49,9 +50,10 @@ func (s *ClientSuite) TestPostForm(c *C) {
 	var form url.Values
 	var method string
 	var user, pass string
-	var ok bool
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 		u = r.URL
 		c.Assert(r.ParseForm(), IsNil)
 		form = r.Form
@@ -75,9 +77,10 @@ func (s *ClientSuite) TestPostForm(c *C) {
 
 func (s *ClientSuite) TestAddAuth(c *C) {
 	var user, pass string
-	var ok bool
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 		io.WriteString(w, "hello back")
 	})
 	defer srv.Close()
@@ -96,11 +99,12 @@ func (s *ClientSuite) TestAddAuth(c *C) {
 func (s *ClientSuite) TestPostJSON(c *C) {
 	var data interface{}
 	var user, pass string
-	var ok bool
 	var method string
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		method = r.Method
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 		err := json.NewDecoder(r.Body).Decode(&data)
 		c.Assert(err, IsNil)
 	})
@@ -183,14 +187,29 @@ func (s *ClientSuite) TestGet(c *C) {
 	c.Assert(query, DeepEquals, values)
 }
 
+func (s *ClientSuite) TestTracer(c *C) {
+	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+	})
+	defer srv.Close()
+
+	out := &bytes.Buffer{}
+
+	clt := newC(srv.URL, "v1", Tracer(func() RequestTracer {
+		return NewWriterTracer(out)
+	}))
+	clt.Get(clt.Endpoint("a", "b"), url.Values{"q": []string{"1", "2"}})
+	c.Assert(out.String(), Matches, ".*a/b.*")
+}
+
 func (s *ClientSuite) TestGetFile(c *C) {
 	fileName := filepath.Join(c.MkDir(), "file.txt")
 	err := ioutil.WriteFile(fileName, []byte("hello there"), 0666)
 	c.Assert(err, IsNil)
 	var user, pass string
-	var ok bool
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%v`, "file.txt"))
 		http.ServeFile(w, r, fileName)
 	})
@@ -247,10 +266,11 @@ func (s *ClientSuite) TestOpenFile(c *C) {
 	defer os.RemoveAll(file.Name())
 
 	now := time.Now().UTC()
-	var ok bool
 	var user, pass string
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%v`, file.Name()))
 		http.ServeContent(w, r, file.Name(), now, file)
 	})
@@ -310,14 +330,56 @@ func (s *ClientSuite) TestCustomClient(c *C) {
 }
 
 func (s *ClientSuite) TestPostMultipartForm(c *C) {
+	files := []File{
+		File{
+			Name:     "a",
+			Filename: "a.json",
+			Reader:   strings.NewReader("file 1"),
+		},
+		File{
+			Name:     "a",
+			Filename: "b.json",
+			Reader:   strings.NewReader("file 2"),
+		},
+	}
+	expected := [][]byte{[]byte("file 1"), []byte("file 2")}
+	s.testPostMultipartForm(c, files, expected)
+}
+
+func (s *ClientSuite) TestPostMultipartFormLargeFile(c *C) {
+	buffer := make([]byte, 1024<<10)
+	rand.Read(buffer)
+	files := []File{
+		File{
+			Name:     "a",
+			Filename: "a.json",
+			Reader:   strings.NewReader("file 1"),
+		},
+		File{
+			Name:     "a",
+			Filename: "b.json",
+			Reader:   strings.NewReader("file 2"),
+		},
+		File{
+			Name:     "a",
+			Filename: "c",
+			Reader:   bytes.NewReader(buffer),
+		},
+	}
+	expected := [][]byte{[]byte("file 1"), []byte("file 2"), buffer}
+	s.testPostMultipartForm(c, files, expected)
+}
+
+func (s *ClientSuite) testPostMultipartForm(c *C, files []File, expected [][]byte) {
 	var u *url.URL
 	var params url.Values
 	var method string
-	var data []string
+	var data [][]byte
 	var user, pass string
-	var ok bool
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 		u = r.URL
 		c.Assert(r.ParseMultipartForm(64<<20), IsNil)
 		params = r.Form
@@ -332,7 +394,7 @@ func (s *ClientSuite) TestPostMultipartForm(c *C) {
 			c.Assert(err, IsNil)
 			val, err := ioutil.ReadAll(f)
 			c.Assert(err, IsNil)
-			data = append(data, string(val))
+			data = append(data, val)
 		}
 
 		io.WriteString(w, "hello back")
@@ -345,14 +407,7 @@ func (s *ClientSuite) TestPostMultipartForm(c *C) {
 	out, err := clt.PostForm(
 		clt.Endpoint("a", "b"),
 		values,
-		File{
-			Name:     "a",
-			Filename: "a.json",
-			Reader:   strings.NewReader("file 1")},
-		File{
-			Name:     "a",
-			Filename: "a.json",
-			Reader:   strings.NewReader("file 2")},
+		files...,
 	)
 
 	c.Assert(err, IsNil)
@@ -361,7 +416,7 @@ func (s *ClientSuite) TestPostMultipartForm(c *C) {
 
 	c.Assert(method, Equals, "POST")
 	c.Assert(params, DeepEquals, values)
-	c.Assert(data, DeepEquals, []string{"file 1", "file 2"})
+	c.Assert(data, DeepEquals, expected)
 
 	c.Assert(user, Equals, "user")
 	c.Assert(pass, Equals, "pass")
@@ -369,9 +424,10 @@ func (s *ClientSuite) TestPostMultipartForm(c *C) {
 
 func (s *ClientSuite) TestGetBasicAuth(c *C) {
 	var user, pass string
-	var ok bool
 	srv := serveHandler(func(w http.ResponseWriter, r *http.Request) {
+		var ok bool
 		user, pass, ok = r.BasicAuth()
+		c.Assert(ok, Equals, true)
 	})
 	defer srv.Close()
 
@@ -430,6 +486,18 @@ func (s *ClientSuite) TestEndpoint(c *C) {
 	c.Assert(client.Endpoint("api", "resource"), Equals, "http://localhost/v1/api/resource")
 	client = newC("http://localhost", "")
 	c.Assert(client.Endpoint("api", "resource"), Equals, "http://localhost/api/resource")
+}
+
+func (s *ClientSuite) TestLimitsWrites(c *C) {
+	var buf bytes.Buffer
+	w := &limitWriter{&buf, 10}
+	input := []byte("The quick brown fox jumps over the lazy dog")
+	r := bytes.NewReader(input)
+	_, err := io.Copy(w, r)
+	c.Assert(err, Equals, errShortWrite)
+	c.Assert(buf.Bytes(), DeepEquals, input[:10])
+	out, err := ioutil.ReadAll(r)
+	c.Assert(out, DeepEquals, input[10:], Commentf("expected %q but got %q", input[10:], out))
 }
 
 func newC(addr, version string, params ...ClientParam) *testClient {
