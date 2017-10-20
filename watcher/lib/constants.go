@@ -21,7 +21,7 @@ const (
 	// DashboardPrefix is the prefix of configmaps with dashboards data
 	DashboardPrefix = "dashboard-"
 
-	// pollInterval is interval between attempts to reach API
+	// PollInterval is interval between attempts to reach API
 	PollInterval = 2 * time.Second
 
 	// InfluxDBAPIAddress if the API address of InfluxDB running in the same pod
@@ -73,6 +73,11 @@ const (
 	FunctionMin = "min"
 	// FunctionPercentile is the percentile function
 	FunctionPercentile = "percentile"
+
+	// AlertsLabelKey is the label key of configmaps with alerts data for Kapacitor
+	AlertsLabelKey = "monitoring"
+	// AlertsLabelValue is the label value of configmaps with alerts data for Kapacitor
+	AlertsLabelValue = "alert"
 )
 
 var (

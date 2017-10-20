@@ -5,14 +5,21 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/1.4/kubernetes"
 	"k8s.io/client-go/1.4/pkg/api"
 	"k8s.io/client-go/1.4/pkg/api/v1"
 	"k8s.io/client-go/1.4/pkg/watch"
 	"k8s.io/client-go/1.4/rest"
 )
+
+// KubernetesLabel represents Kubernetes label which is used
+// as a search target for ConfigMaps
+type KubernetesLabel struct {
+	Key   string
+	Value string
+}
 
 // KubernetesClient is the Kubernetes API client
 type KubernetesClient struct {
@@ -34,13 +41,13 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 	return &KubernetesClient{Clientset: client}, nil
 }
 
-// WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix in the system
-// namespace and submits them to the provided channel
-func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, ch chan<- string) {
+// WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix or label
+// in the system namespace and submits them to the provided channel
+func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, label *KubernetesLabel, ch chan<- map[string]string) {
 	for {
 		select {
 		case <-time.After(time.Second):
-			err := c.restartWatch(ctx, prefix, ch)
+			err := c.restartWatch(ctx, prefix, label, ch)
 			if err != nil {
 				log.Errorf(trace.DebugReport(err))
 			}
@@ -51,7 +58,7 @@ func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, c
 	}
 }
 
-func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- string) error {
+func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, label *KubernetesLabel, ch chan<- map[string]string) error {
 	log.Infof("restarting watch")
 
 	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
@@ -74,15 +81,21 @@ func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch c
 			}
 
 			configMap := event.Object.(*v1.ConfigMap)
-			if !strings.HasPrefix(configMap.Name, prefix) {
-				log.Infof("ignoring configmap: %v", configMap.Name)
-				continue
+			if label != nil {
+				for k, v := range configMap.Labels {
+					if k == label.Key && v == label.Value {
+						break
+					}
+				}
+			} else {
+				if !strings.HasPrefix(configMap.Name, prefix) {
+					log.Infof("ignoring configmap: %v", configMap.Name)
+					continue
+				}
 			}
 
 			log.Infof("detected configmap: %v", configMap.Name)
-			for _, v := range configMap.Data {
-				ch <- v
-			}
+			ch <- configMap.Data
 		case <-ctx.Done():
 			log.Infof("stopping watcher")
 			return nil

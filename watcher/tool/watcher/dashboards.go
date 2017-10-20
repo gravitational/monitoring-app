@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/monitoring-app/watcher/lib"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 func runDashboardsWatcher() error {
@@ -24,15 +24,15 @@ func runDashboardsWatcher() error {
 		return trace.Wrap(err)
 	}
 
-	ch := make(chan string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.DashboardPrefix, ch)
+	ch := make(chan map[string]string)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.DashboardPrefix, &lib.KubernetesLabel{}, ch)
 	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
 }
 
 // receiveAndCreateDashboards listens on the provided channel that receives new dashboards data and creates
 // them in Grafana using the provided client
-func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, ch <-chan string) {
+func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, ch <-chan map[string]string) {
 	for {
 		select {
 		case data, ok := <-ch:
@@ -41,12 +41,15 @@ func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, 
 				return
 			}
 
-			err := client.CreateDashboard(data)
-			if err != nil {
-				log.Errorf("failed to create dashboard: %v", trace.DebugReport(err))
+			for _, v := range data {
+				err := client.CreateDashboard(v)
+
+				if err != nil {
+					log.Errorf("failed to create dashboard: %v", trace.DebugReport(err))
+				}
 			}
 		case <-ctx.Done():
-			log.Infof("stopping")
+			log.Debugln("stopping")
 			return
 		}
 	}
