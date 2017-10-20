@@ -14,6 +14,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// KubernetesLabel represents Kubernetes label which is used
+// as a search target for ConfigMaps
+type KubernetesLabel struct {
+	key   string
+	value string
+}
+
 // KubernetesClient is the Kubernetes API client
 type KubernetesClient struct {
 	*kubernetes.Clientset
@@ -36,7 +43,7 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 
 // WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix or label
 // in the system namespace and submits them to the provided channel
-func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, label string, ch chan<- map[string]string) {
+func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, label *KubernetesLabel, ch chan<- map[string]string) {
 	for {
 		select {
 		case <-time.After(time.Second):
@@ -51,7 +58,7 @@ func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, l
 	}
 }
 
-func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, label string, ch chan<- map[string]string) error {
+func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, label *KubernetesLabel, ch chan<- map[string]string) error {
 	log.Infof("restarting watch")
 
 	watcher, err := c.ConfigMaps("kube-system").Watch(metav1.ListOptions{})
@@ -74,9 +81,9 @@ func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, labe
 			}
 
 			configMap := event.Object.(*v1.ConfigMap)
-			if label != "" {
-				for key := range configMap.Labels {
-					if key == AlertsLabel {
+			if label != nil {
+				for k, v := range configMap.Labels {
+					if k == label.key && v == label.value {
 						break
 					}
 				}

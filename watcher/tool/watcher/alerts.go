@@ -38,7 +38,11 @@ func runAlertsWatcher() error {
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), "", lib.AlertsLabel, ch)
+	alertLabel := &lib.KubernetesLabel{
+		key:   AlertsLabelKey,
+		value: AlertsLabelValue,
+	}
+	go kubernetesClient.WatchConfigMaps(context.TODO(), "", alertLabel, ch)
 	receiveAndCreateAlerts(context.TODO(), kapacitorClient, ch)
 
 	return nil
