@@ -34,5 +34,13 @@
   branch = "master"
 
 [[constraint]]
+  branch = "release-1.7"
+  name = "k8s.io/apimachinery"
+
+[[constraint]]
+  version = "v4.0.0"
   name = "k8s.io/client-go"
-  version = "1.4.0"
+
+[[override]]
+  name = "github.com/ugorji/go"
+  revision = "9c7f9b7a2bc3a520f7c7b30b34b7f85f47fe27b6"

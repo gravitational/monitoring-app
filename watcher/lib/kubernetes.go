@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/trace"
-	"k8s.io/client-go/1.4/kubernetes"
-	"k8s.io/client-go/1.4/pkg/api"
-	"k8s.io/client-go/1.4/pkg/api/v1"
-	"k8s.io/client-go/1.4/pkg/watch"
-	"k8s.io/client-go/1.4/rest"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/rest"
 )
 
 // KubernetesClient is the Kubernetes API client
@@ -54,7 +54,7 @@ func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, c
 func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- string) error {
 	log.Infof("restarting watch")
 
-	watcher, err := c.ConfigMaps("kube-system").Watch(api.ListOptions{})
+	watcher, err := c.ConfigMaps("kube-system").Watch(metav1.ListOptions{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
