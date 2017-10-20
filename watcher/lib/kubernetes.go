@@ -17,8 +17,8 @@ import (
 // KubernetesLabel represents Kubernetes label which is used
 // as a search target for ConfigMaps
 type KubernetesLabel struct {
-	key   string
-	value string
+	Key   string
+	Value string
 }
 
 // KubernetesClient is the Kubernetes API client
@@ -83,7 +83,7 @@ func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, labe
 			configMap := event.Object.(*v1.ConfigMap)
 			if label != nil {
 				for k, v := range configMap.Labels {
-					if k == label.key && v == label.value {
+					if k == label.Key && v == label.Value {
 						break
 					}
 				}
