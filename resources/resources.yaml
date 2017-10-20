@@ -25,6 +25,10 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
+        # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        effect: "NoSchedule"
       securityContext:
         runAsUser: 1000
       containers:
@@ -52,6 +56,11 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
+      tolerations:
+        # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        effect: "NoSchedule"      
       securityContext:
         runAsUser: 1000
       containers:
@@ -104,6 +113,10 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
+        # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        effect: "NoSchedule"
       nodeSelector:
         gravitational.io/k8s-role: master
       securityContext:
@@ -173,6 +186,10 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
+        # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        effect: "NoSchedule"        
       containers:
       - name: watcher
         image: watcher:0.0.2
@@ -245,6 +262,10 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
+        # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        effect: "NoSchedule"        
       containers:
       - name: grafana
         image: monitoring-grafana:3.0.4
@@ -320,6 +341,10 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
+        # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        effect: "NoSchedule"        
       containers:
         - name: kapacitor
           image: monitoring-kapacitor:1.3
