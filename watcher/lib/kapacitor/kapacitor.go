@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package lib
+package kapacitor
 
 import (
 	"os"
@@ -28,14 +28,29 @@ import (
 	"github.com/influxdata/kapacitor/tick/stateful"
 )
 
-// KapaClient represents a connection to a kapacitor instance
-type KapaClient interface {
+const (
+	// APIAddress is the API adrress of Kapacitor running on the same pod
+	APIAddress = "http://localhost:9092"
+	// FetchRate is the rate Kapacitor Client will consume responses
+	FetchRate = 100
+	// Database is the InfluxDB database from where data is streamed
+	Database = "k8s"
+	// RetentionPolicy is the InfluxDB retention policy
+	RetentionPolicy = "default"
+	// UsernameEnv is the name of environment variable with Kapacitor username
+	UsernameEnv = "KAPACITOR_USERNAME"
+	// PasswordEnv is the name of environment variable with Kapacitor password
+	PasswordEnv = "KAPACITOR_PASSWORD"
+)
+
+// ClientInterface represents a connection to a kapacitor instance
+type ClientInterface interface {
 	CreateTask(opt client.CreateTaskOptions) (client.Task, error)
 	Ping() (time.Duration, string, error)
 }
 
-// NewKapaClient creates a Kapacitor client connection
-func NewKapaClient(url, username, password string) (KapaClient, error) {
+// NewClientInterface creates a Kapacitor client connection
+func NewClientInterface(url, username, password string) (ClientInterface, error) {
 	var creds *client.Credentials
 	if username != "" && password != "" {
 		creds = &client.Credentials{
@@ -52,47 +67,49 @@ func NewKapaClient(url, username, password string) (KapaClient, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	return &PaginatingKapaClient{clt, KapacitorFetchRate}, nil
+	return &PaginatingClientInterface{clt, FetchRate}, nil
 }
 
-// ensure PaginatingKapaClient is a KapaClient
-var _ KapaClient = &PaginatingKapaClient{}
+// ensure PaginatingClientInterface is a ClientInterface
+var _ ClientInterface = &PaginatingClientInterface{}
 
-// PaginatingKapaClient is a Kapacitor client that automatically navigates
-// through Kapacitor's pagination to fetch all results
-type PaginatingKapaClient struct {
-	KapaClient
+// PaginatingClientInterface is a Kapacitor client that automatically prefetches
+// data from kapacitor FetchRate elements at a time
+type PaginatingClientInterface struct {
+	ClientInterface
 	FetchRate int // specifies the number of elements to fetch from Kapacitor at a time
 }
 
-// KapacitorClient communicates to Kapacitor
-type KapacitorClient struct {
-	kapaClient KapaClient
+// Client communicates to Kapacitor
+type Client struct {
+	ClientInterface
 }
 
-// NewKapacitorClient creates a client that interfaces with Kapacitor tasks
-func NewKapacitorClient() (*KapacitorClient, error) {
-	username := os.Getenv(KapacitorUsernameEnv)
-	password := os.Getenv(KapacitorPasswordEnv)
+// NewClient creates a client that interfaces with Kapacitor tasks
+func NewClient() (*Client, error) {
+	username := os.Getenv(UsernameEnv)
+	password := os.Getenv(PasswordEnv)
 
-	kapaClient, err := NewKapaClient(KapacitorAPIAddress, username, password)
+	kapaClient, err := NewClientInterface(APIAddress, username, password)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return &KapacitorClient{
-		kapaClient: kapaClient,
+	return &Client{
+		kapaClient,
 	}, nil
 }
 
-func (k *KapacitorClient) Health() error {
-	_, _, err := k.kapaClient.Ping()
+// Health checks the status of Kapacitor HTTP API
+func (k *Client) Health() error {
+	_, _, err := k.Ping()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
 }
 
-func (k *KapacitorClient) CreateAlert(name string, script string) error {
+// CreateAlert creates alert task in Kapacitor
+func (k *Client) CreateAlert(name string, script string) error {
 	taskType := client.StreamTask
 	taskTypePipeline := pipeline.StreamEdge
 	if strings.Contains(name, "batch") {
@@ -104,11 +121,10 @@ func (k *KapacitorClient) CreateAlert(name string, script string) error {
 		return trace.Wrap(err)
 	}
 
-	dbrps := make([]client.DBRP, 1)
-	dbrps[1] = client.DBRP{
-		Database:        KapacitorDatabase,
-		RetentionPolicy: KapacitorRetentionPolicy,
-	}
+	dbrps := []client.DBRP{client.DBRP{
+		Database:        Database,
+		RetentionPolicy: RetentionPolicy,
+	}}
 
 	opts := client.CreateTaskOptions{
 		ID:         name,
@@ -118,7 +134,7 @@ func (k *KapacitorClient) CreateAlert(name string, script string) error {
 		Status:     client.Enabled,
 	}
 
-	if _, err := k.kapaClient.CreateTask(opts); err != nil {
+	if _, err := k.CreateTask(opts); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil

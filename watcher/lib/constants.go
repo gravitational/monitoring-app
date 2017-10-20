@@ -74,20 +74,8 @@ const (
 	// FunctionPercentile is the percentile function
 	FunctionPercentile = "percentile"
 
-	// AlertsPrefix is the prefix of configmaps with alerts data
-	AlertsPrefix = "alerts-"
-	// KapacitorAPIAddress is the API adrress of Kapacitor running on the same pod
-	KapacitorAPIAddress = "http://localhost:9092"
-	// KapacitorFetchRate is the rate Kapacitor Client will consume responses
-	KapacitorFetchRate = 100
-	// KapacitorDatabase is the InfluxDB database from where data is streamed
-	KapacitorDatabase = "k8s"
-	// KapacitorRetentionPolicy is the InfluxDB retention policy
-	KapacitorRetentionPolicy = "default"
-	// KapacitorUsernameEnv is the name of environment variable with Kapacitor username
-	KapacitorUsernameEnv = "KAPACITOR_USERNAME"
-	// KapacitorPasswordEnv is the name of environment variable with Kapacitor password
-	KapacitorPasswordEnv = "KAPACITOR_PASSWORD"
+	// AlertsLabel is the label of configmaps with alerts data for Kapacitor
+	AlertsLabel = "alert"
 )
 
 var (

@@ -20,8 +20,9 @@ import (
 	"context"
 
 	"github.com/gravitational/monitoring-app/watcher/lib"
-	"github.com/gravitational/trace"
+	"github.com/gravitational/monitoring-app/watcher/lib/kapacitor"
 
+	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,24 +32,24 @@ func runAlertsWatcher() error {
 		return trace.Wrap(err)
 	}
 
-	kapacitorClient, err := lib.NewKapacitorClient()
+	kapacitorClient, err := kapacitor.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.AlertsPrefix, ch)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), "", lib.AlertsLabel, ch)
 	receiveAndCreateAlerts(context.TODO(), kapacitorClient, ch)
 
 	return nil
 }
 
-func receiveAndCreateAlerts(ctx context.Context, client *lib.KapacitorClient, ch <-chan map[string]string) {
+func receiveAndCreateAlerts(ctx context.Context, client *kapacitor.Client, ch <-chan map[string]string) {
 	for {
 		select {
 		case data, ok := <-ch:
 			if !ok {
-				log.Warningf("alerts channel closed")
+				log.Warn("alerts channel closed")
 				return
 			}
 
