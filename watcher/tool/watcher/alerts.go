@@ -60,7 +60,7 @@ func receiveAndCreateAlerts(ctx context.Context, client *kapacitor.Client, ch <-
 				}
 			}
 		case <-ctx.Done():
-			log.Infoln("stopping")
+			log.Debugln("stopping")
 			return
 		}
 	}

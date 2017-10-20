@@ -44,3 +44,11 @@
 [[override]]
   name = "github.com/ugorji/go"
   revision = "9c7f9b7a2bc3a520f7c7b30b34b7f85f47fe27b6"
+
+[[constraint]]
+  name = "github.com/influxdata/kapacitor"
+  branch = "v1.2"
+
+[[override]]
+  name = "github.com/influxdata/influxdb"
+  branch = "1.2"

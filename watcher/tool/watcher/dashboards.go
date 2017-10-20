@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/monitoring-app/watcher/lib"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 func runDashboardsWatcher() error {
@@ -49,7 +49,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, 
 				}
 			}
 		case <-ctx.Done():
-			log.Infof("stopping")
+			log.Debugln("stopping")
 			return
 		}
 	}
