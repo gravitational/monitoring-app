@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/monitoring-app/watcher/lib"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 func runRollupsWatcher() error {
@@ -31,7 +31,7 @@ func runRollupsWatcher() error {
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.RollupsPrefix, "", ch)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.RollupsPrefix, &lib.KubernetesLabel{}, ch)
 	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
 	return nil
 }
