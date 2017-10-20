@@ -17,8 +17,8 @@ import (
 // KubernetesLabel represents Kubernetes label which is used
 // as a search target for ConfigMaps
 type KubernetesLabel struct {
-	key   string
-	value string
+	Key   string
+	Value string
 }
 
 // KubernetesClient is the Kubernetes API client
