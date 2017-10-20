@@ -25,7 +25,7 @@ func runDashboardsWatcher() error {
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.DashboardPrefix, ch)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.DashboardPrefix, "", ch)
 	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
 }

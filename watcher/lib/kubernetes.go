@@ -34,13 +34,13 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 	return &KubernetesClient{Clientset: client}, nil
 }
 
-// WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix in the system
-// namespace and submits them to the provided channel
-func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, ch chan<- map[string]string) {
+// WatchConfigMaps watches Kubernetes API for configmaps with the specified name prefix or label
+// in the system namespace and submits them to the provided channel
+func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, label string, ch chan<- map[string]string) {
 	for {
 		select {
 		case <-time.After(time.Second):
-			err := c.restartWatch(ctx, prefix, ch)
+			err := c.restartWatch(ctx, prefix, label, ch)
 			if err != nil {
 				log.Errorf(trace.DebugReport(err))
 			}
@@ -51,7 +51,7 @@ func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, prefix string, c
 	}
 }
 
-func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch chan<- map[string]string) error {
+func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, label string, ch chan<- map[string]string) error {
 	log.Infof("restarting watch")
 
 	watcher, err := c.ConfigMaps("kube-system").Watch(metav1.ListOptions{})
@@ -74,9 +74,17 @@ func (c *KubernetesClient) restartWatch(ctx context.Context, prefix string, ch c
 			}
 
 			configMap := event.Object.(*v1.ConfigMap)
-			if !strings.HasPrefix(configMap.Name, prefix) {
-				log.Infof("ignoring configmap: %v", configMap.Name)
-				continue
+			if label != "" {
+				for key := range configMap.Labels {
+					if key == AlertsLabel {
+						break
+					}
+				}
+			} else {
+				if !strings.HasPrefix(configMap.Name, prefix) {
+					log.Infof("ignoring configmap: %v", configMap.Name)
+					continue
+				}
 			}
 
 			log.Infof("detected configmap: %v", configMap.Name)

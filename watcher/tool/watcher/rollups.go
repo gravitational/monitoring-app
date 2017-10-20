@@ -31,7 +31,7 @@ func runRollupsWatcher() error {
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.RollupsPrefix, ch)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.RollupsPrefix, "", ch)
 	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
 	return nil
 }
