@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/monitoring-app/watcher/lib"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -21,10 +21,13 @@ func main() {
 	}
 
 	var err error
-	if mode == lib.ModeDashboards {
+	switch mode {
+	case lib.ModeDashboards:
 		err = runDashboardsWatcher()
-	} else {
+	case lib.ModeRollups:
 		err = runRollupsWatcher()
+	case lib.ModeAlerts:
+		err = runAlertsWatcher()
 	}
 
 	if err != nil {

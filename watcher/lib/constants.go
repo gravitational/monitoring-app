@@ -9,6 +9,9 @@ const (
 	// ModeRollups is the mode in which watcher polls for new rollups
 	ModeRollups = "rollups"
 
+	// ModeAlerts is the mode in which watcher polls for new alerts
+	ModeAlerts = "alerts"
+
 	// GrafanaAPIAddress is the API address of Grafana running in the same pod
 	GrafanaAPIAddress = "http://localhost:3000"
 
@@ -85,6 +88,7 @@ var (
 	AllModes = []string{
 		ModeDashboards,
 		ModeRollups,
+		ModeAlerts,
 	}
 
 	// AllRetentions contains names of all supported retention policies
