@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"strconv"
 
@@ -40,23 +41,31 @@ func runAlertsWatcher(kubernetesClient *lib.KubernetesClient) error {
 		return trace.Wrap(err)
 	}
 
-	alertCh := make(chan map[string]string)
-	alertTargetCh := make(chan map[string]string)
-	alertLabel := lib.KubernetesLabel{
-		Key:   lib.MonitoringLabel,
-		Value: lib.MonitoringUpdateAlert,
-	}
-	configmaps := []lib.ConfigMap{
-		{lib.MatchLabel(alertLabel), alertCh},
-		{lib.MatchName(lib.AlertTargetConfigMap), alertTargetCh},
-	}
-	smtpCh := make(chan map[string][]byte)
-	secrets := []lib.Secret{
-		{lib.MatchName(lib.SmtpSecret), smtpCh},
+	alertLabel, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateAlert)
+	if err != nil {
+		return trace.Wrap(err)
 	}
 
+	targetLabel, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateAlertTarget)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	smtpLabel, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateSMTP)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	alertCh := make(chan map[string]string)
+	alertTargetCh := make(chan map[string]string)
+	configmaps := []lib.ConfigMap{
+		{alertLabel, alertCh},
+		{targetLabel, alertTargetCh},
+	}
+	smtpCh := make(chan map[string][]byte)
+
 	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
-	go kubernetesClient.WatchSecrets(context.TODO(), secrets...)
+	go kubernetesClient.WatchSecrets(context.TODO(), lib.Secret{smtpLabel, smtpCh})
 	receiverLoop(context.TODO(), kubernetesClient.Clientset, kapacitorClient,
 		alertCh, alertTargetCh, smtpCh)
 
@@ -85,13 +94,16 @@ func receiverLoop(ctx context.Context, kubeClient *kubernetes.Clientset, kClient
 				log.Warnf("failed to update alert target: %v", trace.DebugReport(err))
 			}
 		case <-ctx.Done():
-			log.Debug("stopping")
 			return
 		}
 	}
 }
 
 func createAlert(client *kapacitor.Client, spec []byte) error {
+	if len(bytes.TrimSpace(spec)) == 0 {
+		return trace.NotFound("empty configurtion")
+	}
+
 	var alert alert
 	err := yaml.Unmarshal(spec, &alert)
 	if err != nil {
@@ -107,6 +119,10 @@ func createAlert(client *kapacitor.Client, spec []byte) error {
 
 func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte) error {
 	log.Debugf("update SMTP config from spec %s", spec)
+	if len(bytes.TrimSpace(spec)) == 0 {
+		return trace.NotFound("empty configurtion")
+	}
+
 	var config smtpConfig
 	err := yaml.Unmarshal(spec, &config)
 	if err != nil {
@@ -143,6 +159,10 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 
 func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte) error {
 	log.Debugf("update alert target from spec %s", spec)
+	if len(bytes.TrimSpace(spec)) == 0 {
+		return trace.NotFound("empty configurtion")
+	}
+
 	var target alertTarget
 	err := yaml.Unmarshal(spec, &target)
 	if err != nil {

@@ -83,7 +83,13 @@ const (
 	// MonitoringUpdateAlert defines the update for an alert
 	MonitoringUpdateAlert = "alert"
 	// MonitoringUpdateAlertTarget defines the update for an alert target
-	MonitoringUpdateAlertTarget = "alerttarget"
+	MonitoringUpdateAlertTarget = "alert-target"
+	// MonitoringUpdateDashboard defines the update for a dashboard
+	MonitoringUpdateDashboard = "dashboard"
+	// MonitoringUpdateRollup defines the update for a rollup
+	MonitoringUpdateRollup = "rollup"
+	// MonitoringUpdateSMTP defines the update for kapacitor SMTP configuration
+	MonitoringUpdateSMTP = "smtp"
 
 	// ResourceSpecKey specifies the name of the key with raw resource specification
 	ResourceSpecKey = "spec"

@@ -19,9 +19,13 @@ func runDashboardsWatcher(kubernetesClient *lib.KubernetesClient) error {
 		return trace.Wrap(err)
 	}
 
+	label, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateDashboard)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(),
-		lib.ConfigMap{lib.MatchPrefix(lib.DashboardPrefix), ch})
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.ConfigMap{label, ch})
 	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
 }
@@ -40,7 +44,6 @@ func receiveAndCreateDashboards(ctx context.Context, client *lib.GrafanaClient, 
 				}
 			}
 		case <-ctx.Done():
-			log.Debug("stopping")
 			return
 		}
 	}

@@ -2,25 +2,21 @@ package lib
 
 import (
 	"context"
-	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 )
-
-// KubernetesLabel represents a Kubernetes label which is used
-// as a search target for ConfigMaps
-type KubernetesLabel struct {
-	Key   string
-	Value string
-}
 
 // KubernetesClient is the Kubernetes API client
 type KubernetesClient struct {
@@ -45,147 +41,53 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 // WatchConfigMaps watches Kubernetes API for ConfigMaps using specified configs to match
 // and send updates
 func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, configs ...ConfigMap) {
-	for {
-		select {
-		case <-time.After(time.Second):
-			err := c.restartConfigMapWatch(ctx, configs...)
-			if err != nil {
-				log.Errorf(trace.DebugReport(err))
-			}
-		case <-ctx.Done():
-			return
-		}
+	for _, config := range configs {
+		go func(config ConfigMap) {
+			retry(ctx, func() error {
+				err := watchConfigMap(ctx, c.CoreV1().ConfigMaps(api.NamespaceSystem), config)
+				return trace.Wrap(err)
+			})
+		}(config)
 	}
 }
 
 // WatchSecrets watches Kubernetes API for Secrets using specified configs to match
 // and send updates
 func (c *KubernetesClient) WatchSecrets(ctx context.Context, configs ...Secret) {
-	for {
-		select {
-		case <-time.After(time.Second):
-			err := c.restartSecretWatch(ctx, configs...)
-			if err != nil {
-				log.Errorf(trace.DebugReport(err))
-			}
-		case <-ctx.Done():
-			return
-		}
+	for _, config := range configs {
+		go func(config Secret) {
+			retry(ctx, func() error {
+				err := watchSecret(ctx, c.CoreV1().Secrets(api.NamespaceSystem), config)
+				return trace.Wrap(err)
+			})
+		}(config)
 	}
 }
 
-func (c *KubernetesClient) restartConfigMapWatch(ctx context.Context, configs ...ConfigMap) error {
-	log.Info("restarting watch")
-
-	watcher, err := c.ConfigMaps(api.NamespaceSystem).Watch(metav1.ListOptions{})
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer watcher.Stop()
-
-	for {
-		select {
-		case event, ok := <-watcher.ResultChan():
-			if !ok {
-				log.Warn("watcher channel closed")
-				return nil
-			}
-
-			if event.Type != watch.Added {
-				log.Debugf("ignoring event: %v", event)
-				continue
-			}
-
-			configMap := event.Object.(*v1.ConfigMap)
-			for _, config := range configs {
-				if config.Match(configMap.ObjectMeta) {
-					log.Infof("detected configmap %q", configMap.Name)
-					config.RecvCh <- configMap.Data
-				}
-			}
-
-		case <-ctx.Done():
-			log.Debug("stopping watcher")
-			return nil
-		}
-	}
-}
-
-func (c *KubernetesClient) restartSecretWatch(ctx context.Context, configs ...Secret) error {
-	log.Info("restarting watch")
-
-	watcher, err := c.Secrets(api.NamespaceSystem).Watch(metav1.ListOptions{})
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer watcher.Stop()
-
-	for {
-		select {
-		case event, ok := <-watcher.ResultChan():
-			if !ok {
-				log.Warn("watcher channel closed")
-				return nil
-			}
-
-			if event.Type != watch.Added {
-				log.Debugf("ignoring event: %v", event)
-				continue
-			}
-
-			secret := event.Object.(*v1.Secret)
-			for _, config := range configs {
-				if config.Match(secret.ObjectMeta) {
-					log.Infof("detected secret %q", secret.Name)
-					config.RecvCh <- secret.Data
-				}
-			}
-
-		case <-ctx.Done():
-			log.Debug("stopping watcher")
-			return nil
-		}
-	}
-}
-
-// MatchName matches a resource using a strict name comparison
-func MatchName(name string) ResourceMatchFunc {
-	return func(resource metav1.ObjectMeta) bool {
-		return resource.Name == name
-	}
-}
-
-// MatchPrefix matches a resource with the specified name prefix
-func MatchPrefix(prefix string) ResourceMatchFunc {
-	return func(resource metav1.ObjectMeta) bool {
-		if strings.HasPrefix(resource.Name, prefix) {
-			return true
-		}
-		return false
-	}
+// KubernetesLabel represents a Kubernetes label which is used
+// as a search target for ConfigMaps
+type KubernetesLabel struct {
+	Key   string
+	Value string
 }
 
 // MatchLabel matches a resource with the specified label
-func MatchLabel(label KubernetesLabel) ResourceMatchFunc {
-	return func(resource metav1.ObjectMeta) bool {
-		for k, v := range resource.Labels {
-			if k == label.Key && v == label.Value {
-				return true
-			}
-		}
-		return false
+func MatchLabel(key, value string) (labels.Selector, error) {
+	req, err := labels.NewRequirement(key, selection.In, []string{value})
+	if err != nil {
+		return nil, trace.Wrap(err, "failed to build a requirement from %v=%q", key, value)
 	}
+	selector := labels.NewSelector()
+	selector = selector.Add(*req)
+	return selector, nil
 }
-
-// ResourceMatchFunc defines a function that matches resources.
-type ResourceMatchFunc func(metav1.ObjectMeta) bool
 
 // ConfigMap describes matching and sending updates for ConfigMaps.
 // If Match matches a resource, RecvCh channel receives
 // the data from the matched resource
 type ConfigMap struct {
-	// Match matches a resource to receive updates about
-	Match ResourceMatchFunc
+	// Selector specifies the selector for this ConfigMap
+	Selector labels.Selector
 	// RecvCh specifies the channel that receives updates on the matched resource
 	RecvCh chan map[string]string
 }
@@ -194,8 +96,88 @@ type ConfigMap struct {
 // If Match matches a resource, RecvCh channel receives
 // the data from the matched resource
 type Secret struct {
-	// Match matches a resource to receive updates about
-	Match ResourceMatchFunc
+	// Selector specifies the selector for this Secret
+	Selector labels.Selector
 	// RecvCh specifies the channel that receives updates on the matched resource
 	RecvCh chan map[string][]byte
+}
+
+func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, config ConfigMap) error {
+	watcher, err := client.Watch(metav1.ListOptions{LabelSelector: config.Selector.String()})
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer watcher.Stop()
+
+	log := log.WithFields(log.Fields{"watch": "configmap", "label": config.Selector.String()})
+	for {
+		select {
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				log.Debug("watcher closed")
+				return nil
+			}
+
+			if event.Type != watch.Added {
+				log.Debugf("ignoring event: %v", event)
+				continue
+			}
+
+			switch configMap := event.Object.(type) {
+			case *v1.ConfigMap:
+				log.Infof("detected %q", configMap.Name)
+				config.RecvCh <- configMap.Data
+			}
+
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secret) error {
+	watcher, err := client.Watch(metav1.ListOptions{LabelSelector: config.Selector.String()})
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer watcher.Stop()
+
+	log := log.WithFields(log.Fields{"watch": "secret", "label": config.Selector.String()})
+	for {
+		select {
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				log.Debug("watcher closed")
+				return nil
+			}
+
+			if event.Type != watch.Added {
+				log.Debugf("ignoring event: %v", event)
+				continue
+			}
+
+			switch secret := event.Object.(type) {
+			case *v1.Secret:
+				log.Infof("detected %q", secret.Name)
+				config.RecvCh <- secret.Data
+			}
+
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func retry(ctx context.Context, fn func() error) (err error) {
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
+	err = backoff.RetryNotify(
+		func() error {
+			return trace.Wrap(fn())
+		},
+		backoff.WithContext(b, ctx),
+		func(err error, d time.Duration) {
+			log.Debugf("retrying: %v (time %v)", trace.DebugReport(err), d)
+		})
+	return trace.Wrap(err)
 }

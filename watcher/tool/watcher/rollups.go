@@ -25,8 +25,13 @@ func runRollupsWatcher(kubernetesClient *lib.KubernetesClient) error {
 		return trace.Wrap(err)
 	}
 
+	label, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateRollup)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.ConfigMap{lib.MatchPrefix(lib.RollupsPrefix), ch})
+	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.ConfigMap{label, ch})
 	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
 	return nil
 }
@@ -53,7 +58,6 @@ func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch
 				}
 			}
 		case <-ctx.Done():
-			log.Debug("stopping")
 			return
 		}
 	}

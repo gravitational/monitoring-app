@@ -34,18 +34,21 @@ In production the anonymous mode is read-only that allows only viewing of existi
 
 ## Pluggable dashboards
 
-Other applications can ship their own Grafana dashboards by using ConfigMaps. If an application has a ConfigMap with the name starting with `dashboard-` in `kube-system` namespace among its resources, it will be recognized as a dashboard and created in Grafana during the app installation:
-
+Other applications can ship their own Grafana dashboards by using ConfigMaps. A custom dashboard ConfigMap should be assigned a `dashboard`
+label and created in the `kube-system` namespace so it will be recognized and loaded at startup:
 ```
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dashboard-mydashboard
   namespace: kube-system
+  labels:
+    monitoring: dashboard
 data:
   mydashboard: |
     { ... dashboard JSON ... }
 ```
+
 
 An example of a dashboard ConfigMap can be seen in the monitoring-app's own resources.
 
@@ -80,7 +83,7 @@ Monitoring app allows to configure two "types" of rollups for any collected metr
 
 This app comes with rollups pre-configured for some of the metrics collected by default. Applications that collect their own metrics can configure their own rollups as well, via ConfigMaps.
 
-A ConfigMap with rollup should have a name starting with `rollup-` and be placed into `kube-system` namespace. The format is as follows:
+A custom rollup ConfigMap should be assigned a `rollup` label and created in the `kube-system` namespace so it will be recognized and loaded at startup:
 
 ```
 apiVersion: v1
@@ -88,6 +91,8 @@ kind: ConfigMap
 metadata:
   name: rollups-myrollups
   namespace: kube-system
+  labels:
+    monitoring: rollup
 data:
   rollups: |
     [
