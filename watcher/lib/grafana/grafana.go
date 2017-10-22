@@ -1,42 +1,44 @@
-package lib
+package grafana
 
 import (
 	"encoding/json"
 	"net/url"
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
-// GrafanaClient is Grafana HTTP API client
-type GrafanaClient struct {
+// Client is the Grafana HTTP API client
+type Client struct {
 	*roundtrip.Client
 }
 
-// NewGrafanaClient returns a Grafana HTTP API client
-func NewGrafanaClient() (*GrafanaClient, error) {
-	username := os.Getenv(GrafanaUsernameEnv)
+// NewClient returns a Grafana HTTP API client
+func NewClient() (*Client, error) {
+	username := os.Getenv(constants.GrafanaUsernameEnv)
 	if username == "" {
-		return nil, trace.BadParameter("%s environment variable is not set", GrafanaUsernameEnv)
+		return nil, trace.BadParameter("%s environment variable is not set", constants.GrafanaUsernameEnv)
 	}
 
-	password := os.Getenv(GrafanaPasswordEnv)
+	password := os.Getenv(constants.GrafanaPasswordEnv)
 	if password == "" {
-		return nil, trace.BadParameter("%s environment variable is not set", GrafanaPasswordEnv)
+		return nil, trace.BadParameter("%s environment variable is not set", constants.GrafanaPasswordEnv)
 	}
 
-	client, err := roundtrip.NewClient(GrafanaAPIAddress, "", roundtrip.BasicAuth(username, password))
+	client, err := roundtrip.NewClient(constants.GrafanaAPIAddress, "", roundtrip.BasicAuth(username, password))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return &GrafanaClient{Client: client}, nil
+	return &Client{Client: client}, nil
 }
 
 // Health checks the status of Grafana HTTP API
-func (c *GrafanaClient) Health() error {
+func (c *Client) Health() error {
 	// use "home dashboard" API as a health check
 	_, err := c.Get(c.Endpoint("api", "dashboards", "home"), url.Values{})
 	if err != nil {
@@ -46,7 +48,7 @@ func (c *GrafanaClient) Health() error {
 }
 
 // CreateDashboard creates a new dashboard from the provided dashboard data
-func (c *GrafanaClient) CreateDashboard(data string) error {
+func (c *Client) CreateDashboard(data string) error {
 	// dashboard data should be a valid JSON
 	var dashboardJSON map[string]interface{}
 	if err := json.Unmarshal([]byte(data), &dashboardJSON); err != nil {

@@ -4,18 +4,22 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gravitational/monitoring-app/watcher/lib"
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+	"github.com/gravitational/monitoring-app/watcher/lib/influxdb"
+	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
+	"github.com/gravitational/monitoring-app/watcher/lib/utils"
+
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
 
-func runRollupsWatcher(kubernetesClient *lib.KubernetesClient) error {
-	influxDBClient, err := lib.NewInfluxDBClient()
+func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
+	influxDBClient, err := influxdb.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = lib.WaitForAPI(context.TODO(), influxDBClient)
+	err = utils.WaitForAPI(context.TODO(), influxDBClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -25,25 +29,25 @@ func runRollupsWatcher(kubernetesClient *lib.KubernetesClient) error {
 		return trace.Wrap(err)
 	}
 
-	label, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateRollup)
+	label, err := kubernetes.MatchLabel(constants.MonitoringLabel, constants.MonitoringUpdateRollup)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	ch := make(chan map[string]string)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), lib.ConfigMap{label, ch})
+	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
 	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
 	return nil
 }
 
 // receiveAndCreateRollups listens on the provided channel that receives new rollups data and creates
 // them in InfluxDB using the provided client
-func receiveAndCreateRollups(ctx context.Context, client *lib.InfluxDBClient, ch <-chan map[string]string) {
+func receiveAndCreateRollups(ctx context.Context, client *influxdb.Client, ch <-chan map[string]string) {
 	for {
 		select {
 		case data := <-ch:
 			for _, v := range data {
-				var rollups []lib.Rollup
+				var rollups []influxdb.Rollup
 				err := json.Unmarshal([]byte(v), &rollups)
 				if err != nil {
 					log.Errorf("failed to unmarshal: %v %v", data, trace.DebugReport(err))

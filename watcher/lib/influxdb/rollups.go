@@ -1,4 +1,4 @@
-package lib
+package influxdb
 
 import (
 	"bytes"
@@ -6,6 +6,9 @@ import (
 	"html/template"
 	"strconv"
 	"strings"
+
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+	"github.com/gravitational/monitoring-app/watcher/lib/utils"
 
 	"github.com/gravitational/trace"
 )
@@ -25,9 +28,9 @@ type Rollup struct {
 
 // Check verifies that rollup configuration is correct
 func (r Rollup) Check() error {
-	if !OneOf(r.Retention, AllRetentions) {
+	if !utils.OneOf(r.Retention, constants.AllRetentions) {
 		return trace.BadParameter(
-			"invalid Retention, must be one of: %v", AllRetentions)
+			"invalid Retention, must be one of: %v", constants.AllRetentions)
 	}
 	if r.Measurement == "" {
 		return trace.BadParameter("parameter Measurement is missing")
@@ -59,9 +62,11 @@ type Function struct {
 
 // Check verifies the function configuration is correct
 func (f Function) Check() error {
-	if !OneOf(f.Function, AllFunctions) && !strings.HasPrefix(f.Function, FunctionPercentile) {
+	if !utils.OneOf(f.Function, constants.AllFunctions) &&
+		!strings.HasPrefix(f.Function, constants.FunctionPercentile) {
 		return trace.BadParameter(
-			"invalid Function, must be one of: %v, or start with '%v'", AllFunctions, FunctionPercentile)
+			"invalid Function, must be one of: %v, or start with %q",
+			constants.AllFunctions, constants.FunctionPercentile)
 	}
 	if f.Field == "" {
 		return trace.BadParameter("parameter Field is missing")
@@ -83,13 +88,13 @@ func buildQuery(r Rollup) (string, error) {
 	var b bytes.Buffer
 	err := queryTemplate.Execute(&b, map[string]string{
 		"name":             r.Name,
-		"database":         InfluxDBDatabase,
+		"database":         constants.InfluxDBDatabase,
 		"functions":        strings.Join(functions, ", "),
 		"retention_into":   r.Retention,
 		"measurement_into": r.Name,
-		"retention_from":   InfluxDBRetentionPolicy,
+		"retention_from":   constants.InfluxDBRetentionPolicy,
 		"measurement_from": r.Measurement,
-		"interval":         RetentionToInterval[r.Retention],
+		"interval":         constants.RetentionToInterval[r.Retention],
 	})
 	if err != nil {
 		return "", trace.Wrap(err)
@@ -104,12 +109,12 @@ func buildFunction(f Function) (string, error) {
 	if alias == "" {
 		alias = f.Field
 	}
-	if strings.HasPrefix(f.Function, FunctionPercentile) {
+	if strings.HasPrefix(f.Function, constants.FunctionPercentile) {
 		value, err := parsePercentileValue(f.Function)
 		if err != nil {
 			return "", trace.Wrap(err)
 		}
-		return fmt.Sprintf("%v(%v, %v) as %v", FunctionPercentile, f.Field, value, alias), nil
+		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionPercentile, f.Field, value, alias), nil
 	}
 	return fmt.Sprintf("%v(%v) as %v", f.Function, f.Field, alias), nil
 }

@@ -1,11 +1,13 @@
-package lib
+package utils
 
 import (
 	"context"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 // OneOf returns true if the value is present in the list of values
@@ -28,7 +30,7 @@ type APIClient interface {
 func WaitForAPI(ctx context.Context, client APIClient) (err error) {
 	for {
 		select {
-		case <-time.After(PollInterval):
+		case <-time.After(constants.PollInterval):
 			err = client.Health()
 			if err != nil {
 				log.Infof("API is not ready: %v", trace.DebugReport(err))

@@ -5,27 +5,29 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gravitational/monitoring-app/watcher/lib"
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
+
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	var mode string
-	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", lib.AllModes))
+	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
 	flag.Parse()
 
-	client, err := lib.NewKubernetesClient()
+	client, err := kubernetes.NewClient()
 	if err != nil {
 		exitWithError(err)
 	}
 
 	switch mode {
-	case lib.ModeDashboards:
+	case constants.ModeDashboards:
 		err = runDashboardsWatcher(client)
-	case lib.ModeRollups:
+	case constants.ModeRollups:
 		err = runRollupsWatcher(client)
-	case lib.ModeAlerts:
+	case constants.ModeAlerts:
 		err = runAlertsWatcher(client)
 	default:
 		fmt.Printf("ERROR: unknown mode %q\n", mode)

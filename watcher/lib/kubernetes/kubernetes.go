@@ -1,4 +1,4 @@
-package lib
+package kubernetes
 
 import (
 	"context"
@@ -18,13 +18,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// KubernetesClient is the Kubernetes API client
-type KubernetesClient struct {
+// Client is the Kubernetes API client
+type Client struct {
 	*kubernetes.Clientset
 }
 
-// NewKubernetesClient returns a new Kubernetes API client
-func NewKubernetesClient() (*KubernetesClient, error) {
+// NewClient returns a new Kubernetes API client
+func NewClient() (*Client, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -35,12 +35,12 @@ func NewKubernetesClient() (*KubernetesClient, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	return &KubernetesClient{Clientset: client}, nil
+	return &Client{Clientset: client}, nil
 }
 
 // WatchConfigMaps watches Kubernetes API for ConfigMaps using specified configs to match
 // and send updates
-func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, configs ...ConfigMap) {
+func (c *Client) WatchConfigMaps(ctx context.Context, configs ...ConfigMap) {
 	for _, config := range configs {
 		go func(config ConfigMap) {
 			retry(ctx, func() error {
@@ -53,7 +53,7 @@ func (c *KubernetesClient) WatchConfigMaps(ctx context.Context, configs ...Confi
 
 // WatchSecrets watches Kubernetes API for Secrets using specified configs to match
 // and send updates
-func (c *KubernetesClient) WatchSecrets(ctx context.Context, configs ...Secret) {
+func (c *Client) WatchSecrets(ctx context.Context, configs ...Secret) {
 	for _, config := range configs {
 		go func(config Secret) {
 			retry(ctx, func() error {
@@ -64,9 +64,9 @@ func (c *KubernetesClient) WatchSecrets(ctx context.Context, configs ...Secret) 
 	}
 }
 
-// KubernetesLabel represents a Kubernetes label which is used
+// Label represents a Kubernetes label which is used
 // as a search target for ConfigMaps
-type KubernetesLabel struct {
+type Label struct {
 	Key   string
 	Value string
 }

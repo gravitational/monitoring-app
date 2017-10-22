@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gravitational/monitoring-app/watcher/lib"
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
 	"github.com/gravitational/trace"
 	client "github.com/influxdata/kapacitor/client/v1"
@@ -37,10 +37,10 @@ type Client struct {
 
 // NewClient creates a client that interfaces with Kapacitor tasks
 func NewClient() (*Client, error) {
-	username := os.Getenv(lib.KapacitorUsernameEnv)
-	password := os.Getenv(lib.KapacitorPasswordEnv)
+	username := os.Getenv(constants.KapacitorUsernameEnv)
+	password := os.Getenv(constants.KapacitorPasswordEnv)
 
-	client, err := newClientInterface(lib.KapacitorAPIAddress, username, password)
+	client, err := newClientInterface(constants.KapacitorAPIAddress, username, password)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -72,8 +72,8 @@ func (k *Client) CreateAlert(name string, script string) error {
 	}
 
 	policies := []client.DBRP{client.DBRP{
-		Database:        lib.Database,
-		RetentionPolicy: lib.RetentionPolicy,
+		Database:        constants.Database,
+		RetentionPolicy: constants.RetentionPolicy,
 	}}
 
 	opts := client.CreateTaskOptions{
@@ -162,7 +162,7 @@ func newClientInterface(url, username, password string) (clientInterface, error)
 		return nil, trace.Wrap(err)
 	}
 
-	return &paginatingClient{clt, lib.KapacitorFetchRate}, nil
+	return &paginatingClient{clt, constants.KapacitorFetchRate}, nil
 }
 
 // ensure paginatingClient is a clientInterface

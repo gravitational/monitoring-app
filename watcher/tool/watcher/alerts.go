@@ -24,71 +24,72 @@ import (
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
 
-	"github.com/gravitational/monitoring-app/watcher/lib"
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/kapacitor"
+	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 
 	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	kubeapi "k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func runAlertsWatcher(kubernetesClient *lib.KubernetesClient) error {
+func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 	kapacitorClient, err := kapacitor.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	alertLabel, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateAlert)
+	alertLabel, err := kubernetes.MatchLabel(constants.MonitoringLabel, constants.MonitoringUpdateAlert)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	targetLabel, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateAlertTarget)
+	targetLabel, err := kubernetes.MatchLabel(constants.MonitoringLabel, constants.MonitoringUpdateAlertTarget)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	smtpLabel, err := lib.MatchLabel(lib.MonitoringLabel, lib.MonitoringUpdateSMTP)
+	smtpLabel, err := kubernetes.MatchLabel(constants.MonitoringLabel, constants.MonitoringUpdateSMTP)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	alertCh := make(chan map[string]string)
 	alertTargetCh := make(chan map[string]string)
-	configmaps := []lib.ConfigMap{
+	configmaps := []kubernetes.ConfigMap{
 		{alertLabel, alertCh},
 		{targetLabel, alertTargetCh},
 	}
 	smtpCh := make(chan map[string][]byte)
 
 	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
-	go kubernetesClient.WatchSecrets(context.TODO(), lib.Secret{smtpLabel, smtpCh})
+	go kubernetesClient.WatchSecrets(context.TODO(), kubernetes.Secret{smtpLabel, smtpCh})
 	receiverLoop(context.TODO(), kubernetesClient.Clientset, kapacitorClient,
 		alertCh, alertTargetCh, smtpCh)
 
 	return nil
 }
 
-func receiverLoop(ctx context.Context, kubeClient *kubernetes.Clientset, kClient *kapacitor.Client,
+func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *kapacitor.Client,
 	alertCh, alertTargetCh <-chan map[string]string, smtpCh <-chan map[string][]byte) {
 	for {
 		select {
 		case update := <-alertCh:
-			spec := []byte(update[lib.ResourceSpecKey])
+			spec := []byte(update[constants.ResourceSpecKey])
 			if err := createAlert(kClient, spec); err != nil {
 				log.Warnf("failed to create alert: %v", trace.DebugReport(err))
 			}
 		case update := <-smtpCh:
-			spec := update[lib.ResourceSpecKey]
+			spec := update[constants.ResourceSpecKey]
 			client := kubeClient.Secrets(api.NamespaceSystem)
 			if err := updateSMTPConfig(client, kClient, spec); err != nil {
 				log.Warnf("failed to update SMTP configuration: %v", trace.DebugReport(err))
 			}
 		case update := <-alertTargetCh:
-			spec := []byte(update[lib.ResourceSpecKey])
+			spec := []byte(update[constants.ResourceSpecKey])
 			client := kubeClient.ConfigMaps(api.NamespaceSystem)
 			if err := updateAlertTarget(client, kClient, spec); err != nil {
 				log.Warnf("failed to update alert target: %v", trace.DebugReport(err))
@@ -132,7 +133,7 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 	portS := strconv.FormatInt(int64(config.Spec.Port), 10)
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      lib.KapacitorSMTPSecret,
+			Name:      constants.KapacitorSMTPSecret,
 			Namespace: api.NamespaceSystem,
 		},
 		Data: map[string][]byte{
@@ -171,11 +172,11 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 
 	config := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      lib.KapacitorAlertTargetConfigMap,
+			Name:      constants.KapacitorAlertTargetConfigMap,
 			Namespace: api.NamespaceSystem,
 		},
 		Data: map[string]string{
-			"from": lib.KapacitorAlertFrom,
+			"from": constants.KapacitorAlertFrom,
 			"to":   target.Spec.Email,
 		},
 	}
