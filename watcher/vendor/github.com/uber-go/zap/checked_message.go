@@ -20,24 +20,16 @@
 
 package zap
 
-import "sync"
-
-var _cmPool = sync.Pool{
-	New: func() interface{} {
-		return &CheckedMessage{
-			lvl: invalidLevel,
-		}
-	},
-}
+import "github.com/uber-go/atomic"
 
 // A CheckedMessage is the result of a call to Logger.Check, which allows
 // especially performance-sensitive applications to avoid allocations for disabled
 // or heavily sampled log levels.
 type CheckedMessage struct {
-	logger      Logger
-	safeToWrite bool
-	lvl         Level
-	msg         string
+	logger Logger
+	used   atomic.Uint32
+	lvl    Level
+	msg    string
 
 	// singly linked list built by Chain
 	next *CheckedMessage // carried by each part of Chain-ed list
@@ -49,39 +41,33 @@ type CheckedMessage struct {
 // NewCheckedMessage constructs a CheckedMessage. It's only intended for use by
 // wrapper libraries, and shouldn't be necessary in application code.
 func NewCheckedMessage(logger Logger, lvl Level, msg string) *CheckedMessage {
-	m := _cmPool.Get().(*CheckedMessage)
-	m.safeToWrite, m.logger, m.lvl, m.msg = true, logger, lvl, msg
-	return m
+	return &CheckedMessage{
+		logger: logger,
+		lvl:    lvl,
+		msg:    msg,
+	}
 }
 
-// Write logs the pre-checked message with the supplied fields. It will call
-// the underlying level method (Debug, Info, Warn, Error, DPanic, Panic, and
-// Fatal) for the defined levels; the Log method is only called for unknown
-// logging levels.
+// Write logs the pre-checked message with the supplied fields. It should only
+// be used once; if a CheckedMessage is re-used, it also logs an error message
+// with the underlying logger's DFatal method.
 //
-// It MUST be called at most once, since Write will return the *CheckedMessage
-// to an internal pool for potentially immediate re-use; re-using a
-// *CheckedMessage after calling Write() will result in data races or other
-// undefined behavior. An attempt is made to detect and DPanic log any re-use,
-// but such detection is not guaranteed due to race conditions.
+// Write will call the underlying level method (Debug, Info, Warn, Error,
+// Panic, and Fatal) for the defined levels; the Log method is only called for
+// unknown logging levels.
 func (m *CheckedMessage) Write(fields ...Field) {
 	if m == nil {
 		return
 	}
 
-	if !m.safeToWrite {
-		// we're living in racy times, so copy what we can out of the pointer
-		// that we have, and at least tell the user something
-		if logger := m.logger; logger != nil {
-			lvl, msg := m.lvl, m.msg
-			logger.DPanic(
-				"Must not call zap.(*CheckedMessage).Write() more than once",
-				Nest("prior", Stringer("level", lvl), String("msg", msg)),
-			)
+	if n := m.used.Inc(); n > 1 {
+		if n == 2 {
+			// Log an error on the first re-use. After that, skip the I/O and
+			// allocations and just return.
+			m.logger.DFatal("Shouldn't re-use a CheckedMessage.", String("original", m.msg))
 		}
 		return
 	}
-	m.safeToWrite = false
 
 	switch m.lvl {
 	case DebugLevel:
@@ -101,8 +87,6 @@ func (m *CheckedMessage) Write(fields ...Field) {
 	}
 
 	m.next.Write(fields...)
-	m.next, m.tail = nil, nil
-	_cmPool.Put(m)
 }
 
 // Chain combines two or more CheckedMessages. If the receiver message is not
@@ -128,7 +112,7 @@ func (m *CheckedMessage) push(next *CheckedMessage) {
 	if m.tail != nil {
 		m.tail.next = next
 	} else if m.next != nil {
-		m.logger.DPanic("invalid CheckedMessage linked list; did we lose our head?", String("original", m.msg))
+		m.logger.DFatal("invalid CheckedMessage linked list; did we lose our head?", String("original", m.msg))
 	} else {
 		m.next = next
 	}

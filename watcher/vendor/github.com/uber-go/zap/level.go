@@ -50,11 +50,9 @@ type LevelEnabler interface {
 }
 
 const (
-	invalidLevel Level = iota - 2
-
 	// DebugLevel logs are typically voluminous, and are usually disabled in
 	// production.
-	DebugLevel
+	DebugLevel Level = iota - 1
 	// InfoLevel is the default logging priority.
 	InfoLevel
 	// WarnLevel logs are more important than Info, but don't need individual
@@ -63,24 +61,11 @@ const (
 	// ErrorLevel logs are high-priority. If an application is running smoothly,
 	// it shouldn't generate any error-level logs.
 	ErrorLevel
-	// DPanicLevel logs are particularly important errors. In development the
-	// logger panics after writing the message.
-	DPanicLevel
 	// PanicLevel logs a message, then panics.
 	PanicLevel
 	// FatalLevel logs a message, then calls os.Exit(1).
 	FatalLevel
 )
-
-// LevelEnablerFunc is a convenient way to implement LevelEnabler around an
-// anonymous function. It is also a valid Option to pass to a logger.
-type LevelEnablerFunc func(Level) bool
-
-// This allows an LevelEnablerFunc to be used as an option.
-func (f LevelEnablerFunc) apply(m *Meta) { m.LevelEnabler = f }
-
-// Enabled calls the wrapped function.
-func (f LevelEnablerFunc) Enabled(lvl Level) bool { return f(lvl) }
 
 // String returns a lower-case ASCII representation of the log level.
 func (l Level) String() string {
@@ -93,8 +78,6 @@ func (l Level) String() string {
 		return "warn"
 	case ErrorLevel:
 		return "error"
-	case DPanicLevel:
-		return "dpanic"
 	case PanicLevel:
 		return "panic"
 	case FatalLevel:
@@ -129,8 +112,6 @@ func (l *Level) UnmarshalText(text []byte) error {
 		*l = WarnLevel
 	case "error":
 		*l = ErrorLevel
-	case "dpanic":
-		*l = DPanicLevel
 	case "panic":
 		*l = PanicLevel
 	case "fatal":
@@ -139,34 +120,6 @@ func (l *Level) UnmarshalText(text []byte) error {
 		return fmt.Errorf("unrecognized level: %v", string(text))
 	}
 	return nil
-}
-
-// Set sets the level for the flag.Value interface.
-func (l *Level) Set(s string) error {
-	switch s {
-	case "debug":
-		*l = DebugLevel
-	case "info":
-		*l = InfoLevel
-	case "warn":
-		*l = WarnLevel
-	case "error":
-		*l = ErrorLevel
-	case "dpanic":
-		*l = DPanicLevel
-	case "panic":
-		*l = PanicLevel
-	case "fatal":
-		*l = FatalLevel
-	default:
-		return fmt.Errorf("unrecognized level: %q", s)
-	}
-	return nil
-}
-
-// Get gets the level for the flag.Getter interface.
-func (l *Level) Get() interface{} {
-	return *l
 }
 
 // Enabled returns true if the given level is at or above this level.

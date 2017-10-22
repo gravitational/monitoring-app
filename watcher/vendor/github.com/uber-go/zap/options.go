@@ -62,7 +62,7 @@ func ErrorOutput(w WriteSyncer) Option {
 }
 
 // Development puts the logger in development mode, which alters the behavior
-// of the DPanic method.
+// of the DFatal method.
 func Development() Option {
 	return optionFunc(func(m *Meta) {
 		m.Development = true

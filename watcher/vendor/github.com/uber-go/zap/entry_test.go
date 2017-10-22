@@ -21,42 +21,23 @@
 package zap
 
 import (
-	"sync"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-var (
-	_timeNow   = time.Now // for tests
-	_entryPool = sync.Pool{New: func() interface{} { return &Entry{} }}
-)
-
-// An Entry represents a complete log message. The entry's structured context
-// is already serialized, but the log level, time, and message are available
-// for inspection and modification.
-//
-// Entries are pooled, so any functions that accept them must be careful not to
-// retain references to them.
-type Entry struct {
-	Level   Level
-	Time    time.Time
-	Message string
-	enc     Encoder
+func stubNow(afterEpoch time.Duration) func() {
+	prev := _timeNow
+	t := time.Unix(0, int64(afterEpoch))
+	_timeNow = func() time.Time { return t }
+	return func() { _timeNow = prev }
 }
 
-func newEntry(lvl Level, msg string, enc Encoder) *Entry {
-	e := _entryPool.Get().(*Entry)
-	e.Level = lvl
-	e.Message = msg
-	e.Time = _timeNow().UTC()
-	e.enc = enc
-	return e
-}
-
-// Fields returns a mutable reference to the entry's accumulated context.
-func (e *Entry) Fields() KeyValue {
-	return e.enc
-}
-
-func (e *Entry) free() {
-	_entryPool.Put(e)
+func TestNewEntry(t *testing.T) {
+	defer stubNow(0)()
+	e := newEntry(DebugLevel, "hello", nil)
+	assert.Equal(t, DebugLevel, e.Level, "Unexpected log level.")
+	assert.Equal(t, time.Unix(0, 0).UTC(), e.Time, "Unexpected time.")
+	assert.Nil(t, e.Fields(), "Unexpected fields.")
 }

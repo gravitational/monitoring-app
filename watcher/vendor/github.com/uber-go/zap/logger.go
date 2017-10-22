@@ -22,7 +22,6 @@ package zap
 
 import (
 	"os"
-	"time"
 )
 
 // For tests.
@@ -53,9 +52,11 @@ type Logger interface {
 	Info(string, ...Field)
 	Warn(string, ...Field)
 	Error(string, ...Field)
-	DPanic(string, ...Field)
 	Panic(string, ...Field)
 	Fatal(string, ...Field)
+	// If the logger is in development mode (via the Development option), DFatal
+	// logs at the Fatal level. Otherwise, it logs at the Error level.
+	DFatal(string, ...Field)
 }
 
 type logger struct{ Meta }
@@ -104,13 +105,6 @@ func (log *logger) Error(msg string, fields ...Field) {
 	log.log(ErrorLevel, msg, fields)
 }
 
-func (log *logger) DPanic(msg string, fields ...Field) {
-	log.log(DPanicLevel, msg, fields)
-	if log.Development {
-		panic(msg)
-	}
-}
-
 func (log *logger) Panic(msg string, fields ...Field) {
 	log.log(PanicLevel, msg, fields)
 	panic(msg)
@@ -121,15 +115,34 @@ func (log *logger) Fatal(msg string, fields ...Field) {
 	_exit(1)
 }
 
+func (log *logger) DFatal(msg string, fields ...Field) {
+	if log.Development {
+		log.Fatal(msg, fields...)
+		return
+	}
+	log.Error(msg, fields...)
+}
+
 func (log *logger) log(lvl Level, msg string, fields []Field) {
 	if !log.Meta.Enabled(lvl) {
 		return
 	}
 
-	t := time.Now().UTC()
-	if err := log.Encode(log.Output, t, lvl, msg, fields); err != nil {
+	temp := log.Encoder.Clone()
+	addFields(temp, fields)
+
+	entry := newEntry(lvl, msg, temp)
+	for _, hook := range log.Hooks {
+		if err := hook(entry); err != nil {
+			log.InternalError("hook", err)
+		}
+	}
+
+	if err := temp.WriteEntry(log.Output, entry.Message, entry.Level, entry.Time); err != nil {
 		log.InternalError("encoder", err)
 	}
+	temp.Free()
+	entry.free()
 
 	if lvl > ErrorLevel {
 		// Sync on Panic and Fatal, since they may crash the program.
