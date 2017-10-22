@@ -21,26 +21,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gravitational/monitoring-app/watcher/lib"
+
 	"github.com/gravitational/trace"
 	client "github.com/influxdata/kapacitor/client/v1"
 	"github.com/influxdata/kapacitor/pipeline"
 	"github.com/influxdata/kapacitor/tick"
 	"github.com/influxdata/kapacitor/tick/stateful"
-)
-
-const (
-	// APIAddress is the API adrress of Kapacitor running on the same pod
-	APIAddress = "http://localhost:9092"
-	// FetchRate is the rate Kapacitor Client will consume responses
-	FetchRate = 100
-	// Database is the InfluxDB database from where data is streamed
-	Database = "k8s"
-	// RetentionPolicy is the InfluxDB retention policy
-	RetentionPolicy = "default"
-	// UsernameEnv is the name of environment variable with Kapacitor username
-	UsernameEnv = "KAPACITOR_USERNAME"
-	// PasswordEnv is the name of environment variable with Kapacitor password
-	PasswordEnv = "KAPACITOR_PASSWORD"
 )
 
 // Client communicates to Kapacitor
@@ -50,10 +37,10 @@ type Client struct {
 
 // NewClient creates a client that interfaces with Kapacitor tasks
 func NewClient() (*Client, error) {
-	username := os.Getenv(UsernameEnv)
-	password := os.Getenv(PasswordEnv)
+	username := os.Getenv(lib.KapacitorUsernameEnv)
+	password := os.Getenv(lib.KapacitorPasswordEnv)
 
-	client, err := newClientInterface(APIAddress, username, password)
+	client, err := newClientInterface(lib.KapacitorAPIAddress, username, password)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -85,8 +72,8 @@ func (k *Client) CreateAlert(name string, script string) error {
 	}
 
 	policies := []client.DBRP{client.DBRP{
-		Database:        Database,
-		RetentionPolicy: RetentionPolicy,
+		Database:        lib.Database,
+		RetentionPolicy: lib.RetentionPolicy,
 	}}
 
 	opts := client.CreateTaskOptions{
@@ -175,7 +162,7 @@ func newClientInterface(url, username, password string) (clientInterface, error)
 		return nil, trace.Wrap(err)
 	}
 
-	return &paginatingClient{clt, FetchRate}, nil
+	return &paginatingClient{clt, lib.KapacitorFetchRate}, nil
 }
 
 // ensure paginatingClient is a clientInterface

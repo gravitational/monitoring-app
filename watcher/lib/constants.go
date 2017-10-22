@@ -118,6 +118,19 @@ const (
 
 	// ComponentKapacitor defines the Kapacitor monitoring application component
 	ComponentKapacitor = "kapacitor"
+
+	// KapacitorAPIAddress is the API adrress of Kapacitor running on the same pod
+	KapacitorAPIAddress = "http://localhost:9092"
+	// KapacitorFetchRate is the rate Kapacitor Client will consume responses
+	KapacitorFetchRate = 100
+	// Database is the InfluxDB database from where data is streamed
+	Database = "k8s"
+	// RetentionPolicy is the InfluxDB retention policy
+	RetentionPolicy = "default"
+	// KapacitorUsernameEnv is the name of environment variable with Kapacitor username
+	KapacitorUsernameEnv = "KAPACITOR_USERNAME"
+	// KapacitorPasswordEnv is the name of environment variable with Kapacitor password
+	KapacitorPasswordEnv = "KAPACITOR_PASSWORD"
 )
 
 var (
