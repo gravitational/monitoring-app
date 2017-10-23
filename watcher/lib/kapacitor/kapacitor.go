@@ -30,7 +30,7 @@ import (
 	"github.com/influxdata/kapacitor/tick/stateful"
 )
 
-// Client communicates to Kapacitor
+// Client communicates with Kapacitor
 type Client struct {
 	clientInterface
 }
@@ -44,9 +44,7 @@ func NewClient() (*Client, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return &Client{
-		client,
-	}, nil
+	return &Client{client}, nil
 }
 
 // Health checks the status of Kapacitor HTTP API
@@ -92,6 +90,9 @@ func (k *Client) CreateAlert(name string, script string) error {
 
 // UpdateSMTPConfig updates Kapacitor SMTP configuration
 func (k *Client) UpdateSMTPConfig(host string, port int, username, password string) error {
+	// Using the ConfigElementLink to create the link instead of ConfigSectionLink
+	// as it properly adds a trailing '/' as required by ConfigUpdateAction to update
+	// SMTP configuration
 	link := k.ConfigElementLink("smtp", "")
 	updateAction := client.ConfigUpdateAction{
 		Set: map[string]interface{}{
@@ -138,9 +139,15 @@ func (d deadman) Global() bool            { return false }
 
 // clientInterface represents a connection to a Kapacitor instance
 type clientInterface interface {
-	CreateTask(opt client.CreateTaskOptions) (client.Task, error)
+	// CreateTask creates a new Kapacitor from specified options
+	CreateTask(options client.CreateTaskOptions) (client.Task, error)
+	// ConfigUpdate updates the Kapacitor configuration using
+	// provided link and action.
 	ConfigUpdate(link client.Link, action client.ConfigUpdateAction) error
+	// ConfigElementLink creates a link to the specified configuration
+	// element in the given section
 	ConfigElementLink(section, element string) client.Link
+	// Ping pings the server
 	Ping() (time.Duration, string, error)
 }
 
@@ -171,6 +178,8 @@ var _ clientInterface = &paginatingClient{}
 // paginatingClient is a Kapacitor client that automatically prefetches
 // data from kapacitor FetchRate elements at a time
 type paginatingClient struct {
+	// Client is the Kapacitor client
 	*client.Client
-	FetchRate int // specifies the number of elements to fetch from Kapacitor at a time
+	// FetchRate specifies the number of elements to fetch from Kapacitor at a time
+	FetchRate int
 }
