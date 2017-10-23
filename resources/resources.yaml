@@ -27,7 +27,7 @@ spec:
         operator: Equal
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
-        operator: "Equal"
+        operator: "Exists"
         effect: "NoSchedule"
       securityContext:
         runAsUser: 1000
@@ -59,7 +59,7 @@ spec:
       tolerations:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
-        operator: "Equal"
+        operator: "Exists"
         effect: "NoSchedule"      
       securityContext:
         runAsUser: 1000
@@ -115,7 +115,7 @@ spec:
         operator: Equal
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
-        operator: "Equal"
+        operator: "Exists"
         effect: "NoSchedule"
       nodeSelector:
         gravitational.io/k8s-role: master
@@ -188,7 +188,7 @@ spec:
         operator: Equal
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
-        operator: "Equal"
+        operator: "Exists"
         effect: "NoSchedule"        
       containers:
       - name: watcher
@@ -264,7 +264,7 @@ spec:
         operator: Equal
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
-        operator: "Equal"
+        operator: "Exists"
         effect: "NoSchedule"        
       containers:
       - name: grafana
@@ -343,7 +343,7 @@ spec:
         operator: Equal
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
-        operator: "Equal"
+        operator: "Exists"
         effect: "NoSchedule"        
       containers:
         - name: kapacitor
