@@ -29,6 +29,7 @@ import (
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/pkg/api"
@@ -56,13 +57,13 @@ func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 		return trace.Wrap(err)
 	}
 
-	alertCh := make(chan map[string]string)
-	alertTargetCh := make(chan map[string]string)
+	alertCh := make(chan kubernetes.ConfigMapUpdate)
+	alertTargetCh := make(chan kubernetes.ConfigMapUpdate)
 	configmaps := []kubernetes.ConfigMap{
 		{alertLabel, alertCh},
 		{targetLabel, alertTargetCh},
 	}
-	smtpCh := make(chan map[string][]byte)
+	smtpCh := make(chan kubernetes.SecretUpdate)
 
 	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
 	go kubernetesClient.WatchSecrets(context.TODO(), kubernetes.Secret{smtpLabel, smtpCh})
@@ -73,25 +74,41 @@ func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 }
 
 func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *kapacitor.Client,
-	alertCh, alertTargetCh <-chan map[string]string, smtpCh <-chan map[string][]byte) {
+	alertCh, alertTargetCh <-chan kubernetes.ConfigMapUpdate, smtpCh <-chan kubernetes.SecretUpdate) {
 	for {
 		select {
 		case update := <-alertCh:
-			spec := []byte(update[constants.ResourceSpecKey])
-			if err := createAlert(kClient, spec); err != nil {
-				log.Warnf("failed to create alert from spec %q: %v", spec, trace.DebugReport(err))
+			log := log.WithField("configmap", update.ResourceUpdate.Meta())
+			spec := []byte(update.Data[constants.ResourceSpecKey])
+			switch update.EventType {
+			case watch.Added, watch.Modified:
+				if err := createAlert(kClient, spec, log); err != nil {
+					log.Warnf("failed to create alert from spec %s: %v", spec, trace.DebugReport(err))
+				}
 			}
 		case update := <-smtpCh:
-			spec := update[constants.ResourceSpecKey]
+			log := log.WithField("secret", update.ResourceUpdate.Meta())
+			spec := update.Data[constants.ResourceSpecKey]
 			client := kubeClient.Secrets(api.NamespaceSystem)
-			if err := updateSMTPConfig(client, kClient, spec); err != nil {
-				log.Warnf("failed to update SMTP configuration from spec %q: %v", spec, trace.DebugReport(err))
+			switch update.EventType {
+			case watch.Added, watch.Modified:
+				if err := updateSMTPConfig(client, kClient, spec, log); err != nil {
+					log.Warnf("failed to update SMTP configuration from spec %s: %v", spec, trace.DebugReport(err))
+				}
 			}
 		case update := <-alertTargetCh:
-			spec := []byte(update[constants.ResourceSpecKey])
+			log := log.WithField("configmap", update.ResourceUpdate.Meta())
+			spec := []byte(update.Data[constants.ResourceSpecKey])
 			client := kubeClient.ConfigMaps(api.NamespaceSystem)
-			if err := updateAlertTarget(client, kClient, spec); err != nil {
-				log.Warnf("failed to update alert target from spec %q: %v", spec, trace.DebugReport(err))
+			switch update.EventType {
+			case watch.Added, watch.Modified:
+				if err := updateAlertTarget(client, kClient, spec, log); err != nil {
+					log.Warnf("failed to update alert target from spec %s: %v", spec, trace.DebugReport(err))
+				}
+			case watch.Deleted:
+				if err := deleteAlertTarget(kClient, log); err != nil {
+					log.Warnf("failed to delete alert target: %v", trace.DebugReport(err))
+				}
 			}
 		case <-ctx.Done():
 			return
@@ -99,7 +116,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 	}
 }
 
-func createAlert(client *kapacitor.Client, spec []byte) error {
+func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -117,7 +134,7 @@ func createAlert(client *kapacitor.Client, spec []byte) error {
 	return nil
 }
 
-func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte) error {
+func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
 	log.Debugf("update SMTP config from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -157,7 +174,7 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 	return nil
 }
 
-func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte) error {
+func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
 	log.Debugf("update alert target from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -191,6 +208,11 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 	}
 
 	return nil
+}
+
+func deleteAlertTarget(client *kapacitor.Client, log *log.Entry) error {
+	log.Debug("delete alert target")
+	return trace.Wrap(client.DeleteAlertTarget())
 }
 
 // alert defines the monitoring alert resource

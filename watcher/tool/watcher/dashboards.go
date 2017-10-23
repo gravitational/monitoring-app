@@ -26,6 +26,7 @@ import (
 
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 func runDashboardsWatcher(kubernetesClient *kubernetes.Client) error {
@@ -44,7 +45,7 @@ func runDashboardsWatcher(kubernetesClient *kubernetes.Client) error {
 		return trace.Wrap(err)
 	}
 
-	ch := make(chan map[string]string)
+	ch := make(chan kubernetes.ConfigMapUpdate)
 	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
 	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
@@ -52,15 +53,19 @@ func runDashboardsWatcher(kubernetesClient *kubernetes.Client) error {
 
 // receiveAndCreateDashboards listens on the provided channel that receives new dashboards data and creates
 // them in Grafana using the provided client
-func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch <-chan map[string]string) {
+func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch <-chan kubernetes.ConfigMapUpdate) {
 	for {
 		select {
-		case data := <-ch:
-			for _, v := range data {
-				err := client.CreateDashboard(v)
+		case update := <-ch:
+			if update.EventType != watch.Added {
+				continue
+			}
+			log := log.WithField("configmap", update.ResourceUpdate.Meta())
+			for _, dashboard := range update.Data {
+				err := client.CreateDashboard(dashboard)
 
 				if err != nil {
-					log.Errorf("failed to create dashboard: %v", trace.DebugReport(err))
+					log.Errorf("failed to create dashboard %v: %v", dashboard, trace.DebugReport(err))
 				}
 			}
 		case <-ctx.Done():

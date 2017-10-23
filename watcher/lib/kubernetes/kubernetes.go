@@ -18,6 +18,7 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -105,7 +106,7 @@ type ConfigMap struct {
 	// Selector specifies the selector for this ConfigMap
 	Selector labels.Selector
 	// RecvCh specifies the channel that receives updates on the matched resource
-	RecvCh chan map[string]string
+	RecvCh chan ConfigMapUpdate
 }
 
 // Secret describes matching and sending updates for Secrets.
@@ -115,7 +116,43 @@ type Secret struct {
 	// Selector specifies the selector for this Secret
 	Selector labels.Selector
 	// RecvCh specifies the channel that receives updates on the matched resource
-	RecvCh chan map[string][]byte
+	RecvCh chan SecretUpdate
+}
+
+// ConfigMapUpdate describes a ConfigMap update
+type ConfigMapUpdate struct {
+	// ResourceUpdate describes the common resource update metadata
+	ResourceUpdate
+	// Data descrines the update data payload
+	Data map[string]string
+}
+
+// SecretUpdate describes a Secret update
+type SecretUpdate struct {
+	// ResourceUpdate describes the common resource update metadata
+	ResourceUpdate
+	// Data descrines the update data payload
+	Data map[string][]byte
+}
+
+// Meta formats the metadata for readability
+func (r ResourceUpdate) Meta() string {
+	return fmt.Sprintf("%v(%v/%v)", r.Kind, r.Namespace, r.Name)
+}
+
+// String formats this update for readability
+func (r ResourceUpdate) String() string {
+	return fmt.Sprintf("%v(%v)", r.EventType, r.Meta())
+}
+
+// ResourceUpdate describes an update for a resource
+type ResourceUpdate struct {
+	// EventType specifies the type of event
+	watch.EventType
+	// TypeMeta references the resource type metadata
+	metav1.TypeMeta
+	// ObjectMeta references the resource metadata
+	metav1.ObjectMeta
 }
 
 func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, config ConfigMap) error {
@@ -133,15 +170,13 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 				return trace.Retry(nil, "watcher closed")
 			}
 
-			if event.Type != watch.Added {
-				log.Debugf("ignoring event: %v", event)
-				continue
-			}
-
 			switch configMap := event.Object.(type) {
 			case *v1.ConfigMap:
 				log.Infof("detected %q", configMap.Name)
-				config.RecvCh <- configMap.Data
+				config.RecvCh <- ConfigMapUpdate{
+					ResourceUpdate{event.Type, configMap.TypeMeta, configMap.ObjectMeta},
+					configMap.Data,
+				}
 			}
 
 		case <-ctx.Done():
@@ -165,15 +200,13 @@ func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secr
 				return trace.Retry(nil, "watcher closed")
 			}
 
-			if event.Type != watch.Added {
-				log.Debugf("ignoring event: %v", event)
-				continue
-			}
-
 			switch secret := event.Object.(type) {
 			case *v1.Secret:
 				log.Infof("detected %q", secret.Name)
-				config.RecvCh <- secret.Data
+				config.RecvCh <- SecretUpdate{
+					ResourceUpdate{event.Type, secret.TypeMeta, secret.ObjectMeta},
+					secret.Data,
+				}
 			}
 
 		case <-ctx.Done():

@@ -116,6 +116,17 @@ func (k *Client) UpdateAlertTarget(email string) error {
 	return trace.Wrap(k.ConfigUpdate(link, updateAction))
 }
 
+// DeleteAlertTarget deletes Kapacitor alert target configuration
+func (k *Client) DeleteAlertTarget() error {
+	link := k.ConfigElementLink("smtp", "")
+	updateAction := client.ConfigUpdateAction{
+		Set: map[string]interface{}{
+			"to": []string{},
+		},
+	}
+	return trace.Wrap(k.ConfigUpdate(link, updateAction))
+}
+
 func validateTick(script string, tickType pipeline.EdgeType) error {
 	scope := stateful.NewScope()
 	predefinedVars := map[string]tick.Var{}
