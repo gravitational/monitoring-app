@@ -130,8 +130,7 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 		select {
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				log.Debug("watcher closed")
-				return nil
+				return trace.Retry(nil, "watcher closed")
 			}
 
 			if event.Type != watch.Added {
@@ -163,8 +162,7 @@ func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secr
 		select {
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				log.Debug("watcher closed")
-				return nil
+				return trace.Retry(nil, "watcher closed")
 			}
 
 			if event.Type != watch.Added {
