@@ -321,6 +321,12 @@ spec:
         value: system
         operator: Equal
       containers:
+        - name: watcher
+          image: watcher:0.0.2
+          securityContext:
+            runAsUser: 1000
+          args:
+            - --mode=alerts
         - name: kapacitor
           image: monitoring-kapacitor:1.3
           env:

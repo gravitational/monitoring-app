@@ -20,6 +20,11 @@
   version = "v7"
 
 [[projects]]
+  name = "github.com/cenkalti/backoff"
+  packages = ["."]
+  revision = "309aa717adbf351e92864cbedf9cca0b769a4b5a"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -30,6 +35,12 @@
   packages = ["digest","reference"]
   revision = "48294d928ced5dd9b378f7fd7c6f5da3ff3f2c89"
   version = "v2.6.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dustin/go-humanize"
+  packages = ["."]
+  revision = "77ed807830b4df581417e7f89eb81d4872832b72"
 
 [[projects]]
   name = "github.com/emicklei/go-restful"
@@ -111,6 +122,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "1643683e1b54a9e88ad26d98f81400c8c9d9f4f9"
+
+[[projects]]
+  branch = "master"
   name = "github.com/google/gofuzz"
   packages = ["."]
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
@@ -126,6 +143,18 @@
   packages = ["."]
   revision = "6b5a7fe88920c524ac56d22ed6f371ca25ec7e13"
   version = "1.1.1"
+
+[[projects]]
+  branch = "1.2"
+  name = "github.com/influxdata/influxdb"
+  packages = ["influxql","influxql/internal","influxql/neldermead","models","pkg/escape"]
+  revision = "4196df0fb90961df19e551dab7393a4954c0e175"
+
+[[projects]]
+  name = "github.com/influxdata/kapacitor"
+  packages = ["client/v1","influxdb","models","pipeline","services/k8s/client","tick","tick/ast","tick/stateful","udf"]
+  revision = "4628bda2e3fbcc43df694707ec3f640f213cb0dc"
+  version = "v1.2.1"
 
 [[projects]]
   name = "github.com/jonboulle/clockwork"
@@ -152,6 +181,12 @@
   revision = "06020f85339e21b2478f756a78e295255ffa4d6a"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
@@ -162,6 +197,17 @@
   packages = ["."]
   revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/uber-go/atomic"
+  packages = ["."]
+  revision = "4e336646b2ef9fc6e47be8e21594178f98e5ebcf"
+  version = "v1.2.0"
+
+[[projects]]
+  name = "github.com/uber-go/zap"
+  packages = ["."]
+  revision = "fbae0281ffd546fa6d1959fec6075ac5da7fb577"
 
 [[projects]]
   name = "github.com/ugorji/go"
@@ -225,6 +271,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "123dabc2c6ccb67f311a54c98cd5fb28afc530fe34e5395c63fcf7253abdaf11"
+  inputs-digest = "11dcd8a225bdb8c3319452d2e61fd28216f21df410579eb65280787f21b08623"
   solver-name = "gps-cdcl"
   solver-version = 1
