@@ -434,6 +434,8 @@ kind: ConfigMap
 metadata:
   name: rollups-default
   namespace: kube-system
+  labels:
+    monitoring: rollup
 data:
   rollups: |
     [
@@ -646,6 +648,8 @@ kind: ConfigMap
 metadata:
   name: dashboard-default
   namespace: kube-system
+  labels:
+    monitoring: dashboard
 data:
   cluster: |
     {
