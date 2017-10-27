@@ -4203,6 +4203,7 @@ spec:
   ports:
     - port: 9092
       targetPort: 9092
+      nodePort: 32504
   selector:
     app: monitoring
     component: kapacitor
