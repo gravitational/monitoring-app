@@ -346,6 +346,12 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"        
       containers:
+        - name: watcher
+          image: watcher:0.0.2
+          securityContext:
+            runAsUser: 1000
+          args:
+            - --mode=alerts
         - name: kapacitor
           image: monitoring-kapacitor:1.3
           env:
@@ -453,6 +459,8 @@ kind: ConfigMap
 metadata:
   name: rollups-default
   namespace: kube-system
+  labels:
+    monitoring: rollup
 data:
   rollups: |
     [
@@ -665,6 +673,8 @@ kind: ConfigMap
 metadata:
   name: dashboard-default
   namespace: kube-system
+  labels:
+    monitoring: dashboard
 data:
   cluster: |
     {
