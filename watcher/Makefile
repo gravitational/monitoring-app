@@ -26,7 +26,7 @@ dev: build-inside-container
 #
 .PHONY: container
 container: build
-	docker build -t $(NAME):$(VER) .
+	docker build -t $(NAME):$(VERSION) .
 
 
 #
@@ -45,8 +45,8 @@ build:
 # build-inside-container builds the "watcher" binary inside the buildbox
 #
 .PHONY: build-inside-container
-build-inside-container:
-	go build -ldflags "-w" -o $(BUILDDIR)/$(NAME) github.com/gravitational/monitoring-app/watcher/tool/watcher
+build-inside-container: tool/watcher/*.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-w" -o $(BUILDDIR)/$(NAME) github.com/gravitational/monitoring-app/watcher/tool/watcher
 
 
 #
