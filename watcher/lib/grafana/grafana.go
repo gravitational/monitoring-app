@@ -22,9 +22,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gosimple/slug"
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
+	"github.com/gosimple/slug"
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
@@ -93,16 +93,18 @@ type CreateDashboardRequest struct {
 	Overwrite bool `json:"overwrite"`
 }
 
-// DeleteDashboard deletes dashboard
-// dashboard name is obtained from dashboard data field 'title'
+// DeleteDashboard deletes a dashboard specified with data.
+// data is expected to be JSON-encoded and contain a field named `title` which names the dashboard to delete.
 func (c *Client) DeleteDashboard(data string) error {
-	// dashboard data should be a valid JSON
-	var dashboardJSON map[string]interface{}
+	type header struct {
+		Title string `json:"title"`
+	}
+	var dashboardJSON header
 	if err := json.Unmarshal([]byte(data), &dashboardJSON); err != nil {
 		return trace.Wrap(err)
 	}
 
-	response, err := c.Delete(c.Endpoint("api", "dashboards", "db", slug.Make(strings.ToLower(dashboardJSON["title"].(string)))))
+	response, err := c.Delete(c.Endpoint("api", "dashboards", "db", slug.Make(strings.ToLower(dashboardJSON.Title))))
 	if err != nil {
 		return trace.Wrap(err)
 	}

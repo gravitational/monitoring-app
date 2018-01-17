@@ -57,7 +57,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 	for {
 		select {
 		case update := <-ch:
-			switch eventType := update.EventType; eventType {
+			switch update.EventType {
 			case watch.Added, watch.Modified:
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
@@ -76,8 +76,6 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 						log.Errorf("failed to delete dashboard %v: %v", dashboard, trace.DebugReport(err))
 					}
 				}
-			default:
-				continue
 			}
 		case <-ctx.Done():
 			return
