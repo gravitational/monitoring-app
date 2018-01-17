@@ -40,7 +40,7 @@ deploy:
 	$(MAKE) -C images deploy
 
 .PHONY:
-what-version:
+get-version:
 	@echo $(VERSION)
 
 .PHONY: hook
