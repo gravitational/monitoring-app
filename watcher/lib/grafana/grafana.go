@@ -96,10 +96,9 @@ type CreateDashboardRequest struct {
 // DeleteDashboard deletes a dashboard specified with data.
 // data is expected to be JSON-encoded and contain a field named `title` which names the dashboard to delete.
 func (c *Client) DeleteDashboard(data string) error {
-	type header struct {
+	var dashboardJSON struct {
 		Title string `json:"title"`
 	}
-	var dashboardJSON header
 	if err := json.Unmarshal([]byte(data), &dashboardJSON); err != nil {
 		return trace.Wrap(err)
 	}
