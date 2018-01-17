@@ -31,7 +31,6 @@ rules:
       - grafana
       - grafana-influxdb-creds
       - smtp-configuration
-      - kapacitor-alerts
   - apiGroups:
       -  ""
     verbs:
