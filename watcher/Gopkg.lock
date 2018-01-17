@@ -133,6 +133,12 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
+  name = "github.com/gosimple/slug"
+  packages = ["."]
+  revision = "e9f42fa127660e552d0ad2b589868d403a9be7c6"
+  version = "v1.1.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/gravitational/roundtrip"
   packages = ["."]
@@ -141,8 +147,8 @@
 [[projects]]
   name = "github.com/gravitational/trace"
   packages = ["."]
-  revision = "6b5a7fe88920c524ac56d22ed6f371ca25ec7e13"
-  version = "1.1.1"
+  revision = "0bd13642feb8f57acc0d8e3a568edc34e05a74b9"
+  version = "1.1.3"
 
 [[projects]]
   branch = "1.2"
@@ -185,6 +191,12 @@
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/rainycape/unidecode"
+  packages = ["."]
+  revision = "cb7f23ec59bec0d61b19c56cd88cee3d0cc1870c"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -271,6 +283,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "11dcd8a225bdb8c3319452d2e61fd28216f21df410579eb65280787f21b08623"
+  inputs-digest = "5b65ca08c35946f75bb23053d2712d13a6c9d0991692960301be7deb87fe3d16"
   solver-name = "gps-cdcl"
   solver-version = 1

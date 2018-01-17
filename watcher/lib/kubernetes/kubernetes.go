@@ -172,7 +172,7 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 
 			switch configMap := event.Object.(type) {
 			case *v1.ConfigMap:
-				log.Infof("detected %q", configMap.Name)
+				log.Infof("detected event %v for configmap %q", event.Type, configMap.Name)
 				config.RecvCh <- ConfigMapUpdate{
 					ResourceUpdate{event.Type, configMap.TypeMeta, configMap.ObjectMeta},
 					configMap.Data,

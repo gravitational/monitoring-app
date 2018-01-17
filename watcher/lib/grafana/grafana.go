@@ -20,9 +20,11 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
+	"github.com/gosimple/slug"
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
@@ -89,4 +91,23 @@ type CreateDashboardRequest struct {
 	Dashboard map[string]interface{} `json:"dashboard"`
 	// Overwrite is whether to overwrite existing dashboard with newer version or with same dashboard title
 	Overwrite bool `json:"overwrite"`
+}
+
+// DeleteDashboard deletes a dashboard specified with data.
+// data is expected to be JSON-encoded and contain a field named `title` which names the dashboard to delete.
+func (c *Client) DeleteDashboard(data string) error {
+	var dashboardJSON struct {
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(data), &dashboardJSON); err != nil {
+		return trace.Wrap(err)
+	}
+
+	response, err := c.Delete(c.Endpoint("api", "dashboards", "db", slug.Make(strings.ToLower(dashboardJSON.Title))))
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	log.Infof("%v", response)
+	return nil
 }
