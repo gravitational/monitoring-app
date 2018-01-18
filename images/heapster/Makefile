@@ -1,7 +1,7 @@
 .PHONY: all clean docker
 
+VER ?= v1.4.1
 REPODIR:=$(GOPATH)/src/k8s.io/heapster
-VER=v1.4.1
 PREFIX=gravity
 GOFLAGS=-a -installsuffix cgo --ldflags '-w'
 OUT=/targetdir/heapster
@@ -21,5 +21,5 @@ $(OUT):
 	sudo -E -u builder HOME=~builder PATH="$$PATH:$(GOPATH)/bin" bash -c "cd $(REPODIR) && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 godep go build -o eventer $(GOFLAGS) k8s.io/heapster/events && mv $(REPODIR)/eventer /targetdir/"
 
 clean:
-	rm build/heapster
-	rm build/eventer
+	rm -f build/heapster
+	rm -f build/eventer

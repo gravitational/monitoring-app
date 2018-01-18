@@ -95,7 +95,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: telegraf
-        image: monitoring-telegraf:1.4.0
+        image: monitoring-telegraf:latest
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -123,12 +123,12 @@ spec:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
-        effect: "NoSchedule"      
+        effect: "NoSchedule"
       securityContext:
         runAsUser: 1000
       containers:
         - name: telegraf
-          image: monitoring-telegraf:1.4.0
+          image: monitoring-telegraf:latest
           command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run-node.sh"]
           env:
             - name: NODE_NAME
@@ -187,7 +187,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: heapster
-        image: monitoring-heapster:1.4.1
+        image: monitoring-heapster:latest
         command:
         - /usr/bin/dumb-init
         - /heapster
@@ -254,16 +254,16 @@ spec:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
-        effect: "NoSchedule"        
+        effect: "NoSchedule"
       containers:
       - name: watcher
-        image: watcher:0.0.2
+        image: watcher:latest
         securityContext:
           runAsUser: 1000
         args:
           - --mode=rollups
       - name: influxdb
-        image: monitoring-influxdb:1.2.2
+        image: monitoring-influxdb:latest
         command:
           - /usr/bin/dumb-init
           - /influxdb/influxd
@@ -331,10 +331,10 @@ spec:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
-        effect: "NoSchedule"        
+        effect: "NoSchedule"
       containers:
       - name: grafana
-        image: monitoring-grafana:3.0.4
+        image: monitoring-grafana:latest
         env:
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
@@ -360,7 +360,7 @@ spec:
           - name: config
             mountPath: /etc/grafana
       - name: watcher
-        image: watcher:0.0.2
+        image: watcher:latest
         securityContext:
           runAsUser: 1000
         args:
@@ -411,16 +411,16 @@ spec:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
-        effect: "NoSchedule"        
+        effect: "NoSchedule"
       containers:
         - name: watcher
-          image: watcher:0.0.2
+          image: watcher:latest
           securityContext:
             runAsUser: 1000
           args:
             - --mode=alerts
         - name: kapacitor
-          image: monitoring-kapacitor:1.3
+          image: monitoring-kapacitor:latest
           env:
             - name: "KAPACITOR_HOSTNAME"
               value: "kapacitor.kube-system.svc.cluster.local"
@@ -474,7 +474,7 @@ spec:
             - mountPath: /var/lib/kapacitor
               name: kapacitor-storage
         - name: alert-loader
-          image: monitoring-kapacitor:1.3
+          image: monitoring-kapacitor:latest
           securityContext:
             runAsUser: 1000
           args:

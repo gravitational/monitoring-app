@@ -28,6 +28,7 @@ $(BINARIES): buildbox $(ASSETS)/Makefile
 		--volume=$(BUILDDIR):/targetdir \
 		--env="BUILD_UID=$(shell id -u)" \
 		--env="TARGETDIR=/targetdir" \
+		--env="VER=$(VER)" \
 		$(BBOX) \
 		make -f /assets/Makefile
 
