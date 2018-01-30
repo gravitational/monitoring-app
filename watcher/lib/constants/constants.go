@@ -93,6 +93,8 @@ const (
 	FunctionMin = "min"
 	// FunctionPercentile is the percentile function
 	FunctionPercentile = "percentile"
+	// FunctionCount is the count function
+	FunctionCount = "count"
 
 	// MonitoringLabel is the label for resources with configuration updates
 	MonitoringLabel = "monitoring"
@@ -177,5 +179,6 @@ var (
 		FunctionSum,
 		FunctionMax,
 		FunctionMin,
+		FunctionCount,
 	}
 )
