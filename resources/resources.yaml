@@ -199,6 +199,8 @@ spec:
           - --mode=rollups
       - name: influxdb
         image: monitoring-influxdb:1.2.2
+        securityContext:
+          runAsUser: 0
         command:
           - /usr/bin/dumb-init
           - /influxdb/influxd
@@ -269,6 +271,8 @@ spec:
       containers:
       - name: grafana
         image: monitoring-grafana:3.0.4
+        securityContext:
+          runAsUser: 0
         env:
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
@@ -354,6 +358,8 @@ spec:
             - --mode=alerts
         - name: kapacitor
           image: monitoring-kapacitor:1.3
+          securityContext:
+            runAsUser: 0
           env:
             - name: "KAPACITOR_HOSTNAME"
               value: "kapacitor.kube-system.svc.cluster.local"
