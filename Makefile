@@ -23,7 +23,7 @@ IMPORT_OPTIONS := --vendor \
 	--exclude="images" \
 	--exclude="Makefile" \
 	--exclude=".gitignore" \
-	--registry-url=apiserver:5000 \
+	--registry-url=leader.telekube.local:5000 \
 	--ops-url=$(OPS_URL) \
 	--repository=$(REPOSITORY) \
 	--name=$(NAME) \
@@ -51,7 +51,10 @@ hook:
 import: package
 	-$(GRAVITY) app delete --ops-url=$(OPS_URL) $(REPOSITORY)/$(NAME):$(VERSION) \
 		--force --insecure $(EXTRA_GRAVITY_OPTIONS)
-	$(GRAVITY) app import $(IMPORT_OPTIONS) $(EXTRA_GRAVITY_OPTIONS) .
+	$(GRAVITY) app import \
+		$(IMPORT_OPTIONS) \
+		$(EXTRA_GRAVITY_OPTIONS) \
+		--include=resources --include=registry .
 
 .PHONY: clean
 clean:
