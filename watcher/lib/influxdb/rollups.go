@@ -126,29 +126,56 @@ func buildFunction(f Function) (string, error) {
 		alias = f.Field
 	}
 	if strings.HasPrefix(f.Function, constants.FunctionPercentile) {
-		value, err := parsePercentileValue(f.Function)
+		value, err := parseValueComposedFunc(f.Function)
 		if err != nil {
 			return "", trace.Wrap(err)
 		}
 		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionPercentile, f.Field, value, alias), nil
 	}
+	if strings.HasPrefix(f.Function, constants.FunctionBottom) {
+		value, err := parseValueComposedFunc(f.Function)
+		if err != nil {
+			return "", trace.Wrap(err)
+		}
+		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionBottom, f.Field, value, alias), nil
+	}
+	if strings.HasPrefix(f.Function, constants.FunctionTop) {
+		value, err := parseValueComposedFunc(f.Function)
+		if err != nil {
+			return "", trace.Wrap(err)
+		}
+		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionTop, f.Field, value, alias), nil
+	}
+	if strings.HasPrefix(f.Function, constants.FunctionSample) {
+		value, err := parseValueComposedFunc(f.Function)
+		if err != nil {
+			return "", trace.Wrap(err)
+		}
+		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionSample, f.Field, value, alias), nil
+	}
 	return fmt.Sprintf("%v(%v) as %v", f.Function, f.Field, alias), nil
 }
 
-// parsePercentileValue parses the percentile value from the strings like "percentile_90"
-func parsePercentileValue(data string) (string, error) {
+// parseValueComposedFunc parses the additional arg value from the composed functions strings like "percentile_90"
+func parseValueComposedFunc(data string) (string, error) {
 	parts := strings.Split(data, "_")
 	if len(parts) != 2 {
 		return "", trace.BadParameter(
-			"percentile function must have format like 'percentile_90'")
+			"percentile function must have format like 'percentile_90', 'top_10', 'bottom_10' or 'sample_1000' ")
 	}
+	funcName := parts[0]
+
 	value, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
-	if value < 0 || value > 100 {
+
+	if funcName == "percentile" && value < 0 || value > 100 {
 		return "", trace.BadParameter(
 			"percentile value must be between 0 and 100 (inclusive)")
+	} else if (funcName == "top" || funcName == "bottom" || funcName == "sample") && value < 0 {
+		return "", trace.BadParameter(
+			"Top, Bottom and Sample value must be greater or equal to 0")
 	}
 	return parts[1], nil
 }
