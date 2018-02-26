@@ -92,7 +92,7 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       securityContext:
-        runAsUser: 1000
+        runAsUser: -1
       containers:
       - name: telegraf
         image: monitoring-telegraf:latest
@@ -125,7 +125,7 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       securityContext:
-        runAsUser: 1000
+        runAsUser: -1
       containers:
         - name: telegraf
           image: monitoring-telegraf:latest
@@ -184,7 +184,7 @@ spec:
       nodeSelector:
         gravitational.io/k8s-role: master
       securityContext:
-        runAsUser: 1000
+        runAsUser: -1
       containers:
       - name: heapster
         image: monitoring-heapster:latest
@@ -259,7 +259,7 @@ spec:
       - name: watcher
         image: watcher:latest
         securityContext:
-          runAsUser: 1000
+          runAsUser: -1
         args:
           - --mode=rollups
       - name: influxdb
@@ -335,6 +335,8 @@ spec:
       containers:
       - name: grafana
         image: monitoring-grafana:latest
+        securityContext:
+          runAsUser: 0
         env:
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
@@ -362,7 +364,7 @@ spec:
       - name: watcher
         image: watcher:latest
         securityContext:
-          runAsUser: 1000
+          runAsUser: -1
         args:
           - --mode=dashboards
         env:
@@ -416,11 +418,13 @@ spec:
         - name: watcher
           image: watcher:latest
           securityContext:
-            runAsUser: 1000
+            runAsUser: -1
           args:
             - --mode=alerts
         - name: kapacitor
           image: monitoring-kapacitor:latest
+          securityContext:
+            runAsUser: 0
           env:
             - name: "KAPACITOR_HOSTNAME"
               value: "kapacitor.kube-system.svc.cluster.local"
@@ -476,7 +480,7 @@ spec:
         - name: alert-loader
           image: monitoring-kapacitor:latest
           securityContext:
-            runAsUser: 1000
+            runAsUser: -1
           args:
             - /loadalerts.sh
           env:
