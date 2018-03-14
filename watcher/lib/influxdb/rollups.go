@@ -119,7 +119,7 @@ func buildQuery(r Rollup) (string, error) {
 	return b.String(), nil
 }
 
-// define which functions needs an additional parameter
+// funcsWithParams define which functions need an additional parameter
 var funcsWithParams = []string{
 	constants.FunctionPercentile,
 	constants.FunctionBottom,
@@ -127,10 +127,10 @@ var funcsWithParams = []string{
 	constants.FunctionSample,
 }
 
-// check if function is one of the composable Functions listed above
+// isFuncWithParams check if function is one of the composable Functions listed above
 func isFuncWithParams(funcName string) bool {
-	for _, val := range funcsWithParams {
-		if val == funcName {
+	for _, fwp := range funcsWithParams { // fwp == "function with parameters"
+		if fwp == funcName {
 			return true
 		}
 	}
@@ -146,8 +146,8 @@ func buildFunction(f Function) (string, error) {
 
 	// split function name, based on the "_" separator (eg: percentile_99, top_10, ecc)
 	funcAndValue := strings.Split(f.Function, "_")
-	if len(funcAndValue) == 2 && isFuncWithParams(funcAndValue[0]) {
-		funcName := funcAndValue[0]
+	funcName := funcAndValue[0]
+	if len(funcAndValue) == 2 && isFuncWithParams(funcName) {
 		param := funcAndValue[1]
 		err := validateParam(funcName, param)
 		if err != nil {
