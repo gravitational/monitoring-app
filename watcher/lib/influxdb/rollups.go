@@ -153,10 +153,10 @@ func buildFunction(f Function) (string, error) {
 		if err != nil {
 			return "", trace.Wrap(err)
 		}
-		return fmt.Sprintf("%v(\"%v\", %v) as %v", funcName, f.Field, param, alias), nil
+		return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
 	}
 
-	return fmt.Sprintf("%v(\"%v\") as %v", f.Function, f.Field, alias), nil
+	return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
 }
 
 // validateParam checks the function parameter for validity.
