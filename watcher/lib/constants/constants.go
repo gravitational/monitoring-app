@@ -198,7 +198,7 @@ var (
 
 	// AllFunctions contains names of functions,
 	// excluding percentile, bottom, sample and top
-	// because those functions needs an additional paramenter (percentile, 99)
+	// because those functions need an additional paramenter (percentile, 99)
 	// and thus are formatted like 'percentile_X'
 	AllFunctions = []string{
 		FunctionCount,
