@@ -127,6 +127,16 @@ var funcsWithParams = []string{
 	constants.FunctionSample,
 }
 
+// check if function is one of the composable Functions listed above
+func isFuncWithParams(funcName string) bool {
+	for _, val := range funcsWithParams {
+		if val == funcName {
+			return true
+		}
+	}
+	return false
+}
+
 // buildFunction returns a function string based on the provided function configuration
 func buildFunction(f Function) (string, error) {
 	alias := f.Alias
