@@ -119,65 +119,58 @@ func buildQuery(r Rollup) (string, error) {
 	return b.String(), nil
 }
 
+// define which functions needs an additional parameter
+var funcsWithParams = []string{
+	constants.FunctionPercentile,
+	constants.FunctionBottom,
+	constants.FunctionTop,
+	constants.FunctionSample,
+}
+
 // buildFunction returns a function string based on the provided function configuration
 func buildFunction(f Function) (string, error) {
 	alias := f.Alias
 	if alias == "" {
 		alias = f.Field
 	}
-	if strings.HasPrefix(f.Function, constants.FunctionPercentile) {
-		value, err := parseValueComposedFunc(f.Function)
+
+	// split function name, based on the "_" separator (eg: percentile_99, top_10, ecc)
+	funcAndValue := strings.Split(f.Function, "_")
+	if len(funcAndValue) == 2 && isFuncWithParams(funcAndValue[0]) {
+		funcName := funcAndValue[0]
+		param := funcAndValue[1]
+		err := validateParam(funcName, param)
 		if err != nil {
 			return "", trace.Wrap(err)
 		}
-		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionPercentile, f.Field, value, alias), nil
+		return fmt.Sprintf("%v(%v, %v) as %v", funcName, f.Field, param, alias), nil
 	}
-	if strings.HasPrefix(f.Function, constants.FunctionBottom) {
-		value, err := parseValueComposedFunc(f.Function)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionBottom, f.Field, value, alias), nil
-	}
-	if strings.HasPrefix(f.Function, constants.FunctionTop) {
-		value, err := parseValueComposedFunc(f.Function)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionTop, f.Field, value, alias), nil
-	}
-	if strings.HasPrefix(f.Function, constants.FunctionSample) {
-		value, err := parseValueComposedFunc(f.Function)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		return fmt.Sprintf("%v(%v, %v) as %v", constants.FunctionSample, f.Field, value, alias), nil
-	}
+
 	return fmt.Sprintf("%v(%v) as %v", f.Function, f.Field, alias), nil
 }
 
-// parseValueComposedFunc parses the additional arg value from the composed functions strings like "percentile_90"
-func parseValueComposedFunc(data string) (string, error) {
-	parts := strings.Split(data, "_")
-	if len(parts) != 2 {
-		return "", trace.BadParameter(
-			"percentile function must have format like 'percentile_90', 'top_10', 'bottom_10' or 'sample_1000' ")
-	}
-	funcName := parts[0]
-
-	value, err := strconv.Atoi(parts[1])
+// validateParam checks the function parameter for validity.
+func validateParam(funcName, param string) error {
+	// convert parameter value as it's always going to be an Integer
+	value, err := strconv.Atoi(param)
 	if err != nil {
-		return "", trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 
-	if funcName == "percentile" && value < 0 || value > 100 {
-		return "", trace.BadParameter(
-			"percentile value must be between 0 and 100 (inclusive)")
-	} else if (funcName == "top" || funcName == "bottom" || funcName == "sample") && value < 0 {
-		return "", trace.BadParameter(
-			"Top, Bottom and Sample value must be greater or equal to 0")
+	switch funcName {
+	case constants.FunctionPercentile:
+		if value < 0 || value > 100 {
+			return trace.BadParameter(
+				"Percentile value must be between 0 and 100 (inclusive)")
+		}
+	case constants.FunctionTop, constants.FunctionBottom, constants.FunctionSample:
+		if value < 0 {
+			return trace.BadParameter(
+				"Top, Bottom and Sample value must be greater or equal to 0")
+		}
 	}
-	return parts[1], nil
+
+	return nil
 }
 
 var (
