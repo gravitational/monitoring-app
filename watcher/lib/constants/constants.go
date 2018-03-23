@@ -196,11 +196,17 @@ var (
 		RetentionMedium: IntervalMedium,
 	}
 
-	// AllFunctions contains names of functions,
-	// excluding percentile, bottom, sample and top
-	// because those functions need an additional paramenter (percentile, 99)
-	// and thus are formatted like 'percentile_X'
-	AllFunctions = []string{
+	// CompositeFunctions lists those functions that need an additional
+	// parameter, specified in the name and identified via the "_" separator
+	// and thus formatted like 'percentile_99', 'top_10', 'bottom_3'
+	CompositeFunctions = []string{
+		FunctionPercentile,
+		FunctionBottom,
+		FunctionTop,
+		FunctionSample,
+	}
+	// SimpleFunctions that don't need the composite structure explained above
+	SimpleFunctions = []string{
 		FunctionCount,
 		FunctionDistinct,
 		FunctionIntegral,

@@ -78,15 +78,83 @@ type Function struct {
 
 // Check verifies the function configuration is correct
 func (f Function) Check() error {
-	if !utils.OneOf(f.Function, constants.AllFunctions) &&
-		!strings.HasPrefix(f.Function, constants.FunctionPercentile) {
+	if !utils.OneOf(f.Function, constants.SimpleFunctions) && !isCompositeFunc(f) {
 		return trace.BadParameter(
-			"invalid Function, must be one of: %v, or start with %q",
-			constants.AllFunctions, constants.FunctionPercentile)
+			"invalid Function, must be one of %v, or a composite function starting with one of %v prefixes",
+			constants.SimpleFunctions, constants.CompositeFunctions)
+	}
+	if isCompositeFunc(f) {
+		funcAndValue := strings.Split(f.Function, "_")
+		if len(funcAndValue) != 2 {
+			return trace.BadParameter(
+				"percentile function must have format like 'percentile_90', 'top_10', 'bottom_10' or 'sample_1000' ")
+		}
 	}
 	if f.Field == "" {
 		return trace.BadParameter("parameter Field is missing")
 	}
+	return nil
+}
+
+// buildFunction returns a function string based on the provided function configuration
+func buildFunction(f Function) (string, error) {
+	alias := f.Alias
+	if alias == "" {
+		alias = f.Field
+	}
+
+	// split function name, based on the "_" separator (eg: percentile_99, top_10, ecc)
+	err != f.Check()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	if isCompositeFunc(f) {
+		funcAndValue := strings.Split(f.Function, "_")
+		funcName := funcAndValue[0]
+		param := funcAndValue[1]
+
+		err := validateParam(funcName, param)
+		if err != nil {
+			return "", trace.Wrap(err)
+		}
+		return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
+	}
+
+	return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
+}
+
+// isCompositeFunc checks if the specified function is composite
+func isCompositeFunc(f Function) bool {
+	for _, name := range constants.CompositeFunctions {
+		if strings.HasPrefix(f.Function, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// validateParam checks the function parameter for validity.
+func validateParam(funcName, param string) error {
+	// convert parameter value as it's always going to be an Integer
+	value, err := strconv.Atoi(param)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	switch funcName {
+	case constants.FunctionPercentile:
+		if value < 0 || value > 100 {
+			return trace.BadParameter(
+				"percentile value must be between 0 and 100 (inclusive)")
+		}
+	case constants.FunctionTop, constants.FunctionBottom, constants.FunctionSample:
+		if value < 0 {
+			return trace.BadParameter(
+				"top, bottom and sample value must be greater than or equal to 0")
+		}
+	}
+
 	return nil
 }
 
@@ -117,70 +185,6 @@ func buildQuery(r Rollup) (string, error) {
 	}
 
 	return b.String(), nil
-}
-
-// funcsWithParams defines which functions need an additional parameter
-var funcsWithParams = []string{
-	constants.FunctionPercentile,
-	constants.FunctionBottom,
-	constants.FunctionTop,
-	constants.FunctionSample,
-}
-
-// isFuncWithParams checks if function is one of the composable Functions listed above
-func isFuncWithParams(funcName string) bool {
-	for _, name := range funcsWithParams {
-		if name == funcName {
-			return true
-		}
-	}
-	return false
-}
-
-// buildFunction returns a function string based on the provided function configuration
-func buildFunction(f Function) (string, error) {
-	alias := f.Alias
-	if alias == "" {
-		alias = f.Field
-	}
-
-	// split function name, based on the "_" separator (eg: percentile_99, top_10, ecc)
-	funcAndValue := strings.Split(f.Function, "_")
-	funcName := funcAndValue[0]
-	if len(funcAndValue) == 2 && isFuncWithParams(funcName) {
-		param := funcAndValue[1]
-		err := validateParam(funcName, param)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
-	}
-
-	return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
-}
-
-// validateParam checks the function parameter for validity.
-func validateParam(funcName, param string) error {
-	// convert parameter value as it's always going to be an Integer
-	value, err := strconv.Atoi(param)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	switch funcName {
-	case constants.FunctionPercentile:
-		if value < 0 || value > 100 {
-			return trace.BadParameter(
-				"Percentile value must be between 0 and 100 (inclusive)")
-		}
-	case constants.FunctionTop, constants.FunctionBottom, constants.FunctionSample:
-		if value < 0 {
-			return trace.BadParameter(
-				"Top, Bottom and Sample value must be greater or equal to 0")
-		}
-	}
-
-	return nil
 }
 
 var (
