@@ -80,7 +80,15 @@ type Function struct {
 func (f Function) Check() error {
 	if !utils.OneOf(f.Function, constants.SimpleFunctions) && !isCompositeFunc(f) {
 		return trace.BadParameter(
-			"invalid Function, must be one of: %v, or %v", constants.SimpleFunctions, constants.CompositeFunctions)
+			"invalid Function, must be one of %v, or a composite function starting with one of %v prefixes",
+			constants.SimpleFunctions, constants.CompositeFunctions)
+	}
+	if isCompositeFunc(f) {
+		funcAndValue := strings.Split(f.Function, "_")
+		if len(funcAndValue) != 2 {
+			return trace.BadParameter(
+				"percentile function must have format like 'percentile_90', 'top_10', 'bottom_10' or 'sample_1000' ")
+		}
 	}
 	if f.Field == "" {
 		return trace.BadParameter("parameter Field is missing")
@@ -138,13 +146,12 @@ func validateParam(funcName, param string) error {
 	case constants.FunctionTop, constants.FunctionBottom, constants.FunctionSample:
 		if value < 0 {
 			return trace.BadParameter(
-				"top, Bottom and Sample value must be greater than or equal to 0")
+				"top, bottom and sample value must be greater than or equal to 0")
 		}
 	}
 
 	return nil
 }
-
 
 // buildQuery returns a string with InfluxDB query based on the rollup configuration
 func buildQuery(r Rollup) (string, error) {
