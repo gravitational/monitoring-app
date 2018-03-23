@@ -104,9 +104,9 @@ func buildFunction(f Function) (string, error) {
 	}
 
 	// split function name, based on the "_" separator (eg: percentile_99, top_10, ecc)
-	err != f.Check()
+	err := f.Check()
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return "", trace.Wrap(err)
 	}
 
 	if isCompositeFunc(f) {
