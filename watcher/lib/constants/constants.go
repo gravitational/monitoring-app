@@ -81,20 +81,45 @@ const (
 	// IntervalLong is the aggregation interval for "long" retention policy
 	IntervalLong = "1h"
 
-	// FunctionMean is the average function
+	// Aggregate Functions
+
+	// FunctionCount is the count function
+	FunctionCount = "count"
+	// FunctionDistinct is the distinct function
+	FunctionDistinct = "distinct"
+	// FunctionIntegral is the integral function
+	FunctionIntegral = "integral"
+	// FunctionMean is the mean function
 	FunctionMean = "mean"
 	// FunctionMedian is the median function
 	FunctionMedian = "median"
+	// FunctionMode is the mode function
+	FunctionMode = "mode"
+	// FunctionSpread is the spread function
+	FunctionSpread = "spread"
+	// FunctionStdDev is the stddev function
+	FunctionStdDev = "stddev"
 	// FunctionSum is the sum function
 	FunctionSum = "sum"
+
+	// Selector Functions
+
+	// FunctionBottom is the bottom function
+	FunctionBottom = "bottom"
+	// FunctionFirst is the first function
+	FunctionFirst = "first"
+	// FunctionLast is the last function
+	FunctionLast = "last"
 	// FunctionMax is the max function
 	FunctionMax = "max"
 	// FunctionMin is the min function
 	FunctionMin = "min"
 	// FunctionPercentile is the percentile function
 	FunctionPercentile = "percentile"
-	// FunctionCount is the count function
-	FunctionCount = "count"
+	// FunctionSample is the sample function
+	FunctionSample = "sample"
+	// FunctionTop is the top function
+	FunctionTop = "top"
 
 	// MonitoringLabel is the label for resources with configuration updates
 	MonitoringLabel = "monitoring"
@@ -171,14 +196,29 @@ var (
 		RetentionMedium: IntervalMedium,
 	}
 
-	// AllFunctions contains names of functions, excluding percentile (because percentile is
-	// formatted like 'percentile_X')
-	AllFunctions = []string{
+	// CompositeFunctions lists those functions that need an additional
+	// parameter, specified in the name and identified via the "_" separator
+	// and thus formatted like 'percentile_99', 'top_10', 'bottom_3'
+	CompositeFunctions = []string{
+		FunctionPercentile,
+		FunctionBottom,
+		FunctionTop,
+		FunctionSample,
+	}
+	// SimpleFunctions that don't need the composite structure explained above
+	SimpleFunctions = []string{
+		FunctionCount,
+		FunctionDistinct,
+		FunctionIntegral,
 		FunctionMean,
 		FunctionMedian,
+		FunctionMode,
+		FunctionSpread,
+		FunctionStdDev,
 		FunctionSum,
+		FunctionFirst,
+		FunctionLast,
 		FunctionMax,
 		FunctionMin,
-		FunctionCount,
 	}
 )
