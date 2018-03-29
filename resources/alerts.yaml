@@ -491,3 +491,56 @@ data:
             .email()
             .log('/var/lib/kapacitor/logs/kubernetes_health.log')
             .mode(0644)
+
+  systemd: |
+    var period = 5m
+    var every = 1m
+    var critReset = lambda: "gauge" == 1
+    var data_systemd_health = stream
+        |from()
+            .measurement('satellite_systemd_health')
+            .groupBy('nodename')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+    var trigger_systemd_health = data_systemd_health
+        |alert()
+            .message('{{ .Level }} / Systemd is unhealthy on node: {{ index .Tags "nodename" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/systemd_health.log')
+            .mode(0644)
+    var data_systemd_units = stream
+        |from()
+            .measurement('satellite_systemd_unit_health')
+            .groupBy('nodename', 'unit_name')
+        |window()
+            .period(period)
+            .every(every)
+            .align()
+        |default()
+            .field('gauge', -1)
+    var trigger_systemd_units = data_systemd_units
+        |alert()
+            .message('{{ .Level }} / Systemd unit is unhealthy: {{ index .Tags "unit_name" }}')
+            .crit(lambda: "gauge" == 0)
+            .critReset(critReset)
+            .stateChangesOnly()
+            .details('''
+    <b>{{ .Message }}</b>
+    <p>Level: {{ .Level }}</p>
+    <p>Nodename: {{ index .Tags "nodename" }}</p>
+    ''')
+            .email()
+            .log('/var/lib/kapacitor/logs/systemd_units_health.log')
+            .mode(0644)
