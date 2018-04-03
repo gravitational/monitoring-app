@@ -508,7 +508,7 @@ data:
             .field('gauge', -1)
     var trigger_systemd_health = data_systemd_health
         |alert()
-            .message('{{ .Level }} / Systemd is unhealthy on node: {{ index .Tags "nodename" }}')
+            .message('{{ .Level }} / Systemd on host {{ index .Tags "nodename" }} is degraded')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly()
@@ -532,7 +532,7 @@ data:
             .field('gauge', -1)
     var trigger_systemd_units = data_systemd_units
         |alert()
-            .message('{{ .Level }} / Systemd unit is unhealthy: {{ index .Tags "unit_name" }}')
+            .message('{{ .Level }} / Systemd unit {{ index .Tags "unit_name" }} is degraded')
             .crit(lambda: "gauge" == 0)
             .critReset(critReset)
             .stateChangesOnly()
