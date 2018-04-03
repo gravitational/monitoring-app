@@ -17,7 +17,7 @@ override BUILDDIR=$(ASSETS)/build
 # Configuration by convention: use TARGET as a directory name
 BINARIES=$(BUILDDIR)/$(TARGET)
 
-BBOX := quay.io/gravitational/debian-venti:go1.7.1-jessie
+BBOX := quay.io/gravitational/debian-venti:go1.9-stretch
 
 all: prepare $(BINARIES)
 

@@ -49,12 +49,20 @@ hook:
 
 .PHONY: import
 import: package
-	-$(GRAVITY) app delete --ops-url=$(OPS_URL) $(REPOSITORY)/$(NAME):$(VERSION) \
+	-$(GRAVITY) app delete \
+		--ops-url=$(OPS_URL) \
+		$(REPOSITORY)/$(NAME):$(VERSION) \
 		--force --insecure $(EXTRA_GRAVITY_OPTIONS)
 	$(GRAVITY) app import \
 		$(IMPORT_OPTIONS) \
 		$(EXTRA_GRAVITY_OPTIONS) \
 		--include=resources --include=registry .
+
+.PHONY: tarball
+tarball: import
+	$(GRAVITY) package export \
+		--ops-url=$(OPS_URL) \
+		$(REPOSITORY)/$(NAME):$(VERSION) $(NAME)-$(VERSION).tar.gz
 
 .PHONY: clean
 clean:
