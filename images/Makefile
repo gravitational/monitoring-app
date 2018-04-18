@@ -1,7 +1,7 @@
 .PHONY: all heapster heapster-build heapster-clean influxdb influxdb-build \
 	influxdb-clean grafana kapacitor telegraf deploy
 
-GRAFANA_VERSION := 3.1.1
+GRAFANA_VERSION := 5.0.4
 HEAPSTER_VERSION := 1.4.1
 INFLUXDB_VERSION := 1.2.2
 KAPACITOR_VERSION := 1.2.1
