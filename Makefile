@@ -1,7 +1,7 @@
 export VERSION ?= $(shell git describe --tags)
 REPOSITORY := gravitational.io
 NAME := monitoring-app
-OPS_URL ?= https://opscenter.localhost.localdomain:33009
+OPS_URL ?= https://opscenter.localhost.localdomain:32009
 OUT ?= $(NAME).tar.gz
 GRAVITY ?= gravity
 export
@@ -62,6 +62,8 @@ import: package
 tarball: import
 	$(GRAVITY) package export \
 		--ops-url=$(OPS_URL) \
+		--insecure \
+		$(EXTRA_GRAVITY_OPTIONS) \
 		$(REPOSITORY)/$(NAME):$(VERSION) $(NAME)-$(VERSION).tar.gz
 
 .PHONY: clean
