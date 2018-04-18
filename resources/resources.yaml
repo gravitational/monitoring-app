@@ -383,7 +383,11 @@ spec:
                 key: password
         volumeMounts:
           - name: config
-            mountPath: /etc/grafana
+            mountPath: /etc/grafana/cfg
+          - name: datasources
+            mountPath: /etc/grafana/provisioning/datasources
+          - name: dashboards
+            mountPath: /etc/grafana/provisioning/dashboards
       - name: watcher
         image: watcher:latest
         securityContext:
@@ -404,7 +408,13 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: grafana
+            name: grafana-cfg
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -765,12 +775,12 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: dashboard-default
+  name: grafana-dashboards
   namespace: kube-system
   labels:
     monitoring: dashboard
 data:
-  cluster: |
+  cluster.json: |
     {
         "annotations": {
             "list": []
@@ -3233,7 +3243,7 @@ data:
         "title": "Cluster",
         "version": 10
     }
-  pods: |
+  pods.json: |
     {
         "annotations": {
             "list": []
