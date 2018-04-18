@@ -62,6 +62,7 @@ import: package
 tarball: import
 	$(GRAVITY) package export \
 		--ops-url=$(OPS_URL) \
+		--insecure $(EXTRA_GRAVITY_OPTIONS) \
 		$(REPOSITORY)/$(NAME):$(VERSION) $(NAME)-$(VERSION).tar.gz
 
 .PHONY: clean
