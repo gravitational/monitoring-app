@@ -386,8 +386,10 @@ spec:
             mountPath: /etc/grafana/cfg
           - name: datasources
             mountPath: /etc/grafana/provisioning/datasources
-          - name: dashboards
+          - name: dashboards-cfg
             mountPath: /etc/grafana/provisioning/dashboards
+          - name: dashboards
+            mountPath: /var/lib/grafana/dashboards
       - name: watcher
         image: watcher:latest
         securityContext:
@@ -412,6 +414,9 @@ spec:
         - name: datasources
           configMap:
             name: grafana-datasources
+        - name: dashboards-cfg
+          configMap:
+            name: grafana-dashboards-cfg
         - name: dashboards
           configMap:
             name: grafana-dashboards
@@ -775,10 +780,45 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: grafana-datasources
+  namespace: kube-system
+data:
+  influxdb.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: influxdb-datasource
+        type: influxdb
+        access: proxy
+        url: "http://influxdb:8086"
+        password: "root"
+        user: "root"
+        database: "k8s"
+        isDefault: true
+        version: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-cfg
+  namespace: kube-system
+data:
+  configmap.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: grafana-dashboards
   namespace: kube-system
-  labels:
-    monitoring: dashboard
 data:
   cluster.json: |
     {
