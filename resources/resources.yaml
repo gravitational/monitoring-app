@@ -5,7 +5,30 @@ metadata:
   name: monitoring
   namespace: kube-system
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring:metrics
+rules:
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring:metrics
+subjects:
+- kind: ServiceAccount
+  name: monitoring
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: monitoring:metrics
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: monitoring
@@ -46,7 +69,7 @@ rules:
       - persistentvolumeclaims
       - services
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: monitoring
