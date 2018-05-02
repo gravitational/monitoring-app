@@ -29,6 +29,8 @@ if [ $1 = "update" ]; then
     echo "---> Deleting old deployment 'kapacitor'"
     rig delete deployments/kapacitor --resource-namespace=kube-system --force
 
+    echo "---> Deleting old configmap 'grafana-cfg'"
+    rig delete configmaps/grafana-cfg --resource-namespace=kube-system --force
     echo "---> Deleting old configmap 'grafana'"
     rig delete configmaps/grafana --resource-namespace=kube-system --force
 
@@ -46,7 +48,7 @@ if [ $1 = "update" ]; then
     sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana-creds.yaml
     rig upsert -f /var/lib/gravity/resources/grafana-creds.yaml --debug
 
-    echo "---> Creating new configmap 'grafana'"
+    echo "---> Creating new configmap 'grafana-cfg'"
     rig upsert -f /var/lib/gravity/resources/grafana-cfg.yaml --debug
 
     echo "---> Creating or updating resources"
