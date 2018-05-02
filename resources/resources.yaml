@@ -790,8 +790,8 @@ data:
         type: influxdb
         access: proxy
         url: "http://influxdb:8086"
-        password: "root"
-        user: "root"
+        password: "grafana"
+        user: "grafana"
         database: "k8s"
         isDefault: true
         version: 1
