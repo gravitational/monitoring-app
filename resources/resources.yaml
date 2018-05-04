@@ -215,7 +215,7 @@ spec:
         - /usr/bin/dumb-init
         - /heapster
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true&inClusterConfig=false&auth=/etc/kubernetes/kubectl.kubeconfig
-        - --sink=influxdb:http://influxdb:8086
+        - --sink=influxdb:http://influxdb.kube-system.svc:8086
         volumeMounts:
         - name: certificates
           mountPath: /var/lib/gravity/secrets
@@ -789,7 +789,7 @@ data:
       - name: influxdb-datasource
         type: influxdb
         access: proxy
-        url: "http://influxdb:8086"
+        url: "http://influxdb.kube-system.svc:8086"
         password: "grafana"
         user: "grafana"
         database: "k8s"
