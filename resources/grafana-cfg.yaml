@@ -14,3 +14,6 @@ data:
     [auth.anonymous]
     # enable anonymous access
     enabled = true
+    [users]
+    # Default UI theme ("dark" or "light")
+    default_theme = dark
