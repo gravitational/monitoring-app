@@ -238,11 +238,9 @@ metadata:
   name: heapster
   namespace: kube-system
 spec:
-  type: NodePort
   ports:
   - port: 80
     targetPort: 8082
-    nodePort: 32500
   selector:
     app: monitoring
     component: heapster
@@ -312,14 +310,11 @@ metadata:
   name: influxdb
   namespace: kube-system
 spec:
-  type: NodePort
   ports:
   - name: http
     port: 8083
-    nodePort: 32501
   - name: api
     port: 8086
-    nodePort: 32502
   selector:
     app: monitoring
     component: influxdb
@@ -539,11 +534,9 @@ metadata:
   name: grafana
   namespace: kube-system
 spec:
-  type: NodePort
   ports:
   - name: grafana
     port: 3000
-    nodePort: 32503
   selector:
     app: monitoring
     component: grafana
