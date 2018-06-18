@@ -2,10 +2,12 @@
 	influxdb-clean grafana kapacitor telegraf deploy
 
 GRAFANA_VERSION := 5.1.0
-HEAPSTER_VERSION := 1.4.1
-INFLUXDB_VERSION := 1.2.2
-KAPACITOR_VERSION := 1.2.1
-TELEGRAF_VERSION := 1.4.0
+# TODO: heapster is marked as deprecated project and will be removed in k8s 1.13
+# https://github.com/kubernetes/heapster/blob/master/docs/deprecation.md
+HEAPSTER_VERSION := 1.5.0
+INFLUXDB_VERSION := 1.5.2
+KAPACITOR_VERSION := 1.5.0
+TELEGRAF_VERSION := 1.6.4
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all

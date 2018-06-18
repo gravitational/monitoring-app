@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-tall:0.0.1
+FROM quay.io/gravitational/debian-tall:stretch
 
 ENV INFLUXDB_HOME /influxdb
 ENV PATH $INFLUXDB_HOME:$PATH
