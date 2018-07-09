@@ -95,7 +95,7 @@ spec:
   selector:
     matchLabels:
       k8s-app: kube-state-metrics
-  replicas: 2
+  replicas: 3
   template:
     metadata:
       labels:
@@ -104,7 +104,7 @@ spec:
       serviceAccountName: kube-state-metrics
       containers:
       - name: kube-state-metrics
-        image: kube-state-metrics:latest
+        image: monitoring-kube-state-metrics:latest
         ports:
         - name: http-metrics
           containerPort: 8080
