@@ -20,7 +20,7 @@ GRAFANA_TAG   := monitoring-grafana:$(VERSION)
 KAPACITOR_TAG := monitoring-kapacitor:$(VERSION)
 TELEGRAF_TAG  := monitoring-telegraf:$(VERSION)
 HOOK_TAG := monitoring-hook:$(VERSION)
-KUBE_STATE_METRICS_TAG := monitoring-kube-state-metrics:$(VERSION)
+KUBE_STATE_METRICS_TAG := monitoring-kube-metrics:$(VERSION)
 
 REPO_URL := quay.io/gravitational
 

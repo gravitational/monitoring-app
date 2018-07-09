@@ -104,7 +104,7 @@ spec:
       serviceAccountName: kube-state-metrics
       containers:
       - name: kube-state-metrics
-        image: monitoring-kube-state-metrics:latest
+        image: monitoring-kube-metrics:latest
         ports:
         - name: http-metrics
           containerPort: 8080
