@@ -1,8 +1,8 @@
-FROM quay.io/gravitational/debian-grande:0.0.1
+FROM quay.io/gravitational/debian-grande:stretch
 ARG KAPACITOR_VERSION
 
 RUN apt-get update && \
-    apt-get install -y curl wget
+    apt-get install -y curl wget gnupg dirmngr
 
 RUN gpg \
     --keyserver hkp://pool.sks-keyservers.net \

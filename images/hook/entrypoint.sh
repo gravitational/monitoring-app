@@ -40,20 +40,15 @@ if [ $1 = "update" ]; then
     echo "---> Deleting old configmap 'influxdb'"
     rig delete configmaps/influxdb --resource-namespace=kube-system --force
 
-    echo "---> Creating new configmap 'influxdb'"
-    rig upsert -f /var/lib/gravity/resources/influxdb-conf.yaml --debug
-
-    echo "---> Creating new secret 'grafana'"
+    echo "---> Creating new 'grafana' password"
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
-    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana-creds.yaml
-    rig upsert -f /var/lib/gravity/resources/grafana-creds.yaml --debug
-
-    echo "---> Creating new configmap 'grafana-cfg'"
-    rig upsert -f /var/lib/gravity/resources/grafana-cfg.yaml --debug
+    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
 
     echo "---> Creating or updating resources"
-    rig upsert -f /var/lib/gravity/resources/resources.yaml --debug
-    rig upsert -f /var/lib/gravity/resources/alerts.yaml --debug
+    for filename in security smtp influxdb grafana heapster kapacitor telegraf alerts
+    do
+        rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
+    done
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug
