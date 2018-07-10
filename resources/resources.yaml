@@ -215,7 +215,7 @@ spec:
         - /usr/bin/dumb-init
         - /heapster
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true&inClusterConfig=false&auth=/etc/kubernetes/kubectl.kubeconfig
-        - --sink=influxdb:http://influxdb:8086
+        - --sink=influxdb:http://influxdb.kube-system.svc:8086
         volumeMounts:
         - name: certificates
           mountPath: /var/lib/gravity/secrets
@@ -378,7 +378,13 @@ spec:
                 key: password
         volumeMounts:
           - name: config
-            mountPath: /etc/grafana
+            mountPath: /etc/grafana/cfg
+          - name: datasources
+            mountPath: /etc/grafana/provisioning/datasources
+          - name: dashboards-cfg
+            mountPath: /etc/grafana/provisioning/dashboards
+          - name: dashboards
+            mountPath: /var/lib/grafana/dashboards
       - name: watcher
         image: watcher:latest
         securityContext:
@@ -399,7 +405,16 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: grafana
+            name: grafana-cfg
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-cfg
+          configMap:
+            name: grafana-dashboards-cfg
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -758,12 +773,47 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: dashboard-default
+  name: grafana-datasources
   namespace: kube-system
-  labels:
-    monitoring: dashboard
 data:
-  cluster: |
+  influxdb.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: influxdb-datasource
+        type: influxdb
+        access: proxy
+        url: "http://influxdb.kube-system.svc:8086"
+        password: "grafana"
+        user: "grafana"
+        database: "k8s"
+        isDefault: true
+        version: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-cfg
+  namespace: kube-system
+data:
+  configmap.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: kube-system
+data:
+  cluster.json: |
     {
         "annotations": {
             "list": []
@@ -3226,7 +3276,7 @@ data:
         "title": "Cluster",
         "version": 10
     }
-  pods: |
+  pods.json: |
     {
         "annotations": {
             "list": []
