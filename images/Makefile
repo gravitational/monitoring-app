@@ -1,5 +1,5 @@
 .PHONY: all heapster heapster-build heapster-clean influxdb influxdb-build \
-	influxdb-clean grafana kapacitor telegraf deploy
+	influxdb-clean grafana kapacitor telegraf deploy kube-state-metrics
 
 GRAFANA_VERSION := 5.1.0
 # TODO: heapster is marked as deprecated project and will be removed in k8s 1.13
@@ -20,7 +20,7 @@ GRAFANA_TAG   := monitoring-grafana:$(VERSION)
 KAPACITOR_TAG := monitoring-kapacitor:$(VERSION)
 TELEGRAF_TAG  := monitoring-telegraf:$(VERSION)
 HOOK_TAG := monitoring-hook:$(VERSION)
-KUBE_STATE_METRICS_TAG := monitoring-kube-metrics:$(VERSION)
+KUBE_STATE_METRICS_TAG := monitoring-kube-state-metrics:$(VERSION)
 
 REPO_URL := quay.io/gravitational
 
