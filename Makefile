@@ -15,7 +15,7 @@ IMPORT_IMAGE_FLAGS := --set-image=monitoring-influxdb:$(VERSION) \
 	--set-image=monitoring-telegraf:$(VERSION) \
 	--set-image=monitoring-hook:$(VERSION) \
 	--set-image=watcher:$(VERSION) \
-	--set-image=monitoring-kube-metrics:$(VERSION)
+	--set-image=monitoring-kube-state-metrics:$(VERSION)
 
 IMPORT_OPTIONS := --vendor \
 	--insecure \

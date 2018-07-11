@@ -86,7 +86,7 @@ spec:
   selector:
     k8s-app: kube-state-metrics
 ---
-apiVersion: apps/v1beta2
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: kube-state-metrics
@@ -104,7 +104,7 @@ spec:
       serviceAccountName: kube-state-metrics
       containers:
       - name: kube-state-metrics
-        image: monitoring-kube-metrics:latest
+        image: monitoring-kube-state-metrics:latest
         ports:
         - name: http-metrics
           containerPort: 8080
