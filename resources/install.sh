@@ -7,3 +7,8 @@ for filename in security smtp influxdb grafana heapster kapacitor telegraf alert
 do
     /opt/bin/kubectl create -f /var/lib/gravity/resources/${filename}.yaml
 done
+
+if [ $(/opt/bin/kubectl get nodes -l gravitational.io/k8s-role=master -o name | wc -l) -ge 3 ]
+then
+    /opt/bin/kubectl --namespace=kube-system scale --replicas=3 deployment kube-state-metrics.yaml
+fi

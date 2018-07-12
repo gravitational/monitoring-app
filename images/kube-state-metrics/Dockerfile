@@ -9,4 +9,7 @@ RUN go get k8s.io/kube-state-metrics && \
 
 FROM quay.io/gravitational/debian-tall:stretch
 COPY --from=builder /gopath/src/k8s.io/kube-state-metrics/kube-state-metrics /usr/local/bin/
-ENTRYPOINT ["/usr/local/bin/kube-state-metrics"]
+ENTRYPOINT ["/usr/local/bin/kube-state-metrics", "--port=8080", "--telemetry-port=8081"]
+
+EXPOSE 8080
+EXPOSE 8081
