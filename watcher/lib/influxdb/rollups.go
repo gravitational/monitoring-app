@@ -19,7 +19,7 @@ package influxdb
 import (
 	"bytes"
 	"fmt"
-	"html/template"
+	"text/template"
 	"strconv"
 	"strings"
 
