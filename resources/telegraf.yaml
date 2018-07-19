@@ -225,7 +225,7 @@ data:
         bearer_token = '/var/run/secrets/kubernetes.io/serviceaccount/token'
 
     [[inputs.prometheus]]
-        urls = ["http://kube-state-metrics.kube-system.svc.cluster.local/metrics"]
+        urls = ["http://kube-state-metrics.kube-system.svc.cluster.local:8080/metrics"]
 
   telegraf-node.conf: |
     # Telegraf Configuration
