@@ -94,8 +94,8 @@ data:
       wal-fsync-delay = "0s"
       index-version = "inmem"
       query-log-enabled = true
-      cache-max-memory-size = "1g"
-      cache-snapshot-memory-size = "25m"
+      cache-max-memory-size = 1073741824 # 1g
+      cache-snapshot-memory-size = 26214400 # 25m
       cache-snapshot-write-cold-duration = "10m"
       compact-full-write-cold-duration = "4h"
       max-concurrent-compactions = 0
