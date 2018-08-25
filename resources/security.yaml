@@ -60,6 +60,7 @@ rules:
       - get
       - list
       - watch
+      - update
     resources:
       - configmaps
       - endpoints
