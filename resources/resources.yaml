@@ -84,6 +84,69 @@ roleRef:
   name: monitoring
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: monitoring:updater
+  namespace: kube-system
+rules:
+  - apiGroups:
+      - extensions
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - privileged
+    verbs:
+      - use
+  - apiGroups:
+      -  ""
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+    resources:
+      - secrets
+    resourceNames:
+      - smtp-configuration
+      - smtp-configuration-update
+  - apiGroups:
+      -  ""
+    verbs:
+      - get
+      - list
+      - watch
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - services
+  - apiGroups:
+      - ""
+    verbs:
+      - update
+    resources:
+      - configmaps
+    resourceNames:
+      - alerting-addresses
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring:updater
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: monitoring:updater
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: monitoring:updater
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -439,7 +502,7 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      serviceAccountName: monitoring
+      serviceAccountName: monitoring:updater
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
