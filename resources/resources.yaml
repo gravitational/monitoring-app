@@ -136,11 +136,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: monitoring:updater
+  name: monitoring-updater
   namespace: kube-system
 subjects:
   - kind: ServiceAccount
-    name: monitoring:updater
+    name: monitoring-updater
     namespace: kube-system
 roleRef:
   kind: Role
@@ -502,7 +502,7 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      serviceAccountName: monitoring:updater
+      serviceAccountName: monitoring-updater
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
