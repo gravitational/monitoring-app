@@ -59,14 +59,12 @@ rules:
     resourceNames:
       - grafana
       - grafana-influxdb-creds
-      - smtp-configuration
   - apiGroups:
       -  ""
     verbs:
       - get
       - list
       - watch
-      - update
     resources:
       - configmaps
       - endpoints
