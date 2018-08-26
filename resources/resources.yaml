@@ -5,6 +5,12 @@ metadata:
   name: monitoring
   namespace: kube-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-updater
+  namespace: kube-system
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
