@@ -110,19 +110,8 @@ rules:
       - get
       - list
       - watch
-      - update
     resources:
       - secrets
-    resourceNames:
-      - smtp-configuration
-      - smtp-configuration-update
-  - apiGroups:
-      -  ""
-    verbs:
-      - get
-      - list
-      - watch
-    resources:
       - configmaps
       - endpoints
       - events
@@ -138,6 +127,14 @@ rules:
       - configmaps
     resourceNames:
       - alerting-addresses
+  - apiGroups:
+      - ""
+    verbs:
+      - update
+    resources:
+      - secrets
+    resourceNames:
+      - smtp-configuration
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
