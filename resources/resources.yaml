@@ -5,6 +5,12 @@ metadata:
   name: monitoring
   namespace: kube-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-updater
+  namespace: kube-system
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -53,7 +59,6 @@ rules:
     resourceNames:
       - grafana
       - grafana-influxdb-creds
-      - smtp-configuration
   - apiGroups:
       -  ""
     verbs:
@@ -81,6 +86,66 @@ subjects:
 roleRef:
   kind: Role
   name: monitoring
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: monitoring:updater
+  namespace: kube-system
+rules:
+  - apiGroups:
+      - extensions
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - privileged
+    verbs:
+      - use
+  - apiGroups:
+      -  ""
+    verbs:
+      - get
+      - list
+      - watch
+    resources:
+      - secrets
+      - configmaps
+      - endpoints
+      - events
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - services
+  - apiGroups:
+      - ""
+    verbs:
+      - update
+    resources:
+      - configmaps
+    resourceNames:
+      - alerting-addresses
+  - apiGroups:
+      - ""
+    verbs:
+      - update
+    resources:
+      - secrets
+    resourceNames:
+      - smtp-configuration
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-updater
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: monitoring-updater
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: monitoring:updater
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: extensions/v1beta1
@@ -438,7 +503,7 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      serviceAccountName: monitoring
+      serviceAccountName: monitoring-updater
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
