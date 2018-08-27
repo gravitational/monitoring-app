@@ -5,6 +5,11 @@ echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 # note that rig does not take explicit changeset ID
 # taking it from the environment variables
 if [ $1 = "update" ]; then
+    if ! /opt/bin/kubectl get namespaces monitoring > /dev/null 2>&1
+    then
+        /opt/bin/kubectl create namespace monitoring
+    fi
+
     for namespace in kube-system monitoring
     do
         echo "---> Checking: $RIG_CHANGESET"

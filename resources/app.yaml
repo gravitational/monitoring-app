@@ -3,7 +3,7 @@ kind: SystemApplication
 metadata:
   name: monitoring-app
   resourceVersion: "0.0.0"
-  namespace: monitoring
+  namespace: kube-system
 hooks:
   install:
     job: |
