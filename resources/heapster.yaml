@@ -6,7 +6,7 @@ metadata:
     app: monitoring
     component: heapster
   name: heapster
-  namespace: kube-system
+  namespace: monitoring
 spec:
   replicas: 1
   selector:
@@ -41,7 +41,7 @@ spec:
         - /usr/bin/dumb-init
         - /heapster
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true&inClusterConfig=false&auth=/etc/kubernetes/kubectl.kubeconfig
-        - --sink=influxdb:http://influxdb.kube-system.svc:8086
+        - --sink=influxdb:http://influxdb.monitoring.svc:8086
         volumeMounts:
         - name: certificates
           mountPath: /var/lib/gravity/secrets
@@ -62,7 +62,7 @@ metadata:
     kubernetes.io/cluster-service: "true"
     kubernetes.io/name: Heapster
   name: heapster
-  namespace: kube-system
+  namespace: monitoring
 spec:
   ports:
   - port: 80

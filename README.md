@@ -8,7 +8,7 @@ As alluded to, there are 4 main components in the monitoring system: InfluxDB, H
 
 ### InfluxDB
 
-InfluxDB is the main data store for current + future monitoring time series data. It provides the service `influxdb.kube-system.svc.cluster.local`.
+InfluxDB is the main data store for current + future monitoring time series data. It provides the service `influxdb.monitoring.svc.cluster.local`.
 
 ### Heapster
 
@@ -16,11 +16,11 @@ Heapster monitors Kubernetes components and reports statistics and information t
 
 ### Grafana
 
-Grafana is the dashboard system that provides visualization information on all the information stored in InfluxDB. It is exposed as the service `grafana.kube-system.svc.cluster.local`. Grafana credentials are generated during initial installation and placed into a Secret `grafana` in `kube-system` namespace.
+Grafana is the dashboard system that provides visualization information on all the information stored in InfluxDB. It is exposed as the service `grafana.monitoring.svc.cluster.local`. Grafana credentials are generated during initial installation and placed into a Secret `grafana` in `monitoring` namespace.
 
 ### Kapacitor
 
-Kapacitor is the alerting system, that streams data from InfluxDB and sends alerts as configured by the end user. It exposes the service `kapacitor.kube-system.svc.cluster.local`.
+Kapacitor is the alerting system, that streams data from InfluxDB and sends alerts as configured by the end user. It exposes the service `kapacitor.monitoring.svc.cluster.local`.
 
 ## Grafana integration
 
@@ -35,13 +35,13 @@ In production the anonymous mode is read-only that allows only viewing of existi
 ## Pluggable dashboards
 
 Other applications can ship their own Grafana dashboards by using ConfigMaps. A custom dashboard ConfigMap should be assigned a `monitoring`
-label with value `dashboard` and created in the `kube-system` namespace for it to be recognized and loaded at startup:
+label with value `dashboard` and created in the `monitoring` namespace for it to be recognized and loaded at startup:
 ```
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mydashboard
-  namespace: kube-system
+  namespace: monitoring
   labels:
     monitoring: dashboard
 data:
@@ -83,7 +83,7 @@ Monitoring app allows to configure two "types" of rollups for any collected metr
 
 This app comes with rollups pre-configured for some of the metrics collected by default. Applications that collect their own metrics can configure their own rollups as well, via ConfigMaps.
 
-A custom rollup ConfigMap should be assigned a `monitoring` label with value `rollup` and created in the `kube-system` namespace
+A custom rollup ConfigMap should be assigned a `monitoring` label with value `rollup` and created in the `monitoring` namespace
 so it is recognized and loaded at startup:
 
 ```
@@ -91,7 +91,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rollups-myrollups
-  namespace: kube-system
+  namespace: monitoring
   labels:
     monitoring: rollup
 data:
@@ -143,4 +143,3 @@ Alerts (written in [TICKscript](https://docs.influxdata.com/kapacitor/v1.2/tick/
 
  - [ ] Better InfluxDB persistence, availability work
  - [ ] More default Grafana Dashboards
-

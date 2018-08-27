@@ -202,7 +202,7 @@ func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secr
 
 			switch secret := event.Object.(type) {
 			case *v1.Secret:
-				log.Infof("detected %q", secret.Name)
+				log.Infof("detected event %v for secret %q", event.Type, secret.Name)
 				config.RecvCh <- SecretUpdate{
 					ResourceUpdate{event.Type, secret.TypeMeta, secret.ObjectMeta},
 					secret.Data,

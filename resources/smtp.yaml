@@ -4,7 +4,7 @@ kind: Secret
 type: Opaque
 metadata:
   name: smtp-configuration
-  namespace: kube-system
+  namespace: monitoring
 data:
   host: bG9jYWxob3N0
   port: MjU=
@@ -15,7 +15,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alerting-addresses
-  namespace: kube-system
+  namespace: monitoring
 data:
   from: noreply@platform.gravitational.io
   to: alerts@example.com

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: kapacitor-alerts
-  namespace: kube-system
+  namespace: monitoring
 data:
   high_cpu.tick: |
     var period = 5m

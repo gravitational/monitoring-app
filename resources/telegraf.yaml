@@ -6,7 +6,7 @@ metadata:
     app: monitoring
     component: telegraf
   name: telegraf
-  namespace: kube-system
+  namespace: monitoring
 spec:
   replicas: 1
   selector:
@@ -40,7 +40,7 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   name: telegraf-node
-  namespace: kube-system
+  namespace: monitoring
   labels:
     app: monitoring
     component: telegraf
