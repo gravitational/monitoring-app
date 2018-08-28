@@ -11,7 +11,7 @@ if [ $1 = "update" ]; then
     rig cs delete --force -c cs/$RIG_CHANGESET
 
     echo "---> Creating monitoring namespace"
-    rig upsert -f /var/lib/gravity/resources/namespace.yaml --debug
+    /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 
     for namespace in kube-system monitoring
     do
