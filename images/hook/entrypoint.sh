@@ -37,7 +37,7 @@ if [ $1 = "update" ]; then
         rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
 
         echo "---> Deleting old configmaps"
-        for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources
+        for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default
         do
             rig delete configmaps/$cfm --resource-namespace=$namespace --force
         done
