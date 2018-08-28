@@ -43,7 +43,7 @@ if [ $1 = "update" ]; then
         done
     done
 
-    echo  "---> Moving smpt-cofiguration secret to monitoring namespace"
+    echo  "---> Moving smtp-cofiguration secret to monitoring namespace"
     if ! /opt/bin/kubectl --namespace=monitoring get secret smtp-configuration > /dev/null 2>&1; then
         if /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration > /dev/null 2>&1; then
             /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration --export=true -o json | \
