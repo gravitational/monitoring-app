@@ -9,14 +9,14 @@ if [ $1 = "update" ]; then
         /opt/bin/kubectl create namespace monitoring
     fi
 
+    echo "---> Checking: $RIG_CHANGESET"
+    if rig status $RIG_CHANGESET --retry-attempts=1 --retry-period=1s; then exit 0; fi
+    echo "---> Starting update, changeset: $RIG_CHANGESET"
+    rig cs delete --force -c cs/$RIG_CHANGESET
+
     for namespace in kube-system monitoring
     do
-        echo "---> Checking: $RIG_CHANGESET"
-        if rig status $RIG_CHANGESET --retry-attempts=1 --retry-period=1s; then exit 0; fi
-
-        echo "---> Starting update, changeset: $RIG_CHANGESET"
-        rig cs delete --force -c cs/$RIG_CHANGESET
-
+        echo "---> Deleting resources in $namespace namespace"
         echo "---> Deleting old 'heapster' resources"
         rig delete deployments/heapster --resource-namespace=$namespace --force
 
