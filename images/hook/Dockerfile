@@ -4,7 +4,7 @@ ARG CHANGESET
 ENV RIG_CHANGESET $CHANGESET
 
 RUN apt-get update && \
-    apt-get --yes --no-install-recommends jq && \
+    apt-get install --yes --no-install-recommends jq && \
     apt-get clean && \
     rm -rf \
         /var/lib/apt/lists/* \
