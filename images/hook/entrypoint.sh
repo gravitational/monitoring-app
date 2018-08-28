@@ -47,7 +47,7 @@ if [ $1 = "update" ]; then
     if ! /opt/bin/kubectl --namespace=monitoring get secret smtp-configuration > /dev/null 2>&1; then
         if /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration > /dev/null 2>&1; then
             /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration --export=true -o json | \
-                jq '.metadata.namespace = "monitoring"' | /opt/bin/kubectl create -f -
+                jq '.metadata.namespace = "monitoring"' | rig upsert -f -
             rig delete secrets/smtp-configuration --resource-namespace=kube-system --force
         fi
     fi
@@ -56,7 +56,7 @@ if [ $1 = "update" ]; then
     if ! /opt/bin/kubectl --namespace=monitoring get configmap alerting-addresses > /dev/null 2>&1; then
         if /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses > /dev/null 2>&1; then
             /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses --export=true -o json | \
-                jq '.metadata.namespace = "monitoring"' | /opt/bin/kubectl create -f -
+                jq '.metadata.namespace = "monitoring"' | rig upsert -f -
             rig delete configmaps/alerting-addresses --resource-namespace=kube-system --force
         fi
     fi
