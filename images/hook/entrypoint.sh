@@ -1,12 +1,11 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
 echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 # note that rig does not take explicit changeset ID
 # taking it from the environment variables
 if [ $1 = "update" ]; then
-    if ! /opt/bin/kubectl get namespaces monitoring > /dev/null 2>&1
-    then
+    if ! /opt/bin/kubectl get namespaces monitoring > /dev/null 2>&1; then
         /opt/bin/kubectl create namespace monitoring
     fi
 
@@ -44,6 +43,24 @@ if [ $1 = "update" ]; then
             rig delete configmaps/$cfm --resource-namespace=$namespace --force
         done
     done
+
+    echo  "---> Moving smpt-cofiguration secret to monitoring namespace"
+    if ! /opt/bin/kubectl --namespace=monitoring get secret smtp-configuration > /dev/null 2>&1; then
+        if /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration > /dev/null 2>&1; then
+            /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration --export=true -o json | \
+                jq '.metadata.namespace = "monitoring"' | /opt/bin/kubectl create -f -
+            rig delete secrets/smtp-configuration --resource-namespace=kube-system --force
+        fi
+    fi
+
+    echo  "---> Moving alerting-addresses configmap to monitoring namespace"
+    if ! /opt/bin/kubectl --namespace=monitoring get configmap alerting-addresses > /dev/null 2>&1; then
+        if /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses > /dev/null 2>&1; then
+            /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses --export=true -o json | \
+                jq '.metadata.namespace = "monitoring"' | /opt/bin/kubectl create -f -
+            rig delete configmaps/alerting-addresses --resource-namespace=kube-system --force
+        fi
+    fi
 
     echo "---> Creating new 'grafana' password"
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
