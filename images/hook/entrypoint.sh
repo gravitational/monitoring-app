@@ -20,32 +20,29 @@ if [ $1 = "update" ]; then
 
         echo "---> Deleting old 'heapster' resources"
         rig delete deployments/heapster --resource-namespace=$namespace --force
-        rig delete rc/heapster --resource-namespace=$namespace --force # in case we're upgrading from version where it was still rc
 
         echo "---> Deleting old 'influxdb' resources"
         rig delete deployments/influxdb --resource-namespace=$namespace --force
-        rig delete rc/influxdb --resource-namespace=$namespace --force # in case we're upgrading from version where it was still rc
 
         echo "---> Deleting old 'grafana' resources"
         rig delete deployments/grafana --resource-namespace=$namespace --force
-        rig delete rc/grafana --resource-namespace=$namespace --force # in case we're upgrading from version where it was still rc
 
-        echo "---> Deleting old deployment 'telegraf'"
+        echo "---> Deleting old 'telegraf' resources"
         rig delete deployments/telegraf --resource-namespace=$namespace --force
+        rig delete daemonsets/telegraf-node --resource-namespace=$namespace --force
 
         echo "---> Deleting old deployment 'kapacitor'"
         rig delete deployments/kapacitor --resource-namespace=$namespace --force
 
-        echo "---> Deleting old configmap 'grafana-cfg'"
-        rig delete configmaps/grafana-cfg --resource-namespace=$namespace --force
-        echo "---> Deleting old configmap 'grafana'"
-        rig delete configmaps/grafana --resource-namespace=$namespace --force
-
-        echo "---> Deleting old secret 'grafana'"
+        echo "---> Deleting old secrets"
         rig delete secrets/grafana --resource-namespace=$namespace --force
+        rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
 
-        echo "---> Deleting old configmap 'influxdb'"
-        rig delete configmaps/influxdb --resource-namespace=$namespace --force
+        echo "---> Deleting old configmaps"
+        for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources
+        do
+            rig delete configmaps/$cfm --resource-namespace=$namespace --force
+        done
     done
 
     echo "---> Creating new 'grafana' password"
