@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -89,7 +88,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 		case update := <-smtpCh:
 			log := log.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
-			client := kubeClient.Secrets(api.NamespaceSystem)
+			client := kubeClient.Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := updateSMTPConfig(client, kClient, spec, log); err != nil {
@@ -99,7 +98,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 		case update := <-alertTargetCh:
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
-			client := kubeClient.ConfigMaps(api.NamespaceSystem)
+			client := kubeClient.ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := updateAlertTarget(client, kClient, spec, log); err != nil {
@@ -150,7 +149,7 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      constants.KapacitorSMTPSecret,
-			Namespace: api.NamespaceSystem,
+			Namespace: constants.MonitoringNamespace,
 		},
 		Data: map[string][]byte{
 			"host": []byte(config.Spec.Host),
@@ -189,7 +188,7 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 	config := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      constants.KapacitorAlertTargetConfigMap,
-			Namespace: api.NamespaceSystem,
+			Namespace: constants.MonitoringNamespace,
 		},
 		Data: map[string]string{
 			"from": constants.KapacitorAlertFrom,

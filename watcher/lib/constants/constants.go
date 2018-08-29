@@ -19,6 +19,9 @@ package constants
 import "time"
 
 const (
+	// MonitoringNamespace is the name of k8s namespace where all our monitoring stuff goes
+	MonitoringNamespace = "monitoring"
+
 	// ModeDashboards is the mode in which watcher polls for new dashboards
 	ModeDashboards = "dashboards"
 

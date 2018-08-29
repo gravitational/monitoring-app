@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+
 	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
@@ -30,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 )
@@ -61,7 +62,7 @@ func (c *Client) WatchConfigMaps(ctx context.Context, configs ...ConfigMap) {
 	for _, config := range configs {
 		go func(config ConfigMap) {
 			retry(ctx, func() error {
-				err := watchConfigMap(ctx, c.CoreV1().ConfigMaps(api.NamespaceSystem), config)
+				err := watchConfigMap(ctx, c.CoreV1().ConfigMaps(constants.MonitoringNamespace), config)
 				return trace.Wrap(err)
 			})
 		}(config)
@@ -74,7 +75,7 @@ func (c *Client) WatchSecrets(ctx context.Context, configs ...Secret) {
 	for _, config := range configs {
 		go func(config Secret) {
 			retry(ctx, func() error {
-				err := watchSecret(ctx, c.CoreV1().Secrets(api.NamespaceSystem), config)
+				err := watchSecret(ctx, c.CoreV1().Secrets(constans.MonitoringNamespace), config)
 				return trace.Wrap(err)
 			})
 		}(config)
