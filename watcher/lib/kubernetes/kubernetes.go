@@ -75,7 +75,7 @@ func (c *Client) WatchSecrets(ctx context.Context, configs ...Secret) {
 	for _, config := range configs {
 		go func(config Secret) {
 			retry(ctx, func() error {
-				err := watchSecret(ctx, c.CoreV1().Secrets(constans.MonitoringNamespace), config)
+				err := watchSecret(ctx, c.CoreV1().Secrets(constants.MonitoringNamespace), config)
 				return trace.Wrap(err)
 			})
 		}(config)
