@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-cfg
-  namespace: kube-system
+  namespace: monitoring
 data:
   grafana.ini: |
     [server]
@@ -26,7 +26,7 @@ metadata:
     app: monitoring
     component: grafana
   name: grafana
-  namespace: kube-system
+  namespace: monitoring
 spec:
   replicas: 1
   selector:
@@ -121,7 +121,7 @@ kind: Secret
 type: Opaque
 metadata:
   name: grafana-influxdb-creds
-  namespace: kube-system
+  namespace: monitoring
 data:
   username: Z3JhZmFuYQ==
   password: Z3JhZmFuYQ==
@@ -133,7 +133,7 @@ metadata:
     kubernetes.io/cluster-service: "true"
     kubernetes.io/name: Grafana
   name: grafana
-  namespace: kube-system
+  namespace: monitoring
 spec:
   ports:
   - name: grafana
@@ -146,7 +146,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rollups-default
-  namespace: kube-system
+  namespace: monitoring
   labels:
     monitoring: rollup
 data:
@@ -360,7 +360,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-datasources
-  namespace: kube-system
+  namespace: monitoring
 data:
   influxdb.yaml: |
     apiVersion: 1
@@ -368,7 +368,7 @@ data:
       - name: influxdb-datasource
         type: influxdb
         access: proxy
-        url: "http://influxdb.kube-system.svc:8086"
+        url: "http://influxdb.monitoring.svc:8086"
         password: "grafana"
         user: "grafana"
         database: "k8s"
@@ -379,7 +379,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-dashboards-cfg
-  namespace: kube-system
+  namespace: monitoring
 data:
   configmap.yaml: |
     apiVersion: 1
@@ -397,7 +397,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-dashboards
-  namespace: kube-system
+  namespace: monitoring
 data:
   cluster.json: |
     {
@@ -3925,7 +3925,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: grafana
-  namespace: kube-system
+  namespace: monitoring
 type: Opaque
 data:
   username: YWRtaW4=

@@ -3,7 +3,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: monitoring
-  namespace: kube-system
+  namespace: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-updater
+  namespace: monitoring
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -22,7 +28,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: monitoring
-  namespace: kube-system
+  namespace: monitoring
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -32,7 +38,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: monitoring
-  namespace: kube-system
+  namespace: monitoring
 rules:
   - apiGroups:
       - extensions
@@ -53,7 +59,6 @@ rules:
     resourceNames:
       - grafana
       - grafana-influxdb-creds
-      - smtp-configuration
   - apiGroups:
       -  ""
     verbs:
@@ -73,12 +78,72 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: monitoring
-  namespace: kube-system
+  namespace: monitoring
 subjects:
   - kind: ServiceAccount
     name: monitoring
-    namespace: kube-system
+    namespace: monitoring
 roleRef:
   kind: Role
   name: monitoring
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: monitoring:updater
+  namespace: monitoring
+rules:
+  - apiGroups:
+      - extensions
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - privileged
+    verbs:
+      - use
+  - apiGroups:
+      -  ""
+    verbs:
+      - get
+      - list
+      - watch
+    resources:
+      - secrets
+      - configmaps
+      - endpoints
+      - events
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - services
+  - apiGroups:
+      - ""
+    verbs:
+      - update
+    resources:
+      - configmaps
+    resourceNames:
+      - alerting-addresses
+  - apiGroups:
+      - ""
+    verbs:
+      - update
+    resources:
+      - secrets
+    resourceNames:
+      - smtp-configuration
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-updater
+  namespace: monitoring
+subjects:
+  - kind: ServiceAccount
+    name: monitoring-updater
+    namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring:updater
   apiGroup: rbac.authorization.k8s.io

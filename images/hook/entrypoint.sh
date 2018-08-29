@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
 echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
@@ -7,38 +7,61 @@ echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 if [ $1 = "update" ]; then
     echo "---> Checking: $RIG_CHANGESET"
     if rig status $RIG_CHANGESET --retry-attempts=1 --retry-period=1s; then exit 0; fi
-
     echo "---> Starting update, changeset: $RIG_CHANGESET"
     rig cs delete --force -c cs/$RIG_CHANGESET
 
-    echo "---> Deleting old 'heapster' resources"
-    rig delete deployments/heapster --resource-namespace=kube-system --force
-    rig delete rc/heapster --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
+    echo "---> Creating monitoring namespace"
+    /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 
-    echo "---> Deleting old 'influxdb' resources"
-    rig delete deployments/influxdb --resource-namespace=kube-system --force
-    rig delete rc/influxdb --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
+    for namespace in kube-system monitoring
+    do
+        echo "---> Deleting resources in $namespace namespace"
+        echo "---> Deleting old 'heapster' resources"
+        rig delete deployments/heapster --resource-namespace=$namespace --force
 
-    echo "---> Deleting old 'grafana' resources"
-    rig delete deployments/grafana --resource-namespace=kube-system --force
-    rig delete rc/grafana --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
+        echo "---> Deleting old 'influxdb' resources"
+        rig delete deployments/influxdb --resource-namespace=$namespace --force
 
-    echo "---> Deleting old deployment 'telegraf'"
-    rig delete deployments/telegraf --resource-namespace=kube-system --force
+        echo "---> Deleting old 'grafana' resources"
+        rig delete deployments/grafana --resource-namespace=$namespace --force
 
-    echo "---> Deleting old deployment 'kapacitor'"
-    rig delete deployments/kapacitor --resource-namespace=kube-system --force
+        echo "---> Deleting old 'telegraf' resources"
+        rig delete deployments/telegraf --resource-namespace=$namespace --force
+        rig delete daemonsets/telegraf-node --resource-namespace=$namespace --force
 
-    echo "---> Deleting old configmap 'grafana-cfg'"
-    rig delete configmaps/grafana-cfg --resource-namespace=kube-system --force
-    echo "---> Deleting old configmap 'grafana'"
-    rig delete configmaps/grafana --resource-namespace=kube-system --force
+        echo "---> Deleting old deployment 'kapacitor'"
+        rig delete deployments/kapacitor --resource-namespace=$namespace --force
 
-    echo "---> Deleting old secret 'grafana'"
-    rig delete secrets/grafana --resource-namespace=kube-system --force
+        echo "---> Deleting old secrets"
+        rig delete secrets/grafana --resource-namespace=$namespace --force
+        rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
 
-    echo "---> Deleting old configmap 'influxdb'"
-    rig delete configmaps/influxdb --resource-namespace=kube-system --force
+        echo "---> Deleting old configmaps"
+        for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default
+        do
+            rig delete configmaps/$cfm --resource-namespace=$namespace --force
+        done
+    done
+
+    echo  "---> Moving smtp-cofiguration secret to monitoring namespace"
+    if ! /opt/bin/kubectl --namespace=monitoring get secret smtp-configuration > /dev/null 2>&1; then
+        if /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration > /dev/null 2>&1; then
+            /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration --export=true -o json | \
+                jq '.metadata.namespace = "monitoring"' > /tmp/resource.json
+            rig upsert -f /tmp/resource.json --debug
+            rig delete secrets/smtp-configuration --resource-namespace=kube-system --force
+        fi
+    fi
+
+    echo  "---> Moving alerting-addresses configmap to monitoring namespace"
+    if ! /opt/bin/kubectl --namespace=monitoring get configmap alerting-addresses > /dev/null 2>&1; then
+        if /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses > /dev/null 2>&1; then
+            /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses --export=true -o json | \
+                jq '.metadata.namespace = "monitoring"' > /tmp/resource.json
+            rig upsert -f /tmp/resource.json --debug
+            rig delete configmaps/alerting-addresses --resource-namespace=kube-system --force
+        fi
+    fi
 
     echo "---> Creating new 'grafana' password"
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
