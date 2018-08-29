@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kube-state-metrics
-  namespace: kube-system
+  namespace: monitoring
   labels:
     k8s-app: kube-state-metrics
   annotations:
@@ -25,7 +25,7 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   name: kube-state-metrics
-  namespace: kube-system
+  namespace: monitoring
   labels:
     app: monitoring
     component: kube-state-metrics
