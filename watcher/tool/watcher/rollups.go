@@ -53,19 +53,16 @@ func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
 	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
-	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
+	receiveAndManageRollups(context.TODO(), influxDBClient, ch)
 	return nil
 }
 
-// receiveAndCreateRollups listens on the provided channel that receives new rollups data and creates
-// them in InfluxDB using the provided client
-func receiveAndCreateRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate) {
+// receiveAndManageRollups listens on the provided channel that receives new rollups data and creates,
+// updates or deletes them in/from InfluxDB using the provided client
+func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate) {
 	for {
 		select {
 		case update := <-ch:
-			if update.EventType != watch.Added {
-				continue
-			}
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			for _, v := range update.Data {
 				var rollups []influxdb.Rollup
@@ -76,11 +73,27 @@ func receiveAndCreateRollups(ctx context.Context, client *influxdb.Client, ch <-
 				}
 
 				for _, rollup := range rollups {
-					err := client.CreateRollup(rollup)
-					if err != nil {
-						log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
+					switch update.EventType {
+					case watch.Added:
+						err := client.ManageRollup(rollup, influxdb.RollupCreate)
+						if err != nil {
+							log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
+						}
+					case watch.Deleted:
+						err := client.ManageRollup(rollup, influxdb.RollupDelete)
+						if err != nil {
+							log.Errorf("failed to delete rollup %v: %v", rollup, trace.DebugReport(err))
+						}
+					case watch.Modified:
+						err := client.ManageRollup(rollup, influxdb.RollupUpdate)
+						if err != nil {
+							log.Errorf("failed to alter rollup %v: %v", rollup, trace.DebugReport(err))
+						}
 					}
 				}
+			}
+			if update.EventType != watch.Added {
+				continue
 			}
 		case <-ctx.Done():
 			return
