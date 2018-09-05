@@ -170,16 +170,24 @@ func buildQuery(r Rollup, operation RollupOperation) (string, error) {
 	}
 
 	var b bytes.Buffer
-	err := createQueryTemplate.Execute(&b, map[string]string{
-		"name":             r.Name,
-		"database":         constants.InfluxDBDatabase,
-		"functions":        strings.Join(functions, ", "),
-		"retention_into":   r.Retention,
-		"measurement_into": r.Name,
-		"retention_from":   constants.InfluxDBRetentionPolicy,
-		"measurement_from": r.Measurement,
-		"interval":         constants.RetentionToInterval[r.Retention],
-	})
+	var err error
+	if operation == RollupCreate {
+		err = createQueryTemplate.Execute(&b, map[string]string{
+			"name":             r.Name,
+			"database":         constants.InfluxDBDatabase,
+			"functions":        strings.Join(functions, ", "),
+			"retention_into":   r.Retention,
+			"measurement_into": r.Name,
+			"retention_from":   constants.InfluxDBRetentionPolicy,
+			"measurement_from": r.Measurement,
+			"interval":         constants.RetentionToInterval[r.Retention],
+		})
+	} else {
+		err = deleteQueryTemplate.Execute(&b, map[string]string{
+			"name":     r.Name,
+			"database": constants.InfluxDBDatabase,
+		})
+	}
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
