@@ -159,7 +159,7 @@ func validateParam(funcName, param string) error {
 }
 
 // buildQuery returns a string with InfluxDB query based on the rollup configuration
-func buildQuery(r Rollup, operation rollupOperation) (string, error) {
+func buildQuery(r Rollup, operation RollupOperation) (string, error) {
 	var functions []string
 	for _, fn := range r.Functions {
 		function, err := buildFunction(fn)
