@@ -190,10 +190,10 @@ func buildQuery(r Rollup, operation RollupOperation) (string, error) {
 var (
 	// createQueryTemplate is the template for creating InfluxDB continuous query
 	createQueryTemplate = template.Must(template.New("query").Parse(
-		`CREATE CONTINUOUS QUERY "{{.name}}" ON {{.database}} BEGIN SELECT {{.functions}} INTO {{.database}}."{{.retention_into}}"."{{.measurement_into}}" FROM {{.database}}."{{.retention_from}}"."{{.measurement_from}}" GROUP BY *, time({{.interval}}) END`))
+		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{.database}}."{{.retention_from}}"."{{.measurement_from}}" group by *, time({{.interval}}) end`))
 	// deleteQueryTemplate is the template for deleting Influx continuous query
 	deleteQueryTemplate = template.Must(template.New("query").Parse(
-		`DROP CONTINUOUS QUERY "{{.name}}" ON {{.database}}`))
+		`drop continuous query "{{.name}}" on {{.database}}`))
 )
 
 // RollupOperation defines operation on continuous query
