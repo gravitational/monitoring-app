@@ -92,9 +92,6 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 					}
 				}
 			}
-			if update.EventType != watch.Added {
-				continue
-			}
 		case <-ctx.Done():
 			return
 		}
