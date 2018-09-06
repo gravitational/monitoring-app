@@ -122,12 +122,12 @@ type Function struct {
 
 // Check verifies the function configuration is correct
 func (f Function) Check() error {
-	if !utils.OneOf(f.Function, constants.SimpleFunctions) && !f.isCompositeFunc() {
+	if !utils.OneOf(f.Function, constants.SimpleFunctions) && !f.isComposite() {
 		return trace.BadParameter(
 			"invalid Function, must be one of %v, or a composite function starting with one of %v prefixes",
 			constants.SimpleFunctions, constants.CompositeFunctions)
 	}
-	if f.isCompositeFunc() {
+	if f.isComposite() {
 		funcAndValue := strings.Split(f.Function, "_")
 		if len(funcAndValue) != 2 {
 			return trace.BadParameter(
@@ -153,23 +153,23 @@ func (f *Function) buildFunction() (string, error) {
 		return "", trace.Wrap(err)
 	}
 
-	if f.isCompositeFunc() {
-		funcAndValue := strings.Split(f.Function, "_")
-		funcName := funcAndValue[0]
-		param := funcAndValue[1]
-
-		err := validateParam(funcName, param)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
+	if !f.isComposite() {
+		return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
 	}
 
-	return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
+	funcAndValue := strings.Split(f.Function, "_")
+	funcName := funcAndValue[0]
+	param := funcAndValue[1]
+
+	err = validateParam(funcName, param)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
 }
 
-// isCompositeFunc checks if the specified function is composite
-func (f *Function) isCompositeFunc() bool {
+// isComposite checks if the specified function is composite
+func (f *Function) isComposite() bool {
 	for _, name := range constants.CompositeFunctions {
 		if strings.HasPrefix(f.Function, name) {
 			return true
