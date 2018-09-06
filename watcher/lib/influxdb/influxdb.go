@@ -80,32 +80,69 @@ func (c *Client) Setup() error {
 	return nil
 }
 
-// ManageRollup creates/updates/deletes a rollup query in the database
-func (c *Client) ManageRollup(r Rollup, operation RollupOperation) error {
+// CreateRollup creates a rollup query in the database
+func (c *Client) CreateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	var query string
-	if operation == RollupUpdate {
-		deleteQuery, err := buildQuery(r, RollupDelete)
-		if err != nil {
-			return trace.Wrap(err)
-		}
-		createQuery, err := buildQuery(r, RollupCreate)
-		if err != nil {
-			return trace.Wrap(err)
-		}
-		query = strings.Join([]string{deleteQuery, createQuery}, "; ")
-	} else {
-		query, err = buildQuery(r, operation)
-	}
+	query, err := r.buildCreateQuery()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	log.Infof("%v", query)
 
+	if err = c.postQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// DeleteRollup deletes a rollup query from the database
+func (c *Client) DeleteRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	query, err := r.buildDeleteQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	log.Infof("%v", query)
+
+	if err = c.postQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// UpdateRollup updates a rollup query in the database
+func (c *Client) UpdateRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	deleteQuery, err := r.buildDeleteQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	createQuery, err := r.buildCreateQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
+	log.Infof("%v", query)
+
+	if err = c.postQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+func (c *Client) postQuery(query string) error {
 	response, err := c.PostForm(c.Endpoint("query"), url.Values{"q": []string{query}})
 	if err != nil {
 		return trace.Wrap(err)

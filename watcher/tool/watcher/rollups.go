@@ -75,17 +75,17 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 				for _, rollup := range rollups {
 					switch update.EventType {
 					case watch.Added:
-						err := client.ManageRollup(rollup, influxdb.RollupCreate)
+						err := client.CreateRollup(rollup)
 						if err != nil {
 							log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
 						}
 					case watch.Deleted:
-						err := client.ManageRollup(rollup, influxdb.RollupDelete)
+						err := client.DeleteRollup(rollup)
 						if err != nil {
 							log.Errorf("failed to delete rollup %v: %v", rollup, trace.DebugReport(err))
 						}
 					case watch.Modified:
-						err := client.ManageRollup(rollup, influxdb.RollupUpdate)
+						err := client.UpdateRollup(rollup)
 						if err != nil {
 							log.Errorf("failed to alter rollup %v: %v", rollup, trace.DebugReport(err))
 						}
