@@ -19,6 +19,7 @@ package influxdb
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
@@ -79,19 +80,69 @@ func (c *Client) Setup() error {
 	return nil
 }
 
-// CreateRollup creates a new rollup query in the database
+// CreateRollup creates a rollup query in the database
 func (c *Client) CreateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	query, err := buildQuery(r)
+	query, err := r.buildCreateQuery()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	log.Infof("%v", query)
 
+	if err = c.postQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// DeleteRollup deletes a rollup query from the database
+func (c *Client) DeleteRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	query, err := r.buildDeleteQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	log.Infof("%v", query)
+
+	if err = c.postQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// UpdateRollup updates a rollup query in the database
+func (c *Client) UpdateRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	deleteQuery, err := r.buildDeleteQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	createQuery, err := r.buildCreateQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
+	log.Infof("%v", query)
+
+	if err = c.postQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+func (c *Client) postQuery(query string) error {
 	response, err := c.PostForm(c.Endpoint("query"), url.Values{"q": []string{query}})
 	if err != nil {
 		return trace.Wrap(err)
