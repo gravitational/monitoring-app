@@ -249,7 +249,7 @@ func (e *TraceErr) UserMessage() string {
 	if e.Message != "" {
 		return e.Message
 	}
-	return e.Err.Error()
+	return UserMessage(e.Err)
 }
 
 // DebugReport returns develeoper-friendly error report
@@ -259,9 +259,6 @@ func (e *TraceErr) DebugReport() string {
 
 // Error returns user-friendly error message when not in debug mode
 func (e *TraceErr) Error() string {
-	if IsDebug() {
-		return e.DebugReport()
-	}
 	return e.UserMessage()
 }
 
@@ -281,6 +278,12 @@ func (e *TraceErr) OrigError() error {
 		}
 	}
 	return err
+}
+
+// GoString formats this trace object for use with
+// with the "%#v" format string
+func (e *TraceErr) GoString() string {
+	return e.DebugReport()
 }
 
 // maxHops is a max supported nested depth for errors

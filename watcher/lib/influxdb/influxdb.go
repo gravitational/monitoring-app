@@ -18,35 +18,39 @@ package influxdb
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
-	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
+	client_v2 "github.com/influxdata/influxdb/client/v2"
 	log "github.com/sirupsen/logrus"
 )
 
 // Client is the InfluxDB API client
 type Client struct {
-	*roundtrip.Client
+	client client_v2.Client
 }
 
 // NewClient creates a new InfluxDB client
 func NewClient() (*Client, error) {
-	client, err := roundtrip.NewClient(constants.InfluxDBAPIAddress, "",
-		roundtrip.BasicAuth(constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword))
+	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
+		Addr:     constants.InfluxDBAPIAddress,
+		Username: constants.InfluxDBAdminUser,
+		Password: constants.InfluxDBAdminPassword,
+	})
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	return &Client{Client: client}, nil
+	return &Client{client: client}, nil
 }
 
 // Health checks the API readiness
 func (c *Client) Health() error {
-	_, err := c.Get(c.Endpoint("ping"), url.Values{})
+	timeout := 0 * time.Second // do not need to wait for leader of InfluxDB cluster
+	_, _, err := c.client.Ping(timeout)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -70,12 +74,10 @@ func (c *Client) Setup() error {
 	for _, query := range queries {
 		log.Infof("%v", query)
 
-		response, err := c.PostForm(c.Endpoint("query"), url.Values{"q": []string{query}})
+		_, err := c.client.Query(client_v2.NewQuery(query, "", ""))
 		if err != nil {
 			return trace.Wrap(err)
 		}
-
-		log.Infof("%v %v %v", response.Code(), response.Headers(), string(response.Bytes()))
 	}
 	return nil
 }
@@ -143,12 +145,11 @@ func (c *Client) UpdateRollup(r Rollup) error {
 }
 
 func (c *Client) postQuery(query string) error {
-	response, err := c.PostForm(c.Endpoint("query"), url.Values{"q": []string{query}})
+	_, err := c.client.Query(client_v2.NewQuery(query, "", ""))
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	log.Infof("%v %v %v", response.Code(), response.Headers(), string(response.Bytes()))
 	return nil
 }
 
