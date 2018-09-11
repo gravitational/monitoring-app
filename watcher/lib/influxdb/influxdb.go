@@ -74,8 +74,7 @@ func (c *Client) Setup() error {
 	for _, query := range queries {
 		log.Infof("%v", query)
 
-		_, err := c.client.Query(client_v2.NewQuery(query, "", ""))
-		if err != nil {
+		if err := c.postQuery(query); err != nil {
 			return trace.Wrap(err)
 		}
 	}
@@ -145,9 +144,12 @@ func (c *Client) UpdateRollup(r Rollup) error {
 }
 
 func (c *Client) postQuery(query string) error {
-	_, err := c.client.Query(client_v2.NewQuery(query, "", ""))
+	response, err := c.client.Query(client_v2.NewQuery(query, "", ""))
 	if err != nil {
 		return trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		return trace.Wrap(response.Error())
 	}
 
 	return nil
