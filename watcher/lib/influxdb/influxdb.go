@@ -19,7 +19,6 @@ package influxdb
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
@@ -49,8 +48,8 @@ func NewClient() (*Client, error) {
 
 // Health checks the API readiness
 func (c *Client) Health() error {
-	timeout := 0 * time.Second // do not need to wait for leader of InfluxDB cluster
-	_, _, err := c.client.Ping(timeout)
+	const noWait = 0 // do not need to wait for leader of InfluxDB cluster
+	_, _, err := c.client.Ping(noWait)
 	if err != nil {
 		return trace.Wrap(err)
 	}
