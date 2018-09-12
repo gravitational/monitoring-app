@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -15,10 +13,18 @@ import (
 
 	client "github.com/influxdata/kapacitor/client/v1"
 	"github.com/influxdata/kapacitor/services/config"
+	"github.com/influxdata/kapacitor/services/diagnostic"
 	"github.com/influxdata/kapacitor/services/httpd"
 	"github.com/influxdata/kapacitor/services/httpd/httpdtest"
 	"github.com/influxdata/kapacitor/services/storage/storagetest"
 )
+
+var diagService *diagnostic.Service
+
+func init() {
+	diagService = diagnostic.NewService(diagnostic.NewConfig(), ioutil.Discard, ioutil.Discard)
+	diagService.Open()
+}
 
 type SectionA struct {
 	Option1 string `override:"option-1"`
@@ -49,7 +55,7 @@ type TestConfig struct {
 
 func OpenNewSerivce(testConfig interface{}, updates chan<- config.ConfigUpdate) (*config.Service, *httpdtest.Server) {
 	c := config.NewConfig()
-	service := config.NewService(c, testConfig, log.New(os.Stderr, "[config] ", log.LstdFlags), updates)
+	service := config.NewService(c, testConfig, diagService.NewConfigOverrideHandler(), updates)
 	service.StorageService = storagetest.New()
 	server := httpdtest.NewServer(testing.Verbose())
 	service.HTTPDService = server
@@ -1035,16 +1041,18 @@ func TestService_GetConfig(t *testing.T) {
 		basePath := server.Server.URL + httpd.BasePath + "/config"
 		// Apply all updates
 		for _, update := range tc.updates {
+			errC := make(chan error, 1)
 			go func() {
 				// Validate we got the update over the chan.
 				// This keeps the chan unblocked.
-				timer := time.NewTimer(10 * time.Millisecond)
+				timer := time.NewTimer(100 * time.Millisecond)
 				defer timer.Stop()
 				select {
 				case cu := <-updates:
 					cu.ErrC <- nil
+					errC <- nil
 				case <-timer.C:
-					t.Fatal("expected to get config update")
+					errC <- errors.New("expected to get config update")
 				}
 			}()
 			resp, err := http.Post(basePath+update.Path, "application/json", strings.NewReader(update.Body))
@@ -1058,6 +1066,14 @@ func TestService_GetConfig(t *testing.T) {
 			}
 			if got, exp := resp.StatusCode, http.StatusNoContent; got != exp {
 				t.Fatalf("update failed: got: %d exp: %d\nBody:\n%s", got, exp, string(body))
+			}
+			select {
+			case err := <-errC:
+				if err != nil {
+					t.Fatal(err)
+				}
+			default:
+				t.Fatal("expected to get an response on errC")
 			}
 		}
 

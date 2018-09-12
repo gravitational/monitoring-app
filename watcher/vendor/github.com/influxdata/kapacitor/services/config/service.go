@@ -3,11 +3,11 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	client "github.com/influxdata/kapacitor/client/v1"
 	"github.com/influxdata/kapacitor/services/config/override"
@@ -20,7 +20,14 @@ const (
 	configPath         = "/config"
 	configPathAnchored = "/config/"
 	configBasePath     = httpd.BasePath + configPathAnchored
+
+	// The amount of time an update is allowed take, when sending and receiving.
+	updateTimeout = 5 * time.Second
 )
+
+type Diagnostic interface {
+	Error(msg string, err error)
+}
 
 type ConfigUpdate struct {
 	Name      string
@@ -31,7 +38,7 @@ type ConfigUpdate struct {
 type Service struct {
 	enabled bool
 	config  interface{}
-	logger  *log.Logger
+	diag    Diagnostic
 	updates chan<- ConfigUpdate
 	routes  []httpd.Route
 
@@ -42,6 +49,7 @@ type Service struct {
 
 	StorageService interface {
 		Store(namespace string) storage.Interface
+		Register(name string, store storage.StoreActioner)
 	}
 	HTTPDService interface {
 		AddRoutes([]httpd.Route) error
@@ -49,17 +57,21 @@ type Service struct {
 	}
 }
 
-func NewService(c Config, config interface{}, l *log.Logger, updates chan<- ConfigUpdate) *Service {
+func NewService(c Config, config interface{}, d Diagnostic, updates chan<- ConfigUpdate) *Service {
 	return &Service{
 		enabled: c.Enabled,
 		config:  config,
-		logger:  l,
+		diag:    d,
 		updates: updates,
 	}
 }
 
-// The storage namespace for all configuration override data.
-const configNamespace = "config_overrides"
+const (
+	// Public name of overrides store
+	overridesAPIName = "overrides"
+	// The storage namespace for all configuration override data.
+	configNamespace = "config_overrides"
+)
 
 func (s *Service) Open() error {
 	store := s.StorageService.Store(configNamespace)
@@ -68,6 +80,7 @@ func (s *Service) Open() error {
 		return err
 	}
 	s.overrides = overrides
+	s.StorageService.Register(overridesAPIName, s.overrides)
 
 	// Cache element keys
 	if elementKeys, err := override.ElementKeys(s.config); err != nil {
@@ -245,11 +258,27 @@ func (s *Service) handleUpdateSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send update
-	s.updates <- cu
-	// Wait for error
-	if err := <-errC; err != nil {
-		httpd.HttpError(w, fmt.Sprintf("failed to update configuration %s/%s: %v", section, element, err), true, http.StatusInternalServerError)
+	sendTimer := time.NewTimer(updateTimeout)
+	defer sendTimer.Stop()
+	select {
+	case <-sendTimer.C:
+		httpd.HttpError(w, fmt.Sprintf("failed to send configuration update %s/%s: timeout", section, element), true, http.StatusInternalServerError)
 		return
+	case s.updates <- cu:
+	}
+
+	// Wait for error
+	recvTimer := time.NewTimer(updateTimeout)
+	defer recvTimer.Stop()
+	select {
+	case <-recvTimer.C:
+		httpd.HttpError(w, fmt.Sprintf("failed to update configuration %s/%s: timeout", section, element), true, http.StatusInternalServerError)
+		return
+	case err := <-errC:
+		if err != nil {
+			httpd.HttpError(w, fmt.Sprintf("failed to update configuration %s/%s: %v", section, element, err), true, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Save the result of the update
@@ -279,7 +308,9 @@ func (s *Service) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if !hasSection {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(config)
+		if err := json.NewEncoder(w).Encode(config); err != nil {
+			s.diag.Error("failed to JSON encode configuration", err)
+		}
 	} else if section != "" {
 		sec, ok := config.Sections[section]
 		if !ok {
@@ -300,14 +331,18 @@ func (s *Service) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			}
 			if found {
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(elementEntry)
+				if err := json.NewEncoder(w).Encode(elementEntry); err != nil {
+					s.diag.Error("failed to JSON encode element", err)
+				}
 			} else {
 				httpd.HttpError(w, fmt.Sprintf("unknown section/element: %s/%s", section, element), true, http.StatusNotFound)
 				return
 			}
 		} else {
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(sec)
+			if err := json.NewEncoder(w).Encode(sec); err != nil {
+				s.diag.Error("failed to JSON encode sec", err)
+			}
 		}
 	}
 }

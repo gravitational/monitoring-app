@@ -3,10 +3,23 @@ package udf_test
 import (
 	"bufio"
 	"io"
-	"log"
+	"io/ioutil"
 
+	"github.com/influxdata/kapacitor"
+	"github.com/influxdata/kapacitor/services/diagnostic"
 	"github.com/influxdata/kapacitor/udf"
+	"github.com/influxdata/kapacitor/udf/agent"
 )
+
+var diagService *diagnostic.Service
+
+var kapacitorDiag kapacitor.Diagnostic
+
+func init() {
+	diagService = diagnostic.NewService(diagnostic.NewConfig(), ioutil.Discard, ioutil.Discard)
+	diagService.Open()
+	kapacitorDiag = diagService.NewKapacitorHandler()
+}
 
 // IO implements a UDF process communication.
 // Connect up to UDF server via In/Out pipes.
@@ -17,13 +30,13 @@ type IO struct {
 	inw *io.PipeWriter
 
 	outr *io.PipeReader
-	brr  udf.ByteReadReader
+	brr  agent.ByteReadReader
 	outw *io.PipeWriter
 
 	// Requests sent to the UDF
-	Requests chan *udf.Request
+	Requests chan *agent.Request
 	// Responses from the UDF
-	Responses chan *udf.Response
+	Responses chan *agent.Response
 	// Any error that may have occurred
 	ErrC chan error
 }
@@ -33,8 +46,8 @@ func NewIO() *IO {
 	outr, outw := io.Pipe()
 	brr := bufio.NewReader(outr)
 	u := &IO{
-		Requests:  make(chan *udf.Request),
-		Responses: make(chan *udf.Response),
+		Requests:  make(chan *agent.Request),
+		Responses: make(chan *agent.Response),
 		ErrC:      make(chan error, 1),
 		inr:       inr,
 		inw:       inw,
@@ -64,8 +77,8 @@ func (o *IO) readRequests() error {
 	buf := bufio.NewReader(o.inr)
 	var b []byte
 	for {
-		req := &udf.Request{}
-		err := udf.ReadMessage(&b, buf, req)
+		req := &agent.Request{}
+		err := agent.ReadMessage(&b, buf, req)
 		if err == io.EOF {
 			return nil
 		}
@@ -79,7 +92,7 @@ func (o *IO) readRequests() error {
 func (o *IO) writeResponses() error {
 	defer o.outw.Close()
 	for response := range o.Responses {
-		udf.WriteMessage(response, o.outw)
+		agent.WriteMessage(response, o.outw)
 	}
 	return nil
 }
@@ -114,25 +127,30 @@ func (o *IO) In() io.WriteCloser {
 	return o.inw
 }
 
-func (o *IO) Out() udf.ByteReadReader {
+func (o *IO) Out() agent.ByteReadReader {
 	return o.brr
 }
 
 type UDF struct {
+	taskID string
+	nodeID string
+
 	*udf.Server
-	uio    *IO
-	logger *log.Logger
+	uio  *IO
+	diag udf.Diagnostic
 }
 
-func New(uio *IO, l *log.Logger) *UDF {
+func New(taskID, nodeID string, uio *IO, d udf.Diagnostic) *UDF {
 	return &UDF{
+		taskID: taskID,
+		nodeID: nodeID,
 		uio:    uio,
-		logger: l,
+		diag:   d,
 	}
 }
 
 func (u *UDF) Open() error {
-	u.Server = udf.NewServer(u.uio.Out(), u.uio.In(), u.logger, 0, nil, nil)
+	u.Server = udf.NewServer(u.taskID, u.nodeID, u.uio.Out(), u.uio.In(), u.diag, 0, nil, nil)
 	return u.Server.Start()
 }
 

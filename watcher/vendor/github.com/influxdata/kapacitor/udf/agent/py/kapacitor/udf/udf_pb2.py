@@ -18,15 +18,14 @@ _sym_db = _symbol_database.Default()
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='udf.proto',
-  package='udf',
+  package='agent',
   syntax='proto3',
-  serialized_pb=_b('\n\tudf.proto\x12\x03udf\"\r\n\x0bInfoRequest\"\xbf\x01\n\x0cInfoResponse\x12\x1c\n\x05wants\x18\x01 \x01(\x0e\x32\r.udf.EdgeType\x12\x1f\n\x08provides\x18\x02 \x01(\x0e\x32\r.udf.EdgeType\x12/\n\x07options\x18\x03 \x03(\x0b\x32\x1e.udf.InfoResponse.OptionsEntry\x1a?\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1e\n\x05value\x18\x02 \x01(\x0b\x32\x0f.udf.OptionInfo:\x02\x38\x01\"0\n\nOptionInfo\x12\"\n\nvalueTypes\x18\x01 \x03(\x0e\x32\x0e.udf.ValueType\"+\n\x0bInitRequest\x12\x1c\n\x07options\x18\x01 \x03(\x0b\x32\x0b.udf.Option\"8\n\x06Option\x12\x0c\n\x04name\x18\x01 \x01(\t\x12 \n\x06values\x18\x02 \x03(\x0b\x32\x10.udf.OptionValue\"\xa4\x01\n\x0bOptionValue\x12\x1c\n\x04type\x18\x01 \x01(\x0e\x32\x0e.udf.ValueType\x12\x13\n\tboolValue\x18\x02 \x01(\x08H\x00\x12\x12\n\x08intValue\x18\x03 \x01(\x03H\x00\x12\x15\n\x0b\x64oubleValue\x18\x04 \x01(\x01H\x00\x12\x15\n\x0bstringValue\x18\x05 \x01(\tH\x00\x12\x17\n\rdurationValue\x18\x06 \x01(\x03H\x00\x42\x07\n\x05value\".\n\x0cInitResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"\x11\n\x0fSnapshotRequest\"$\n\x10SnapshotResponse\x12\x10\n\x08snapshot\x18\x01 \x01(\x0c\"\"\n\x0eRestoreRequest\x12\x10\n\x08snapshot\x18\x01 \x01(\x0c\"1\n\x0fRestoreResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\" \n\x10KeepaliveRequest\x12\x0c\n\x04time\x18\x01 \x01(\x03\"!\n\x11KeepaliveResponse\x12\x0c\n\x04time\x18\x01 \x01(\x03\"\x1e\n\rErrorResponse\x12\r\n\x05\x65rror\x18\x01 \x01(\t\"\x9d\x01\n\nBeginBatch\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05group\x18\x02 \x01(\t\x12\'\n\x04tags\x18\x03 \x03(\x0b\x32\x19.udf.BeginBatch.TagsEntry\x12\x0c\n\x04size\x18\x04 \x01(\x03\x12\x0e\n\x06\x62yName\x18\x05 \x01(\x08\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x84\x04\n\x05Point\x12\x0c\n\x04time\x18\x01 \x01(\x03\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x03 \x01(\t\x12\x17\n\x0fretentionPolicy\x18\x04 \x01(\t\x12\r\n\x05group\x18\x05 \x01(\t\x12\x12\n\ndimensions\x18\x06 \x03(\t\x12\"\n\x04tags\x18\x07 \x03(\x0b\x32\x14.udf.Point.TagsEntry\x12\x32\n\x0c\x66ieldsDouble\x18\x08 \x03(\x0b\x32\x1c.udf.Point.FieldsDoubleEntry\x12,\n\tfieldsInt\x18\t \x03(\x0b\x32\x19.udf.Point.FieldsIntEntry\x12\x32\n\x0c\x66ieldsString\x18\n \x03(\x0b\x32\x1c.udf.Point.FieldsStringEntry\x12\x0e\n\x06\x62yName\x18\x0b \x01(\x08\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x33\n\x11\x46ieldsDoubleEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\x1a\x30\n\x0e\x46ieldsIntEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\x1a\x33\n\x11\x46ieldsStringEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x99\x01\n\x08\x45ndBatch\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05group\x18\x02 \x01(\t\x12\x0c\n\x04tmax\x18\x03 \x01(\x03\x12%\n\x04tags\x18\x04 \x03(\x0b\x32\x17.udf.EndBatch.TagsEntry\x12\x0e\n\x06\x62yName\x18\x05 \x01(\x08\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xb3\x02\n\x07Request\x12 \n\x04info\x18\x01 \x01(\x0b\x32\x10.udf.InfoRequestH\x00\x12 \n\x04init\x18\x02 \x01(\x0b\x32\x10.udf.InitRequestH\x00\x12*\n\tkeepalive\x18\x03 \x01(\x0b\x32\x15.udf.KeepaliveRequestH\x00\x12(\n\x08snapshot\x18\x04 \x01(\x0b\x32\x14.udf.SnapshotRequestH\x00\x12&\n\x07restore\x18\x05 \x01(\x0b\x32\x13.udf.RestoreRequestH\x00\x12 \n\x05\x62\x65gin\x18\x10 \x01(\x0b\x32\x0f.udf.BeginBatchH\x00\x12\x1b\n\x05point\x18\x11 \x01(\x0b\x32\n.udf.PointH\x00\x12\x1c\n\x03\x65nd\x18\x12 \x01(\x0b\x32\r.udf.EndBatchH\x00\x42\t\n\x07message\"\xde\x02\n\x08Response\x12!\n\x04info\x18\x01 \x01(\x0b\x32\x11.udf.InfoResponseH\x00\x12!\n\x04init\x18\x02 \x01(\x0b\x32\x11.udf.InitResponseH\x00\x12+\n\tkeepalive\x18\x03 \x01(\x0b\x32\x16.udf.KeepaliveResponseH\x00\x12)\n\x08snapshot\x18\x04 \x01(\x0b\x32\x15.udf.SnapshotResponseH\x00\x12\'\n\x07restore\x18\x05 \x01(\x0b\x32\x14.udf.RestoreResponseH\x00\x12#\n\x05\x65rror\x18\x06 \x01(\x0b\x32\x12.udf.ErrorResponseH\x00\x12 \n\x05\x62\x65gin\x18\x10 \x01(\x0b\x32\x0f.udf.BeginBatchH\x00\x12\x1b\n\x05point\x18\x11 \x01(\x0b\x32\n.udf.PointH\x00\x12\x1c\n\x03\x65nd\x18\x12 \x01(\x0b\x32\r.udf.EndBatchH\x00\x42\t\n\x07message*!\n\x08\x45\x64geType\x12\n\n\x06STREAM\x10\x00\x12\t\n\x05\x42\x41TCH\x10\x01*D\n\tValueType\x12\x08\n\x04\x42OOL\x10\x00\x12\x07\n\x03INT\x10\x01\x12\n\n\x06\x44OUBLE\x10\x02\x12\n\n\x06STRING\x10\x03\x12\x0c\n\x08\x44URATION\x10\x04\x62\x06proto3')
+  serialized_pb=_b('\n\tudf.proto\x12\x05\x61gent\"\r\n\x0bInfoRequest\"\xc7\x01\n\x0cInfoResponse\x12\x1e\n\x05wants\x18\x01 \x01(\x0e\x32\x0f.agent.EdgeType\x12!\n\x08provides\x18\x02 \x01(\x0e\x32\x0f.agent.EdgeType\x12\x31\n\x07options\x18\x03 \x03(\x0b\x32 .agent.InfoResponse.OptionsEntry\x1a\x41\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12 \n\x05value\x18\x02 \x01(\x0b\x32\x11.agent.OptionInfo:\x02\x38\x01\"2\n\nOptionInfo\x12$\n\nvalueTypes\x18\x01 \x03(\x0e\x32\x10.agent.ValueType\"M\n\x0bInitRequest\x12\x1e\n\x07options\x18\x01 \x03(\x0b\x32\r.agent.Option\x12\x0e\n\x06taskID\x18\x02 \x01(\t\x12\x0e\n\x06nodeID\x18\x03 \x01(\t\":\n\x06Option\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\"\n\x06values\x18\x02 \x03(\x0b\x32\x12.agent.OptionValue\"\xa6\x01\n\x0bOptionValue\x12\x1e\n\x04type\x18\x01 \x01(\x0e\x32\x10.agent.ValueType\x12\x13\n\tboolValue\x18\x02 \x01(\x08H\x00\x12\x12\n\x08intValue\x18\x03 \x01(\x03H\x00\x12\x15\n\x0b\x64oubleValue\x18\x04 \x01(\x01H\x00\x12\x15\n\x0bstringValue\x18\x05 \x01(\tH\x00\x12\x17\n\rdurationValue\x18\x06 \x01(\x03H\x00\x42\x07\n\x05value\".\n\x0cInitResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"\x11\n\x0fSnapshotRequest\"$\n\x10SnapshotResponse\x12\x10\n\x08snapshot\x18\x01 \x01(\x0c\"\"\n\x0eRestoreRequest\x12\x10\n\x08snapshot\x18\x01 \x01(\x0c\"1\n\x0fRestoreResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\" \n\x10KeepaliveRequest\x12\x0c\n\x04time\x18\x01 \x01(\x03\"!\n\x11KeepaliveResponse\x12\x0c\n\x04time\x18\x01 \x01(\x03\"\x1e\n\rErrorResponse\x12\r\n\x05\x65rror\x18\x01 \x01(\t\"\x9f\x01\n\nBeginBatch\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05group\x18\x02 \x01(\t\x12)\n\x04tags\x18\x03 \x03(\x0b\x32\x1b.agent.BeginBatch.TagsEntry\x12\x0c\n\x04size\x18\x04 \x01(\x03\x12\x0e\n\x06\x62yName\x18\x05 \x01(\x08\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xf1\x04\n\x05Point\x12\x0c\n\x04time\x18\x01 \x01(\x03\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08\x64\x61tabase\x18\x03 \x01(\t\x12\x17\n\x0fretentionPolicy\x18\x04 \x01(\t\x12\r\n\x05group\x18\x05 \x01(\t\x12\x12\n\ndimensions\x18\x06 \x03(\t\x12$\n\x04tags\x18\x07 \x03(\x0b\x32\x16.agent.Point.TagsEntry\x12\x34\n\x0c\x66ieldsDouble\x18\x08 \x03(\x0b\x32\x1e.agent.Point.FieldsDoubleEntry\x12.\n\tfieldsInt\x18\t \x03(\x0b\x32\x1b.agent.Point.FieldsIntEntry\x12\x34\n\x0c\x66ieldsString\x18\n \x03(\x0b\x32\x1e.agent.Point.FieldsStringEntry\x12\x30\n\nfieldsBool\x18\x0c \x03(\x0b\x32\x1c.agent.Point.FieldsBoolEntry\x12\x0e\n\x06\x62yName\x18\x0b \x01(\x08\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x33\n\x11\x46ieldsDoubleEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\x1a\x30\n\x0e\x46ieldsIntEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\x1a\x33\n\x11\x46ieldsStringEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x31\n\x0f\x46ieldsBoolEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01\"\x9b\x01\n\x08\x45ndBatch\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05group\x18\x02 \x01(\t\x12\x0c\n\x04tmax\x18\x03 \x01(\x03\x12\'\n\x04tags\x18\x04 \x03(\x0b\x32\x19.agent.EndBatch.TagsEntry\x12\x0e\n\x06\x62yName\x18\x05 \x01(\x08\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xc3\x02\n\x07Request\x12\"\n\x04info\x18\x01 \x01(\x0b\x32\x12.agent.InfoRequestH\x00\x12\"\n\x04init\x18\x02 \x01(\x0b\x32\x12.agent.InitRequestH\x00\x12,\n\tkeepalive\x18\x03 \x01(\x0b\x32\x17.agent.KeepaliveRequestH\x00\x12*\n\x08snapshot\x18\x04 \x01(\x0b\x32\x16.agent.SnapshotRequestH\x00\x12(\n\x07restore\x18\x05 \x01(\x0b\x32\x15.agent.RestoreRequestH\x00\x12\"\n\x05\x62\x65gin\x18\x10 \x01(\x0b\x32\x11.agent.BeginBatchH\x00\x12\x1d\n\x05point\x18\x11 \x01(\x0b\x32\x0c.agent.PointH\x00\x12\x1e\n\x03\x65nd\x18\x12 \x01(\x0b\x32\x0f.agent.EndBatchH\x00\x42\t\n\x07message\"\xf0\x02\n\x08Response\x12#\n\x04info\x18\x01 \x01(\x0b\x32\x13.agent.InfoResponseH\x00\x12#\n\x04init\x18\x02 \x01(\x0b\x32\x13.agent.InitResponseH\x00\x12-\n\tkeepalive\x18\x03 \x01(\x0b\x32\x18.agent.KeepaliveResponseH\x00\x12+\n\x08snapshot\x18\x04 \x01(\x0b\x32\x17.agent.SnapshotResponseH\x00\x12)\n\x07restore\x18\x05 \x01(\x0b\x32\x16.agent.RestoreResponseH\x00\x12%\n\x05\x65rror\x18\x06 \x01(\x0b\x32\x14.agent.ErrorResponseH\x00\x12\"\n\x05\x62\x65gin\x18\x10 \x01(\x0b\x32\x11.agent.BeginBatchH\x00\x12\x1d\n\x05point\x18\x11 \x01(\x0b\x32\x0c.agent.PointH\x00\x12\x1e\n\x03\x65nd\x18\x12 \x01(\x0b\x32\x0f.agent.EndBatchH\x00\x42\t\n\x07message*!\n\x08\x45\x64geType\x12\n\n\x06STREAM\x10\x00\x12\t\n\x05\x42\x41TCH\x10\x01*D\n\tValueType\x12\x08\n\x04\x42OOL\x10\x00\x12\x07\n\x03INT\x10\x01\x12\n\n\x06\x44OUBLE\x10\x02\x12\n\n\x06STRING\x10\x03\x12\x0c\n\x08\x44URATION\x10\x04\x62\x06proto3')
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 _EDGETYPE = _descriptor.EnumDescriptor(
   name='EdgeType',
-  full_name='udf.EdgeType',
+  full_name='agent.EdgeType',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -41,15 +40,15 @@ _EDGETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=2338,
-  serialized_end=2371,
+  serialized_start=2535,
+  serialized_end=2568,
 )
 _sym_db.RegisterEnumDescriptor(_EDGETYPE)
 
 EdgeType = enum_type_wrapper.EnumTypeWrapper(_EDGETYPE)
 _VALUETYPE = _descriptor.EnumDescriptor(
   name='ValueType',
-  full_name='udf.ValueType',
+  full_name='agent.ValueType',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -76,8 +75,8 @@ _VALUETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=2373,
-  serialized_end=2441,
+  serialized_start=2570,
+  serialized_end=2638,
 )
 _sym_db.RegisterEnumDescriptor(_VALUETYPE)
 
@@ -94,7 +93,7 @@ DURATION = 4
 
 _INFOREQUEST = _descriptor.Descriptor(
   name='InfoRequest',
-  full_name='udf.InfoRequest',
+  full_name='agent.InfoRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
@@ -111,32 +110,32 @@ _INFOREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=18,
-  serialized_end=31,
+  serialized_start=20,
+  serialized_end=33,
 )
 
 
 _INFORESPONSE_OPTIONSENTRY = _descriptor.Descriptor(
   name='OptionsEntry',
-  full_name='udf.InfoResponse.OptionsEntry',
+  full_name='agent.InfoResponse.OptionsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.InfoResponse.OptionsEntry.key', index=0,
+      name='key', full_name='agent.InfoResponse.OptionsEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.InfoResponse.OptionsEntry.value', index=1,
+      name='value', full_name='agent.InfoResponse.OptionsEntry.value', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -149,38 +148,38 @@ _INFORESPONSE_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=162,
-  serialized_end=225,
+  serialized_start=170,
+  serialized_end=235,
 )
 
 _INFORESPONSE = _descriptor.Descriptor(
   name='InfoResponse',
-  full_name='udf.InfoResponse',
+  full_name='agent.InfoResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='wants', full_name='udf.InfoResponse.wants', index=0,
+      name='wants', full_name='agent.InfoResponse.wants', index=0,
       number=1, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='provides', full_name='udf.InfoResponse.provides', index=1,
+      name='provides', full_name='agent.InfoResponse.provides', index=1,
       number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='options', full_name='udf.InfoResponse.options', index=2,
+      name='options', full_name='agent.InfoResponse.options', index=2,
       number=3, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -193,25 +192,25 @@ _INFORESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=34,
-  serialized_end=225,
+  serialized_start=36,
+  serialized_end=235,
 )
 
 
 _OPTIONINFO = _descriptor.Descriptor(
   name='OptionInfo',
-  full_name='udf.OptionInfo',
+  full_name='agent.OptionInfo',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='valueTypes', full_name='udf.OptionInfo.valueTypes', index=0,
+      name='valueTypes', full_name='agent.OptionInfo.valueTypes', index=0,
       number=1, type=14, cpp_type=8, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -224,25 +223,39 @@ _OPTIONINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=227,
-  serialized_end=275,
+  serialized_start=237,
+  serialized_end=287,
 )
 
 
 _INITREQUEST = _descriptor.Descriptor(
   name='InitRequest',
-  full_name='udf.InitRequest',
+  full_name='agent.InitRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='options', full_name='udf.InitRequest.options', index=0,
+      name='options', full_name='agent.InitRequest.options', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='taskID', full_name='agent.InitRequest.taskID', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='nodeID', full_name='agent.InitRequest.nodeID', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -255,32 +268,32 @@ _INITREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=277,
-  serialized_end=320,
+  serialized_start=289,
+  serialized_end=366,
 )
 
 
 _OPTION = _descriptor.Descriptor(
   name='Option',
-  full_name='udf.Option',
+  full_name='agent.Option',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='udf.Option.name', index=0,
+      name='name', full_name='agent.Option.name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='values', full_name='udf.Option.values', index=1,
+      name='values', full_name='agent.Option.values', index=1,
       number=2, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -293,60 +306,60 @@ _OPTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=322,
-  serialized_end=378,
+  serialized_start=368,
+  serialized_end=426,
 )
 
 
 _OPTIONVALUE = _descriptor.Descriptor(
   name='OptionValue',
-  full_name='udf.OptionValue',
+  full_name='agent.OptionValue',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='type', full_name='udf.OptionValue.type', index=0,
+      name='type', full_name='agent.OptionValue.type', index=0,
       number=1, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='boolValue', full_name='udf.OptionValue.boolValue', index=1,
+      name='boolValue', full_name='agent.OptionValue.boolValue', index=1,
       number=2, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='intValue', full_name='udf.OptionValue.intValue', index=2,
+      name='intValue', full_name='agent.OptionValue.intValue', index=2,
       number=3, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='doubleValue', full_name='udf.OptionValue.doubleValue', index=3,
+      name='doubleValue', full_name='agent.OptionValue.doubleValue', index=3,
       number=4, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='stringValue', full_name='udf.OptionValue.stringValue', index=4,
+      name='stringValue', full_name='agent.OptionValue.stringValue', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='durationValue', full_name='udf.OptionValue.durationValue', index=5,
+      name='durationValue', full_name='agent.OptionValue.durationValue', index=5,
       number=6, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -359,35 +372,35 @@ _OPTIONVALUE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
     _descriptor.OneofDescriptor(
-      name='value', full_name='udf.OptionValue.value',
+      name='value', full_name='agent.OptionValue.value',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=381,
-  serialized_end=545,
+  serialized_start=429,
+  serialized_end=595,
 )
 
 
 _INITRESPONSE = _descriptor.Descriptor(
   name='InitResponse',
-  full_name='udf.InitResponse',
+  full_name='agent.InitResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='success', full_name='udf.InitResponse.success', index=0,
+      name='success', full_name='agent.InitResponse.success', index=0,
       number=1, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='error', full_name='udf.InitResponse.error', index=1,
+      name='error', full_name='agent.InitResponse.error', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -400,14 +413,14 @@ _INITRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=547,
-  serialized_end=593,
+  serialized_start=597,
+  serialized_end=643,
 )
 
 
 _SNAPSHOTREQUEST = _descriptor.Descriptor(
   name='SnapshotRequest',
-  full_name='udf.SnapshotRequest',
+  full_name='agent.SnapshotRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
@@ -424,25 +437,25 @@ _SNAPSHOTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=595,
-  serialized_end=612,
+  serialized_start=645,
+  serialized_end=662,
 )
 
 
 _SNAPSHOTRESPONSE = _descriptor.Descriptor(
   name='SnapshotResponse',
-  full_name='udf.SnapshotResponse',
+  full_name='agent.SnapshotResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='snapshot', full_name='udf.SnapshotResponse.snapshot', index=0,
+      name='snapshot', full_name='agent.SnapshotResponse.snapshot', index=0,
       number=1, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -455,25 +468,25 @@ _SNAPSHOTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=614,
-  serialized_end=650,
+  serialized_start=664,
+  serialized_end=700,
 )
 
 
 _RESTOREREQUEST = _descriptor.Descriptor(
   name='RestoreRequest',
-  full_name='udf.RestoreRequest',
+  full_name='agent.RestoreRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='snapshot', full_name='udf.RestoreRequest.snapshot', index=0,
+      name='snapshot', full_name='agent.RestoreRequest.snapshot', index=0,
       number=1, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -486,32 +499,32 @@ _RESTOREREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=652,
-  serialized_end=686,
+  serialized_start=702,
+  serialized_end=736,
 )
 
 
 _RESTORERESPONSE = _descriptor.Descriptor(
   name='RestoreResponse',
-  full_name='udf.RestoreResponse',
+  full_name='agent.RestoreResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='success', full_name='udf.RestoreResponse.success', index=0,
+      name='success', full_name='agent.RestoreResponse.success', index=0,
       number=1, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='error', full_name='udf.RestoreResponse.error', index=1,
+      name='error', full_name='agent.RestoreResponse.error', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -524,25 +537,25 @@ _RESTORERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=688,
-  serialized_end=737,
+  serialized_start=738,
+  serialized_end=787,
 )
 
 
 _KEEPALIVEREQUEST = _descriptor.Descriptor(
   name='KeepaliveRequest',
-  full_name='udf.KeepaliveRequest',
+  full_name='agent.KeepaliveRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='time', full_name='udf.KeepaliveRequest.time', index=0,
+      name='time', full_name='agent.KeepaliveRequest.time', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -555,25 +568,25 @@ _KEEPALIVEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=739,
-  serialized_end=771,
+  serialized_start=789,
+  serialized_end=821,
 )
 
 
 _KEEPALIVERESPONSE = _descriptor.Descriptor(
   name='KeepaliveResponse',
-  full_name='udf.KeepaliveResponse',
+  full_name='agent.KeepaliveResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='time', full_name='udf.KeepaliveResponse.time', index=0,
+      name='time', full_name='agent.KeepaliveResponse.time', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -586,25 +599,25 @@ _KEEPALIVERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=773,
-  serialized_end=806,
+  serialized_start=823,
+  serialized_end=856,
 )
 
 
 _ERRORRESPONSE = _descriptor.Descriptor(
   name='ErrorResponse',
-  full_name='udf.ErrorResponse',
+  full_name='agent.ErrorResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='error', full_name='udf.ErrorResponse.error', index=0,
+      name='error', full_name='agent.ErrorResponse.error', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -617,32 +630,32 @@ _ERRORRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=808,
-  serialized_end=838,
+  serialized_start=858,
+  serialized_end=888,
 )
 
 
 _BEGINBATCH_TAGSENTRY = _descriptor.Descriptor(
   name='TagsEntry',
-  full_name='udf.BeginBatch.TagsEntry',
+  full_name='agent.BeginBatch.TagsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.BeginBatch.TagsEntry.key', index=0,
+      name='key', full_name='agent.BeginBatch.TagsEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.BeginBatch.TagsEntry.value', index=1,
+      name='value', full_name='agent.BeginBatch.TagsEntry.value', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -655,52 +668,52 @@ _BEGINBATCH_TAGSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=955,
-  serialized_end=998,
+  serialized_start=1007,
+  serialized_end=1050,
 )
 
 _BEGINBATCH = _descriptor.Descriptor(
   name='BeginBatch',
-  full_name='udf.BeginBatch',
+  full_name='agent.BeginBatch',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='udf.BeginBatch.name', index=0,
+      name='name', full_name='agent.BeginBatch.name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='group', full_name='udf.BeginBatch.group', index=1,
+      name='group', full_name='agent.BeginBatch.group', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='tags', full_name='udf.BeginBatch.tags', index=2,
+      name='tags', full_name='agent.BeginBatch.tags', index=2,
       number=3, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='size', full_name='udf.BeginBatch.size', index=3,
+      name='size', full_name='agent.BeginBatch.size', index=3,
       number=4, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='byName', full_name='udf.BeginBatch.byName', index=4,
+      name='byName', full_name='agent.BeginBatch.byName', index=4,
       number=5, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -713,32 +726,32 @@ _BEGINBATCH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=841,
-  serialized_end=998,
+  serialized_start=891,
+  serialized_end=1050,
 )
 
 
 _POINT_TAGSENTRY = _descriptor.Descriptor(
   name='TagsEntry',
-  full_name='udf.Point.TagsEntry',
+  full_name='agent.Point.TagsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.Point.TagsEntry.key', index=0,
+      name='key', full_name='agent.Point.TagsEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.Point.TagsEntry.value', index=1,
+      name='value', full_name='agent.Point.TagsEntry.value', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -751,31 +764,31 @@ _POINT_TAGSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=955,
-  serialized_end=998,
+  serialized_start=1007,
+  serialized_end=1050,
 )
 
 _POINT_FIELDSDOUBLEENTRY = _descriptor.Descriptor(
   name='FieldsDoubleEntry',
-  full_name='udf.Point.FieldsDoubleEntry',
+  full_name='agent.Point.FieldsDoubleEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.Point.FieldsDoubleEntry.key', index=0,
+      name='key', full_name='agent.Point.FieldsDoubleEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.Point.FieldsDoubleEntry.value', index=1,
+      name='value', full_name='agent.Point.FieldsDoubleEntry.value', index=1,
       number=2, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -788,31 +801,31 @@ _POINT_FIELDSDOUBLEENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1363,
-  serialized_end=1414,
+  serialized_start=1473,
+  serialized_end=1524,
 )
 
 _POINT_FIELDSINTENTRY = _descriptor.Descriptor(
   name='FieldsIntEntry',
-  full_name='udf.Point.FieldsIntEntry',
+  full_name='agent.Point.FieldsIntEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.Point.FieldsIntEntry.key', index=0,
+      name='key', full_name='agent.Point.FieldsIntEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.Point.FieldsIntEntry.value', index=1,
+      name='value', full_name='agent.Point.FieldsIntEntry.value', index=1,
       number=2, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -825,31 +838,31 @@ _POINT_FIELDSINTENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1416,
-  serialized_end=1464,
+  serialized_start=1526,
+  serialized_end=1574,
 )
 
 _POINT_FIELDSSTRINGENTRY = _descriptor.Descriptor(
   name='FieldsStringEntry',
-  full_name='udf.Point.FieldsStringEntry',
+  full_name='agent.Point.FieldsStringEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.Point.FieldsStringEntry.key', index=0,
+      name='key', full_name='agent.Point.FieldsStringEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.Point.FieldsStringEntry.value', index=1,
+      name='value', full_name='agent.Point.FieldsStringEntry.value', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -862,98 +875,142 @@ _POINT_FIELDSSTRINGENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1466,
-  serialized_end=1517,
+  serialized_start=1576,
+  serialized_end=1627,
 )
 
-_POINT = _descriptor.Descriptor(
-  name='Point',
-  full_name='udf.Point',
+_POINT_FIELDSBOOLENTRY = _descriptor.Descriptor(
+  name='FieldsBoolEntry',
+  full_name='agent.Point.FieldsBoolEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='time', full_name='udf.Point.time', index=0,
+      name='key', full_name='agent.Point.FieldsBoolEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='agent.Point.FieldsBoolEntry.value', index=1,
+      number=2, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=_descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001')),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1629,
+  serialized_end=1678,
+)
+
+_POINT = _descriptor.Descriptor(
+  name='Point',
+  full_name='agent.Point',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='time', full_name='agent.Point.time', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='name', full_name='udf.Point.name', index=1,
+      name='name', full_name='agent.Point.name', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='database', full_name='udf.Point.database', index=2,
+      name='database', full_name='agent.Point.database', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='retentionPolicy', full_name='udf.Point.retentionPolicy', index=3,
+      name='retentionPolicy', full_name='agent.Point.retentionPolicy', index=3,
       number=4, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='group', full_name='udf.Point.group', index=4,
+      name='group', full_name='agent.Point.group', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='dimensions', full_name='udf.Point.dimensions', index=5,
+      name='dimensions', full_name='agent.Point.dimensions', index=5,
       number=6, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='tags', full_name='udf.Point.tags', index=6,
+      name='tags', full_name='agent.Point.tags', index=6,
       number=7, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='fieldsDouble', full_name='udf.Point.fieldsDouble', index=7,
+      name='fieldsDouble', full_name='agent.Point.fieldsDouble', index=7,
       number=8, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='fieldsInt', full_name='udf.Point.fieldsInt', index=8,
+      name='fieldsInt', full_name='agent.Point.fieldsInt', index=8,
       number=9, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='fieldsString', full_name='udf.Point.fieldsString', index=9,
+      name='fieldsString', full_name='agent.Point.fieldsString', index=9,
       number=10, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='byName', full_name='udf.Point.byName', index=10,
+      name='fieldsBool', full_name='agent.Point.fieldsBool', index=10,
+      number=12, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='byName', full_name='agent.Point.byName', index=11,
       number=11, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[_POINT_TAGSENTRY, _POINT_FIELDSDOUBLEENTRY, _POINT_FIELDSINTENTRY, _POINT_FIELDSSTRINGENTRY, ],
+  nested_types=[_POINT_TAGSENTRY, _POINT_FIELDSDOUBLEENTRY, _POINT_FIELDSINTENTRY, _POINT_FIELDSSTRINGENTRY, _POINT_FIELDSBOOLENTRY, ],
   enum_types=[
   ],
   options=None,
@@ -962,32 +1019,32 @@ _POINT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1001,
-  serialized_end=1517,
+  serialized_start=1053,
+  serialized_end=1678,
 )
 
 
 _ENDBATCH_TAGSENTRY = _descriptor.Descriptor(
   name='TagsEntry',
-  full_name='udf.EndBatch.TagsEntry',
+  full_name='agent.EndBatch.TagsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='udf.EndBatch.TagsEntry.key', index=0,
+      name='key', full_name='agent.EndBatch.TagsEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='udf.EndBatch.TagsEntry.value', index=1,
+      name='value', full_name='agent.EndBatch.TagsEntry.value', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1000,52 +1057,52 @@ _ENDBATCH_TAGSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=955,
-  serialized_end=998,
+  serialized_start=1007,
+  serialized_end=1050,
 )
 
 _ENDBATCH = _descriptor.Descriptor(
   name='EndBatch',
-  full_name='udf.EndBatch',
+  full_name='agent.EndBatch',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='udf.EndBatch.name', index=0,
+      name='name', full_name='agent.EndBatch.name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='group', full_name='udf.EndBatch.group', index=1,
+      name='group', full_name='agent.EndBatch.group', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='tmax', full_name='udf.EndBatch.tmax', index=2,
+      name='tmax', full_name='agent.EndBatch.tmax', index=2,
       number=3, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='tags', full_name='udf.EndBatch.tags', index=3,
+      name='tags', full_name='agent.EndBatch.tags', index=3,
       number=4, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='byName', full_name='udf.EndBatch.byName', index=4,
+      name='byName', full_name='agent.EndBatch.byName', index=4,
       number=5, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1058,74 +1115,74 @@ _ENDBATCH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1520,
-  serialized_end=1673,
+  serialized_start=1681,
+  serialized_end=1836,
 )
 
 
 _REQUEST = _descriptor.Descriptor(
   name='Request',
-  full_name='udf.Request',
+  full_name='agent.Request',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='info', full_name='udf.Request.info', index=0,
+      name='info', full_name='agent.Request.info', index=0,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='init', full_name='udf.Request.init', index=1,
+      name='init', full_name='agent.Request.init', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='keepalive', full_name='udf.Request.keepalive', index=2,
+      name='keepalive', full_name='agent.Request.keepalive', index=2,
       number=3, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='snapshot', full_name='udf.Request.snapshot', index=3,
+      name='snapshot', full_name='agent.Request.snapshot', index=3,
       number=4, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='restore', full_name='udf.Request.restore', index=4,
+      name='restore', full_name='agent.Request.restore', index=4,
       number=5, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='begin', full_name='udf.Request.begin', index=5,
+      name='begin', full_name='agent.Request.begin', index=5,
       number=16, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='point', full_name='udf.Request.point', index=6,
+      name='point', full_name='agent.Request.point', index=6,
       number=17, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='end', full_name='udf.Request.end', index=7,
+      name='end', full_name='agent.Request.end', index=7,
       number=18, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1138,84 +1195,84 @@ _REQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
     _descriptor.OneofDescriptor(
-      name='message', full_name='udf.Request.message',
+      name='message', full_name='agent.Request.message',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=1676,
-  serialized_end=1983,
+  serialized_start=1839,
+  serialized_end=2162,
 )
 
 
 _RESPONSE = _descriptor.Descriptor(
   name='Response',
-  full_name='udf.Response',
+  full_name='agent.Response',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='info', full_name='udf.Response.info', index=0,
+      name='info', full_name='agent.Response.info', index=0,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='init', full_name='udf.Response.init', index=1,
+      name='init', full_name='agent.Response.init', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='keepalive', full_name='udf.Response.keepalive', index=2,
+      name='keepalive', full_name='agent.Response.keepalive', index=2,
       number=3, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='snapshot', full_name='udf.Response.snapshot', index=3,
+      name='snapshot', full_name='agent.Response.snapshot', index=3,
       number=4, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='restore', full_name='udf.Response.restore', index=4,
+      name='restore', full_name='agent.Response.restore', index=4,
       number=5, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='error', full_name='udf.Response.error', index=5,
+      name='error', full_name='agent.Response.error', index=5,
       number=6, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='begin', full_name='udf.Response.begin', index=6,
+      name='begin', full_name='agent.Response.begin', index=6,
       number=16, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='point', full_name='udf.Response.point', index=7,
+      name='point', full_name='agent.Response.point', index=7,
       number=17, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='end', full_name='udf.Response.end', index=8,
+      name='end', full_name='agent.Response.end', index=8,
       number=18, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1228,11 +1285,11 @@ _RESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
     _descriptor.OneofDescriptor(
-      name='message', full_name='udf.Response.message',
+      name='message', full_name='agent.Response.message',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=1986,
-  serialized_end=2336,
+  serialized_start=2165,
+  serialized_end=2533,
 )
 
 _INFORESPONSE_OPTIONSENTRY.fields_by_name['value'].message_type = _OPTIONINFO
@@ -1265,10 +1322,12 @@ _POINT_TAGSENTRY.containing_type = _POINT
 _POINT_FIELDSDOUBLEENTRY.containing_type = _POINT
 _POINT_FIELDSINTENTRY.containing_type = _POINT
 _POINT_FIELDSSTRINGENTRY.containing_type = _POINT
+_POINT_FIELDSBOOLENTRY.containing_type = _POINT
 _POINT.fields_by_name['tags'].message_type = _POINT_TAGSENTRY
 _POINT.fields_by_name['fieldsDouble'].message_type = _POINT_FIELDSDOUBLEENTRY
 _POINT.fields_by_name['fieldsInt'].message_type = _POINT_FIELDSINTENTRY
 _POINT.fields_by_name['fieldsString'].message_type = _POINT_FIELDSSTRINGENTRY
+_POINT.fields_by_name['fieldsBool'].message_type = _POINT_FIELDSBOOLENTRY
 _ENDBATCH_TAGSENTRY.containing_type = _ENDBATCH
 _ENDBATCH.fields_by_name['tags'].message_type = _ENDBATCH_TAGSENTRY
 _REQUEST.fields_by_name['info'].message_type = _INFOREQUEST
@@ -1360,11 +1419,12 @@ DESCRIPTOR.message_types_by_name['Request'] = _REQUEST
 DESCRIPTOR.message_types_by_name['Response'] = _RESPONSE
 DESCRIPTOR.enum_types_by_name['EdgeType'] = _EDGETYPE
 DESCRIPTOR.enum_types_by_name['ValueType'] = _VALUETYPE
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 InfoRequest = _reflection.GeneratedProtocolMessageType('InfoRequest', (_message.Message,), dict(
   DESCRIPTOR = _INFOREQUEST,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.InfoRequest)
+  # @@protoc_insertion_point(class_scope:agent.InfoRequest)
   ))
 _sym_db.RegisterMessage(InfoRequest)
 
@@ -1373,12 +1433,12 @@ InfoResponse = _reflection.GeneratedProtocolMessageType('InfoResponse', (_messag
   OptionsEntry = _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), dict(
     DESCRIPTOR = _INFORESPONSE_OPTIONSENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.InfoResponse.OptionsEntry)
+    # @@protoc_insertion_point(class_scope:agent.InfoResponse.OptionsEntry)
     ))
   ,
   DESCRIPTOR = _INFORESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.InfoResponse)
+  # @@protoc_insertion_point(class_scope:agent.InfoResponse)
   ))
 _sym_db.RegisterMessage(InfoResponse)
 _sym_db.RegisterMessage(InfoResponse.OptionsEntry)
@@ -1386,84 +1446,84 @@ _sym_db.RegisterMessage(InfoResponse.OptionsEntry)
 OptionInfo = _reflection.GeneratedProtocolMessageType('OptionInfo', (_message.Message,), dict(
   DESCRIPTOR = _OPTIONINFO,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.OptionInfo)
+  # @@protoc_insertion_point(class_scope:agent.OptionInfo)
   ))
 _sym_db.RegisterMessage(OptionInfo)
 
 InitRequest = _reflection.GeneratedProtocolMessageType('InitRequest', (_message.Message,), dict(
   DESCRIPTOR = _INITREQUEST,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.InitRequest)
+  # @@protoc_insertion_point(class_scope:agent.InitRequest)
   ))
 _sym_db.RegisterMessage(InitRequest)
 
 Option = _reflection.GeneratedProtocolMessageType('Option', (_message.Message,), dict(
   DESCRIPTOR = _OPTION,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.Option)
+  # @@protoc_insertion_point(class_scope:agent.Option)
   ))
 _sym_db.RegisterMessage(Option)
 
 OptionValue = _reflection.GeneratedProtocolMessageType('OptionValue', (_message.Message,), dict(
   DESCRIPTOR = _OPTIONVALUE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.OptionValue)
+  # @@protoc_insertion_point(class_scope:agent.OptionValue)
   ))
 _sym_db.RegisterMessage(OptionValue)
 
 InitResponse = _reflection.GeneratedProtocolMessageType('InitResponse', (_message.Message,), dict(
   DESCRIPTOR = _INITRESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.InitResponse)
+  # @@protoc_insertion_point(class_scope:agent.InitResponse)
   ))
 _sym_db.RegisterMessage(InitResponse)
 
 SnapshotRequest = _reflection.GeneratedProtocolMessageType('SnapshotRequest', (_message.Message,), dict(
   DESCRIPTOR = _SNAPSHOTREQUEST,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.SnapshotRequest)
+  # @@protoc_insertion_point(class_scope:agent.SnapshotRequest)
   ))
 _sym_db.RegisterMessage(SnapshotRequest)
 
 SnapshotResponse = _reflection.GeneratedProtocolMessageType('SnapshotResponse', (_message.Message,), dict(
   DESCRIPTOR = _SNAPSHOTRESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.SnapshotResponse)
+  # @@protoc_insertion_point(class_scope:agent.SnapshotResponse)
   ))
 _sym_db.RegisterMessage(SnapshotResponse)
 
 RestoreRequest = _reflection.GeneratedProtocolMessageType('RestoreRequest', (_message.Message,), dict(
   DESCRIPTOR = _RESTOREREQUEST,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.RestoreRequest)
+  # @@protoc_insertion_point(class_scope:agent.RestoreRequest)
   ))
 _sym_db.RegisterMessage(RestoreRequest)
 
 RestoreResponse = _reflection.GeneratedProtocolMessageType('RestoreResponse', (_message.Message,), dict(
   DESCRIPTOR = _RESTORERESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.RestoreResponse)
+  # @@protoc_insertion_point(class_scope:agent.RestoreResponse)
   ))
 _sym_db.RegisterMessage(RestoreResponse)
 
 KeepaliveRequest = _reflection.GeneratedProtocolMessageType('KeepaliveRequest', (_message.Message,), dict(
   DESCRIPTOR = _KEEPALIVEREQUEST,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.KeepaliveRequest)
+  # @@protoc_insertion_point(class_scope:agent.KeepaliveRequest)
   ))
 _sym_db.RegisterMessage(KeepaliveRequest)
 
 KeepaliveResponse = _reflection.GeneratedProtocolMessageType('KeepaliveResponse', (_message.Message,), dict(
   DESCRIPTOR = _KEEPALIVERESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.KeepaliveResponse)
+  # @@protoc_insertion_point(class_scope:agent.KeepaliveResponse)
   ))
 _sym_db.RegisterMessage(KeepaliveResponse)
 
 ErrorResponse = _reflection.GeneratedProtocolMessageType('ErrorResponse', (_message.Message,), dict(
   DESCRIPTOR = _ERRORRESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.ErrorResponse)
+  # @@protoc_insertion_point(class_scope:agent.ErrorResponse)
   ))
 _sym_db.RegisterMessage(ErrorResponse)
 
@@ -1472,12 +1532,12 @@ BeginBatch = _reflection.GeneratedProtocolMessageType('BeginBatch', (_message.Me
   TagsEntry = _reflection.GeneratedProtocolMessageType('TagsEntry', (_message.Message,), dict(
     DESCRIPTOR = _BEGINBATCH_TAGSENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.BeginBatch.TagsEntry)
+    # @@protoc_insertion_point(class_scope:agent.BeginBatch.TagsEntry)
     ))
   ,
   DESCRIPTOR = _BEGINBATCH,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.BeginBatch)
+  # @@protoc_insertion_point(class_scope:agent.BeginBatch)
   ))
 _sym_db.RegisterMessage(BeginBatch)
 _sym_db.RegisterMessage(BeginBatch.TagsEntry)
@@ -1487,51 +1547,59 @@ Point = _reflection.GeneratedProtocolMessageType('Point', (_message.Message,), d
   TagsEntry = _reflection.GeneratedProtocolMessageType('TagsEntry', (_message.Message,), dict(
     DESCRIPTOR = _POINT_TAGSENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.Point.TagsEntry)
+    # @@protoc_insertion_point(class_scope:agent.Point.TagsEntry)
     ))
   ,
 
   FieldsDoubleEntry = _reflection.GeneratedProtocolMessageType('FieldsDoubleEntry', (_message.Message,), dict(
     DESCRIPTOR = _POINT_FIELDSDOUBLEENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.Point.FieldsDoubleEntry)
+    # @@protoc_insertion_point(class_scope:agent.Point.FieldsDoubleEntry)
     ))
   ,
 
   FieldsIntEntry = _reflection.GeneratedProtocolMessageType('FieldsIntEntry', (_message.Message,), dict(
     DESCRIPTOR = _POINT_FIELDSINTENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.Point.FieldsIntEntry)
+    # @@protoc_insertion_point(class_scope:agent.Point.FieldsIntEntry)
     ))
   ,
 
   FieldsStringEntry = _reflection.GeneratedProtocolMessageType('FieldsStringEntry', (_message.Message,), dict(
     DESCRIPTOR = _POINT_FIELDSSTRINGENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.Point.FieldsStringEntry)
+    # @@protoc_insertion_point(class_scope:agent.Point.FieldsStringEntry)
+    ))
+  ,
+
+  FieldsBoolEntry = _reflection.GeneratedProtocolMessageType('FieldsBoolEntry', (_message.Message,), dict(
+    DESCRIPTOR = _POINT_FIELDSBOOLENTRY,
+    __module__ = 'udf_pb2'
+    # @@protoc_insertion_point(class_scope:agent.Point.FieldsBoolEntry)
     ))
   ,
   DESCRIPTOR = _POINT,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.Point)
+  # @@protoc_insertion_point(class_scope:agent.Point)
   ))
 _sym_db.RegisterMessage(Point)
 _sym_db.RegisterMessage(Point.TagsEntry)
 _sym_db.RegisterMessage(Point.FieldsDoubleEntry)
 _sym_db.RegisterMessage(Point.FieldsIntEntry)
 _sym_db.RegisterMessage(Point.FieldsStringEntry)
+_sym_db.RegisterMessage(Point.FieldsBoolEntry)
 
 EndBatch = _reflection.GeneratedProtocolMessageType('EndBatch', (_message.Message,), dict(
 
   TagsEntry = _reflection.GeneratedProtocolMessageType('TagsEntry', (_message.Message,), dict(
     DESCRIPTOR = _ENDBATCH_TAGSENTRY,
     __module__ = 'udf_pb2'
-    # @@protoc_insertion_point(class_scope:udf.EndBatch.TagsEntry)
+    # @@protoc_insertion_point(class_scope:agent.EndBatch.TagsEntry)
     ))
   ,
   DESCRIPTOR = _ENDBATCH,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.EndBatch)
+  # @@protoc_insertion_point(class_scope:agent.EndBatch)
   ))
 _sym_db.RegisterMessage(EndBatch)
 _sym_db.RegisterMessage(EndBatch.TagsEntry)
@@ -1539,14 +1607,14 @@ _sym_db.RegisterMessage(EndBatch.TagsEntry)
 Request = _reflection.GeneratedProtocolMessageType('Request', (_message.Message,), dict(
   DESCRIPTOR = _REQUEST,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.Request)
+  # @@protoc_insertion_point(class_scope:agent.Request)
   ))
 _sym_db.RegisterMessage(Request)
 
 Response = _reflection.GeneratedProtocolMessageType('Response', (_message.Message,), dict(
   DESCRIPTOR = _RESPONSE,
   __module__ = 'udf_pb2'
-  # @@protoc_insertion_point(class_scope:udf.Response)
+  # @@protoc_insertion_point(class_scope:agent.Response)
   ))
 _sym_db.RegisterMessage(Response)
 
@@ -1563,6 +1631,8 @@ _POINT_FIELDSINTENTRY.has_options = True
 _POINT_FIELDSINTENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 _POINT_FIELDSSTRINGENTRY.has_options = True
 _POINT_FIELDSSTRINGENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
+_POINT_FIELDSBOOLENTRY.has_options = True
+_POINT_FIELDSBOOLENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 _ENDBATCH_TAGSENTRY.has_options = True
 _ENDBATCH_TAGSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 # @@protoc_insertion_point(module_scope)

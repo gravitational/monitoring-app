@@ -2,16 +2,19 @@
 package reporting
 
 import (
-	"log"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/influxdata/kapacitor/vars"
+	"github.com/influxdata/kapacitor/server/vars"
 	client "github.com/influxdata/usage-client/v1"
 )
 
 const reportingInterval = time.Hour * 12
+
+type Diagnostic interface {
+	Error(msg string, err error)
+}
 
 // Sends anonymous usage information every 12 hours.
 type Service struct {
@@ -19,25 +22,22 @@ type Service struct {
 
 	client *client.Client
 
-	clusterID string
-	serverID  string
-	hostname  string
-	version   string
-	product   string
+	info vars.Infoer
 
 	statsTicker *time.Ticker
 	usageTicker *time.Ticker
 	closing     chan struct{}
-	logger      *log.Logger
+	diag        Diagnostic
 	wg          sync.WaitGroup
 }
 
-func NewService(c Config, l *log.Logger) *Service {
+func NewService(c Config, info vars.Infoer, d Diagnostic) *Service {
 	client := client.New("")
 	client.URL = c.URL
 	return &Service{
 		client: client,
-		logger: l,
+		info:   info,
+		diag:   d,
 	}
 }
 
@@ -46,16 +46,9 @@ func (s *Service) Open() error {
 		s.closing = make(chan struct{})
 	}
 
-	// Populate published vars
-	s.clusterID = vars.ClusterIDVar.StringValue()
-	s.serverID = vars.ServerIDVar.StringValue()
-	s.hostname = vars.HostVar.StringValue()
-	s.version = vars.VersionVar.StringValue()
-	s.product = vars.Product
-
 	// Populate anonymous tags
 	s.tags = make(client.Tags)
-	s.tags["version"] = s.version
+	s.tags["version"] = s.info.Version()
 	s.tags["arch"] = runtime.GOARCH
 	s.tags["os"] = runtime.GOOS
 
@@ -65,7 +58,7 @@ func (s *Service) Open() error {
 		defer s.wg.Done()
 		err := s.sendUsageReport()
 		if err != nil {
-			s.logger.Println("E! error while sending usage report on startup:", err)
+			s.diag.Error("error while sending usage report on startup", err)
 		}
 	}()
 
@@ -101,7 +94,7 @@ func (s *Service) usage() {
 		case <-s.usageTicker.C:
 			err := s.sendUsageReport()
 			if err != nil {
-				s.logger.Println("E! error while sending usage report:", err)
+				s.diag.Error("error while sending usage report", err)
 			}
 		}
 	}
@@ -114,15 +107,15 @@ func (s *Service) sendUsageReport() error {
 		Values: make(client.Values),
 	}
 	// Add values
-	data.Values[vars.ClusterIDVarName] = s.clusterID
-	data.Values[vars.ServerIDVarName] = s.serverID
-	data.Values[vars.NumTasksVarName] = vars.NumTasksVar.IntValue()
-	data.Values[vars.NumEnabledTasksVarName] = vars.NumEnabledTasksVar.IntValue()
-	data.Values[vars.NumSubscriptionsVarName] = vars.NumSubscriptionsVar.IntValue()
-	data.Values[vars.UptimeVarName] = vars.Uptime().Seconds()
+	data.Values[vars.ClusterIDVarName] = s.info.ClusterID().String()
+	data.Values[vars.ServerIDVarName] = s.info.ServerID().String()
+	data.Values[vars.NumTasksVarName] = s.info.NumTasks()
+	data.Values[vars.NumEnabledTasksVarName] = s.info.NumEnabledTasks()
+	data.Values[vars.NumSubscriptionsVarName] = s.info.NumSubscriptions()
+	data.Values[vars.UptimeVarName] = s.info.Uptime().Seconds()
 
 	usage := client.Usage{
-		Product: vars.Product,
+		Product: s.info.Product(),
 		Data:    []client.UsageData{data},
 	}
 

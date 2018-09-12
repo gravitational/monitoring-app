@@ -23,15 +23,19 @@
 package stats
 
 import (
-	"log"
 	"sync"
 	"time"
 
 	"github.com/influxdata/kapacitor"
+	"github.com/influxdata/kapacitor/edge"
 	"github.com/influxdata/kapacitor/models"
+	"github.com/influxdata/kapacitor/server/vars"
 	"github.com/influxdata/kapacitor/timer"
-	"github.com/influxdata/kapacitor/vars"
 )
+
+type Diagnostic interface {
+	Error(msg string, err error)
+}
 
 // Sends internal stats back into the Kapacitor stream.
 // Internal stats come from running tasks and other
@@ -55,17 +59,17 @@ type Service struct {
 	mu      sync.Mutex
 	wg      sync.WaitGroup
 
-	logger *log.Logger
+	diag Diagnostic
 }
 
-func NewService(c Config, l *log.Logger) *Service {
+func NewService(c Config, d Diagnostic) *Service {
 	return &Service{
 		interval:            time.Duration(c.StatsInterval),
 		db:                  c.Database,
 		rp:                  c.RetentionPolicy,
 		timingSampleRate:    c.TimingSampleRate,
 		timingMovingAvgSize: c.TimingMovingAverageSize,
-		logger:              l,
+		diag:                d,
 	}
 }
 
@@ -80,7 +84,6 @@ func (s *Service) Open() (err error) {
 	s.closing = make(chan struct{})
 	s.wg.Add(1)
 	go s.sendStats()
-	s.logger.Println("I! opened service")
 	return
 }
 
@@ -94,7 +97,6 @@ func (s *Service) Close() error {
 	close(s.closing)
 	s.wg.Wait()
 	s.stream.Close()
-	s.logger.Println("I! closed service")
 	return nil
 }
 
@@ -116,19 +118,19 @@ func (s *Service) reportStats() {
 	now := time.Now().UTC()
 	data, err := vars.GetStatsData()
 	if err != nil {
-		s.logger.Println("E! error getting stats data:", err)
+		s.diag.Error("error getting stats data", err)
 		return
 	}
 	for _, stat := range data {
-		p := models.Point{
-			Database:        s.db,
-			RetentionPolicy: s.rp,
-			Name:            stat.Name,
-			Group:           models.NilGroup,
-			Tags:            models.Tags(stat.Tags),
-			Time:            now,
-			Fields:          models.Fields(stat.Values),
-		}
+		p := edge.NewPointMessage(
+			stat.Name,
+			s.db,
+			s.rp,
+			models.Dimensions{},
+			models.Fields(stat.Values),
+			models.Tags(stat.Tags),
+			now,
+		)
 		s.stream.CollectPoint(p)
 	}
 }

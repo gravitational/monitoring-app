@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,12 +21,14 @@ import (
 	"github.com/influxdata/kapacitor"
 	kclient "github.com/influxdata/kapacitor/client/v1"
 	"github.com/influxdata/kapacitor/clock"
+	"github.com/influxdata/kapacitor/edge"
 	"github.com/influxdata/kapacitor/influxdb"
+	"github.com/influxdata/kapacitor/keyvalue"
 	"github.com/influxdata/kapacitor/models"
 	"github.com/influxdata/kapacitor/services/httpd"
 	"github.com/influxdata/kapacitor/services/storage"
+	"github.com/influxdata/kapacitor/uuid"
 	"github.com/pkg/errors"
-	"github.com/twinj/uuid"
 )
 
 const streamEXT = ".srpl"
@@ -50,6 +51,11 @@ const (
 
 var validID = regexp.MustCompile(`^[-\._\p{L}0-9]+$`)
 
+type Diagnostic interface {
+	Error(msg string, err error, ctx ...keyvalue.T)
+	Debug(msg string, ctx ...keyvalue.T)
+}
+
 // Handles recording, starting, and waiting on replays
 type Service struct {
 	saveDir string
@@ -61,6 +67,7 @@ type Service struct {
 
 	StorageService interface {
 		Store(namespace string) storage.Interface
+		Register(name string, store storage.StoreActioner)
 	}
 	TaskStore interface {
 		Load(id string) (*kapacitor.Task, error)
@@ -78,26 +85,32 @@ type Service struct {
 		Delete(*kapacitor.TaskMaster)
 	}
 	TaskMaster interface {
-		NewFork(name string, dbrps []kapacitor.DBRP, measurements []string) (*kapacitor.Edge, error)
+		NewFork(name string, dbrps []kapacitor.DBRP, measurements []string) (edge.StatsEdge, error)
 		DelFork(name string)
 		New(name string) *kapacitor.TaskMaster
 		Stream(name string) (kapacitor.StreamCollector, error)
 	}
 
-	logger *log.Logger
+	diag Diagnostic
 }
 
 // Create a new replay master.
-func NewService(conf Config, l *log.Logger) *Service {
+func NewService(conf Config, d Diagnostic) *Service {
 	return &Service{
 		saveDir: conf.Dir,
-		logger:  l,
+		diag:    d,
 	}
 }
 
-// The storage namespace for all recording data.
-const recordingNamespace = "recording_store"
-const replayNamespace = "replay_store"
+const (
+	// Public name for the recordings store
+	recordingsAPIName = "recordings"
+	// Public name for the replays store
+	replaysAPIName = "replays"
+	// The storage namespace for all recording data.
+	recordingNamespace = "recording_store"
+	replayNamespace    = "replay_store"
+)
 
 func (s *Service) Open() error {
 	// Create DAO
@@ -106,11 +119,14 @@ func (s *Service) Open() error {
 		return err
 	}
 	s.recordings = recordings
+	s.StorageService.Register(recordingsAPIName, s.recordings)
+
 	replays, err := newReplayKV(s.StorageService.Store(replayNamespace))
 	if err != nil {
 		return err
 	}
 	s.replays = replays
+	s.StorageService.Register(replaysAPIName, s.replays)
 
 	if err := os.MkdirAll(s.saveDir, 0755); err != nil {
 		return err
@@ -218,6 +234,10 @@ func (s *Service) syncRecordingMetadata() error {
 		}
 		name := info.Name()
 		i := strings.LastIndex(name, ".")
+		if i == -1 {
+			s.diag.Error("file without extension in replay dir", fmt.Errorf("file %s is missing file extension", name))
+			continue
+		}
 		ext := name[i:]
 		id := name[:i]
 
@@ -228,12 +248,12 @@ func (s *Service) syncRecordingMetadata() error {
 		case batchEXT:
 			typ = BatchRecording
 		default:
-			s.logger.Println("E! unknown file in replay dir", name)
+			s.diag.Error("unknown file type in replay dir", fmt.Errorf("%s has unknown file type", name))
 			continue
 		}
 		dataUrl := url.URL{
 			Scheme: "file",
-			Path:   filepath.Join(s.saveDir, info.Name()),
+			Path:   filepath.ToSlash(filepath.Join(s.saveDir, info.Name())),
 		}
 		recording := Recording{
 			ID:       id,
@@ -250,7 +270,7 @@ func (s *Service) syncRecordingMetadata() error {
 			if err != nil {
 				return errors.Wrap(err, "creating recording metadata")
 			}
-			s.logger.Printf("D! recording %s metadata synced", id)
+			s.diag.Debug("recording metadata synced", keyvalue.KV("recording_id", id))
 		} else if err != nil {
 			return errors.Wrap(err, "checking for existing recording metadata")
 		} else if err == nil {
@@ -260,9 +280,9 @@ func (s *Service) syncRecordingMetadata() error {
 				if err != nil {
 					return errors.Wrap(err, "updating recording metadata")
 				}
-				s.logger.Printf("D! recording %s data url fixed", id)
+				s.diag.Debug("recording data url fixed", keyvalue.KV("recording_id", id))
 			} else {
-				s.logger.Printf("D! skipping recording %s, metadata already correct", id)
+				s.diag.Debug("skipping recording, metadata is already correct", keyvalue.KV("recording_id", id))
 			}
 		}
 	}
@@ -275,7 +295,7 @@ func (s *Service) markFailedRecordings() {
 	for {
 		recordings, err := s.recordings.List("", offset, limit)
 		if err != nil {
-			s.logger.Println("E! failed to retrieve recordings:", err)
+			s.diag.Error("failed to retriece recordings", err)
 		}
 		for _, recording := range recordings {
 			if recording.Status == Running {
@@ -283,7 +303,7 @@ func (s *Service) markFailedRecordings() {
 				recording.Error = "unexpected Kapacitor shutdown"
 				err := s.recordings.Replace(recording)
 				if err != nil {
-					s.logger.Println("E! failed to set recording status to failed:", err)
+					s.diag.Error("failed to set recording status to failed", err)
 				}
 			}
 		}
@@ -300,7 +320,7 @@ func (s *Service) markFailedReplays() {
 	for {
 		replays, err := s.replays.List("", offset, limit)
 		if err != nil {
-			s.logger.Println("E! failed to retrieve replays:", err)
+			s.diag.Error("failed to retrieve replays", err)
 		}
 		for _, replay := range replays {
 			if replay.Status == Running {
@@ -308,7 +328,7 @@ func (s *Service) markFailedReplays() {
 				replay.Error = "unexpected Kapacitor shutdown"
 				err := s.replays.Replace(replay)
 				if err != nil {
-					s.logger.Println("E! failed to set replay status to failed:", err)
+					s.diag.Error("failed to set replay status to failed", err)
 				}
 			}
 		}
@@ -381,6 +401,7 @@ func replayLink(id string) kclient.Link {
 
 func convertReplay(replay Replay) kclient.Replay {
 	var clk kclient.Clock
+	stats := kclient.ExecutionStats{}
 	switch replay.Clock {
 	case Real:
 		clk = kclient.Real
@@ -395,18 +416,22 @@ func convertReplay(replay Replay) kclient.Replay {
 		status = kclient.Running
 	case Finished:
 		status = kclient.Finished
+		stats.TaskStats = replay.ExecutionStats.TaskStats
+		stats.NodeStats = replay.ExecutionStats.NodeStats
 	}
+
 	return kclient.Replay{
-		Link:          replayLink(replay.ID),
-		ID:            replay.ID,
-		Recording:     replay.RecordingID,
-		Task:          replay.TaskID,
-		RecordingTime: replay.RecordingTime,
-		Clock:         clk,
-		Date:          replay.Date,
-		Error:         replay.Error,
-		Status:        status,
-		Progress:      replay.Progress,
+		Link:           replayLink(replay.ID),
+		ID:             replay.ID,
+		Recording:      replay.RecordingID,
+		Task:           replay.TaskID,
+		RecordingTime:  replay.RecordingTime,
+		Clock:          clk,
+		Date:           replay.Date,
+		Error:          replay.Error,
+		Status:         status,
+		Progress:       replay.Progress,
+		ExecutionStats: stats,
 	}
 }
 
@@ -564,7 +589,7 @@ func (s *Service) handleDeleteRecording(w http.ResponseWriter, r *http.Request) 
 func (s *Service) dataURLFromID(id, ext string) url.URL {
 	return url.URL{
 		Scheme: "file",
-		Path:   filepath.Join(s.saveDir, id+ext),
+		Path:   filepath.ToSlash(filepath.Join(s.saveDir, id+ext)),
 	}
 }
 
@@ -577,7 +602,7 @@ func (s *Service) handleRecordStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if opt.ID == "" {
-		opt.ID = uuid.NewV4().String()
+		opt.ID = uuid.New().String()
 	}
 	if !validID.MatchString(opt.ID) {
 		httpd.HttpError(w, fmt.Sprintf("recording ID must contain only letters, numbers, '-', '.' and '_'. %q", opt.ID), true, http.StatusBadRequest)
@@ -623,7 +648,7 @@ func (s *Service) handleRecordBatch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if opt.ID == "" {
-		opt.ID = uuid.NewV4().String()
+		opt.ID = uuid.New().String()
 	}
 	if !validID.MatchString(opt.ID) {
 		httpd.HttpError(w, fmt.Sprintf("recording ID must contain only letters, numbers, '-', '.' and '_'. %q", opt.ID), true, http.StatusBadRequest)
@@ -677,7 +702,7 @@ func (s *Service) handleRecordQuery(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if opt.ID == "" {
-		opt.ID = uuid.NewV4().String()
+		opt.ID = uuid.New().String()
 	}
 	if !validID.MatchString(opt.ID) {
 		httpd.HttpError(w, fmt.Sprintf("recording ID must contain only letters, numbers, '-', '.' and '_'. %q", opt.ID), true, http.StatusBadRequest)
@@ -731,15 +756,16 @@ func (s *Service) updateRecordingResult(recording Recording, ds DataSource, err 
 	recording.Progress = 1.0
 	recording.Size, err = ds.Size()
 	if err != nil {
-		s.logger.Println("E! failed to determine size of recording", recording.ID, err)
+		s.diag.Error("failed to determine size of recording", err, keyvalue.KV("recording_id", recording.ID))
 	}
 
 	err = s.recordings.Replace(recording)
 	if err != nil {
-		s.logger.Println("E! failed to save recording info", recording.ID, err)
+		s.diag.Error("failed to save recording info", err, keyvalue.KV("recording_id", recording.ID))
 	}
 }
-func (r *Service) updateReplayResult(replay Replay, err error) {
+
+func (s *Service) updateReplayResult(replay *Replay, err error) {
 	replay.Status = Finished
 	if err != nil {
 		replay.Status = Failed
@@ -747,9 +773,10 @@ func (r *Service) updateReplayResult(replay Replay, err error) {
 	}
 	replay.Progress = 1.0
 	replay.Date = time.Now()
-	err = r.replays.Replace(replay)
+
+	err = s.replays.Replace(*replay)
 	if err != nil {
-		r.logger.Println("E! failed to save replay results:", err)
+		s.diag.Error("failed to save replay results", err)
 	}
 }
 
@@ -764,6 +791,7 @@ func (s *Service) handleReplay(w http.ResponseWriter, req *http.Request) {
 		httpd.HttpError(w, "could not find replay: "+err.Error(), true, http.StatusNotFound)
 		return
 	}
+
 	if replay.Status == Running {
 		w.WriteHeader(http.StatusAccepted)
 	} else {
@@ -895,7 +923,7 @@ func (s *Service) handleCreateReplay(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if opt.ID == "" {
-		opt.ID = uuid.NewV4().String()
+		opt.ID = uuid.New().String()
 	}
 	if !validID.MatchString(opt.ID) {
 		httpd.HttpError(w, fmt.Sprintf("replay ID must contain only letters, numbers, '-', '.' and '_'. %q", opt.ID), true, http.StatusBadRequest)
@@ -929,19 +957,20 @@ func (s *Service) handleCreateReplay(w http.ResponseWriter, req *http.Request) {
 
 	// Successfully started replay
 	replay := Replay{
-		ID:            opt.ID,
-		RecordingID:   opt.Recording,
-		TaskID:        opt.Task,
-		RecordingTime: opt.RecordingTime,
-		Clock:         clockType,
-		Date:          time.Now(),
-		Status:        Running,
+		ID:             opt.ID,
+		RecordingID:    opt.Recording,
+		TaskID:         opt.Task,
+		RecordingTime:  opt.RecordingTime,
+		Clock:          clockType,
+		Date:           time.Now(),
+		Status:         Running,
+		ExecutionStats: ExecutionStats{},
 	}
 	s.replays.Create(replay)
 
 	go func(replay Replay) {
-		err := s.doReplayFromRecording(opt.ID, t, recording, clk, opt.RecordingTime)
-		s.updateReplayResult(replay, err)
+		err := s.doReplayFromRecording(&replay, t, recording, clk, opt.RecordingTime)
+		s.updateReplayResult(&replay, err)
 	}(replay)
 
 	w.WriteHeader(http.StatusCreated)
@@ -959,7 +988,7 @@ func (s *Service) handleReplayBatch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if opt.ID == "" {
-		opt.ID = uuid.NewV4().String()
+		opt.ID = uuid.New().String()
 	}
 	if !validID.MatchString(opt.ID) {
 		httpd.HttpError(w, fmt.Sprintf("replay ID must match %v %q", validID, opt.ID), true, http.StatusBadRequest)
@@ -1006,8 +1035,8 @@ func (s *Service) handleReplayBatch(w http.ResponseWriter, req *http.Request) {
 	}
 
 	go func(replay Replay) {
-		err := s.doLiveBatchReplay(opt.ID, t, clk, opt.RecordingTime, opt.Start, opt.Stop)
-		s.updateReplayResult(replay, err)
+		err := s.doLiveBatchReplay(&replay, t, clk, opt.RecordingTime, opt.Start, opt.Stop)
+		s.updateReplayResult(&replay, err)
 	}(replay)
 
 	w.WriteHeader(http.StatusCreated)
@@ -1023,7 +1052,7 @@ func (r *Service) handleReplayQuery(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if opt.ID == "" {
-		opt.ID = uuid.NewV4().String()
+		opt.ID = uuid.New().String()
 	}
 	if !validID.MatchString(opt.ID) {
 		httpd.HttpError(w, fmt.Sprintf("recording ID must match %v %q", validID, opt.ID), true, http.StatusBadRequest)
@@ -1069,15 +1098,15 @@ func (r *Service) handleReplayQuery(w http.ResponseWriter, req *http.Request) {
 	}
 
 	go func(replay Replay) {
-		err := r.doLiveQueryReplay(replay.ID, t, clk, opt.RecordingTime, opt.Query, opt.Cluster)
-		r.updateReplayResult(replay, err)
+		err := r.doLiveQueryReplay(&replay, t, clk, opt.RecordingTime, opt.Query, opt.Cluster)
+		r.updateReplayResult(&replay, err)
 	}(replay)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write(httpd.MarshalJSON(convertReplay(replay), true))
 }
 
-func (r *Service) doReplayFromRecording(id string, task *kapacitor.Task, recording Recording, clk clock.Clock, recTime bool) error {
+func (r *Service) doReplayFromRecording(replay *Replay, task *kapacitor.Task, recording Recording, clk clock.Clock, recTime bool) error {
 	dataSource, err := parseDataSourceURL(recording.DataURL)
 	if err != nil {
 		return errors.Wrap(err, "load data source")
@@ -1105,11 +1134,11 @@ func (r *Service) doReplayFromRecording(id string, task *kapacitor.Task, recordi
 		}
 		return <-replayC
 	}
-	return r.doReplay(id, task, runReplay)
+	return r.doReplay(replay, task, runReplay)
 
 }
 
-func (r *Service) doLiveBatchReplay(id string, task *kapacitor.Task, clk clock.Clock, recTime bool, start, stop time.Time) error {
+func (r *Service) doLiveBatchReplay(replay *Replay, task *kapacitor.Task, clk clock.Clock, recTime bool, start, stop time.Time) error {
 	runReplay := func(tm *kapacitor.TaskMaster) error {
 		sources, recordErrC, err := r.startRecordBatch(task, start, stop)
 		if err != nil {
@@ -1129,31 +1158,31 @@ func (r *Service) doLiveBatchReplay(id string, task *kapacitor.Task, clk clock.C
 		}
 		return nil
 	}
-	return r.doReplay(id, task, runReplay)
+	return r.doReplay(replay, task, runReplay)
 }
 
-func (r *Service) doLiveQueryReplay(id string, task *kapacitor.Task, clk clock.Clock, recTime bool, query, cluster string) error {
+func (r *Service) doLiveQueryReplay(replay *Replay, task *kapacitor.Task, clk clock.Clock, recTime bool, query, cluster string) error {
 	runReplay := func(tm *kapacitor.TaskMaster) error {
 		var replayErrC <-chan error
 		runErrC := make(chan error, 1)
 		switch task.Type {
 		case kapacitor.StreamTask:
-			source := make(chan models.Point)
+			source := make(chan edge.PointMessage)
 			go func() {
 				runErrC <- r.runQueryStream(source, query, cluster)
 			}()
-			stream, err := tm.Stream(id)
+			stream, err := tm.Stream(replay.ID)
 			if err != nil {
 				return errors.Wrap(err, "stream start")
 			}
 			replayErrC = kapacitor.ReplayStreamFromChan(clk, source, stream, recTime)
 		case kapacitor.BatchTask:
-			source := make(chan models.Batch)
+			source := make(chan edge.BufferedBatchMessage)
 			go func() {
 				runErrC <- r.runQueryBatch(source, query, cluster)
 			}()
 			collectors := tm.BatchCollectors(task.ID)
-			replayErrC = kapacitor.ReplayBatchFromChan(clk, []<-chan models.Batch{source}, collectors, recTime)
+			replayErrC = kapacitor.ReplayBatchFromChan(clk, []<-chan edge.BufferedBatchMessage{source}, collectors, recTime)
 		}
 		for i := 0; i < 2; i++ {
 			var err error
@@ -1167,12 +1196,12 @@ func (r *Service) doLiveQueryReplay(id string, task *kapacitor.Task, clk clock.C
 		}
 		return nil
 	}
-	return r.doReplay(id, task, runReplay)
+	return r.doReplay(replay, task, runReplay)
 }
 
-func (r *Service) doReplay(id string, task *kapacitor.Task, runReplay func(tm *kapacitor.TaskMaster) error) error {
+func (r *Service) doReplay(replay *Replay, task *kapacitor.Task, runReplay func(tm *kapacitor.TaskMaster) error) error {
 	// Create new isolated task master
-	tm := r.TaskMaster.New(id)
+	tm := r.TaskMaster.New(replay.ID)
 	r.TaskMasterLookup.Set(tm)
 	defer r.TaskMasterLookup.Delete(tm)
 
@@ -1196,6 +1225,14 @@ func (r *Service) doReplay(id string, task *kapacitor.Task, runReplay func(tm *k
 	if err != nil {
 		return errors.Wrap(err, "running replay")
 	}
+	stats, err := tm.ExecutionStats(task.ID)
+	if err != nil {
+		return errors.Wrap(err, "getting executing stats replay")
+	}
+
+	// Set stats on replay
+	replay.ExecutionStats.TaskStats = stats.TaskStats
+	replay.ExecutionStats.NodeStats = stats.NodeStats
 
 	// Drain tm so the task can finish
 	tm.Drain()
@@ -1249,11 +1286,17 @@ func (s *Service) doRecordStream(id string, dataSource DataSource, stop time.Tim
 	done := make(chan struct{})
 	go func() {
 		closed := false
-		for p, ok := e.NextPoint(); ok; p, ok = e.NextPoint() {
+		for m, ok := e.Emit(); ok; m, ok = e.Emit() {
 			if closed {
 				continue
 			}
-			if p.Time.After(stop) {
+			p, isPoint := m.(edge.PointMessage)
+			if !isPoint {
+				// Skip messages that are not points
+				continue
+			}
+
+			if p.Time().After(stop) {
 				closed = true
 				close(done)
 				//continue to read any data already on the edge, but just drop it.
@@ -1312,7 +1355,7 @@ func (s *Service) doRecordBatch(dataSource DataSource, t *kapacitor.Task, start,
 	return nil
 }
 
-func (s *Service) startRecordBatch(t *kapacitor.Task, start, stop time.Time) ([]<-chan models.Batch, <-chan error, error) {
+func (s *Service) startRecordBatch(t *kapacitor.Task, start, stop time.Time) ([]<-chan edge.BufferedBatchMessage, <-chan error, error) {
 	// We do not open the task master so it does not need to be closed
 	et, err := kapacitor.NewExecutingTask(s.TaskMaster.New(""), t)
 	if err != nil {
@@ -1328,11 +1371,11 @@ func (s *Service) startRecordBatch(t *kapacitor.Task, start, stop time.Time) ([]
 		return nil, nil, errors.New("InfluxDB not configured, cannot record batch query")
 	}
 
-	sources := make([]<-chan models.Batch, len(batches))
+	sources := make([]<-chan edge.BufferedBatchMessage, len(batches))
 	errors := make(chan error, len(batches))
 
 	for batchIndex, batchQueries := range batches {
-		source := make(chan models.Batch)
+		source := make(chan edge.BufferedBatchMessage)
 		sources[batchIndex] = source
 		go func(cluster string, queries []*kapacitor.Query, groupByName bool) {
 			defer close(source)
@@ -1345,6 +1388,8 @@ func (s *Service) startRecordBatch(t *kapacitor.Task, start, stop time.Time) ([]
 			}
 			// Run queries
 			for _, q := range queries {
+				s.diag.Debug("running batch query for replay", keyvalue.KV("query", q.String()))
+
 				query := influxdb.Query{
 					Command: q.String(),
 				}
@@ -1354,15 +1399,15 @@ func (s *Service) startRecordBatch(t *kapacitor.Task, start, stop time.Time) ([]
 					return
 				}
 				for _, res := range resp.Results {
-					batches, err := models.ResultToBatches(res, groupByName)
+					batches, err := edge.ResultToBufferedBatches(res, groupByName)
 					if err != nil {
 						errors <- err
 						return
 					}
 					for _, b := range batches {
 						// Set stop time based off query bounds
-						if b.TMax.IsZero() || !q.IsGroupedByTime() {
-							b.TMax = q.StopTime()
+						if b.Begin().Time().IsZero() || !q.IsGroupedByTime() {
+							b.Begin().SetTime(q.StopTime())
 						}
 						source <- b
 					}
@@ -1385,7 +1430,7 @@ func (s *Service) startRecordBatch(t *kapacitor.Task, start, stop time.Time) ([]
 	return sources, errC, nil
 }
 
-func (r *Service) saveBatchRecording(dataSource DataSource, sources []<-chan models.Batch) error {
+func (r *Service) saveBatchRecording(dataSource DataSource, sources []<-chan edge.BufferedBatchMessage) error {
 	archiver, err := dataSource.BatchArchiver()
 	if err != nil {
 		return err
@@ -1407,7 +1452,7 @@ func (r *Service) doRecordQuery(dataSource DataSource, q string, typ RecordingTy
 	errC := make(chan error, 2)
 	switch typ {
 	case StreamRecording:
-		points := make(chan models.Point)
+		points := make(chan edge.PointMessage)
 		go func() {
 			errC <- r.runQueryStream(points, q, cluster)
 		}()
@@ -1415,7 +1460,7 @@ func (r *Service) doRecordQuery(dataSource DataSource, q string, typ RecordingTy
 			errC <- r.saveStreamQuery(dataSource, points, precision)
 		}()
 	case BatchRecording:
-		batches := make(chan models.Batch)
+		batches := make(chan edge.BufferedBatchMessage)
 		go func() {
 			errC <- r.runQueryBatch(batches, q, cluster)
 		}()
@@ -1432,7 +1477,7 @@ func (r *Service) doRecordQuery(dataSource DataSource, q string, typ RecordingTy
 	return nil
 }
 
-func (r *Service) runQueryStream(source chan<- models.Point, q, cluster string) error {
+func (r *Service) runQueryStream(source chan<- edge.PointMessage, q, cluster string) error {
 	defer close(source)
 	dbrp, resp, err := r.execQuery(q, cluster)
 	if err != nil {
@@ -1440,7 +1485,7 @@ func (r *Service) runQueryStream(source chan<- models.Point, q, cluster string) 
 	}
 	// Write results to sources
 	for _, res := range resp.Results {
-		batches, err := models.ResultToBatches(res, false)
+		batches, err := edge.ResultToBufferedBatches(res, false)
 		if err != nil {
 			return err
 		}
@@ -1449,45 +1494,54 @@ func (r *Service) runQueryStream(source chan<- models.Point, q, cluster string) 
 		// Find earliest time of first points
 		current := time.Time{}
 		for _, batch := range batches {
-			if len(batch.Points) > 0 &&
+			if len(batch.Points()) > 0 &&
 				(current.IsZero() ||
-					batch.Points[0].Time.Before(current)) {
-				current = batch.Points[0].Time
+					batch.Points()[0].Time().Before(current)) {
+				current = batch.Points()[0].Time()
 			}
 		}
 
 		finishedCount := 0
+		finished := make(map[int]bool, len(batches))
 		batchCount := len(batches)
 		for finishedCount != batchCount {
+			if finishedCount > batchCount {
+				return errors.New("unexpected state, recording failed to order points by time")
+			}
+
 			next := time.Time{}
 			for b := range batches {
-				l := len(batches[b].Points)
+				l := len(batches[b].Points())
 				if l == 0 {
-					finishedCount++
+					if !finished[b] {
+						finishedCount++
+					}
+					finished[b] = true
 					continue
 				}
 				i := 0
 				for ; i < l; i++ {
-					bp := batches[b].Points[i]
-					if bp.Time.After(current) {
-						if next.IsZero() || bp.Time.Before(next) {
-							next = bp.Time
+					bp := batches[b].Points()[i]
+					if bp.Time().After(current) {
+						if next.IsZero() || bp.Time().Before(next) {
+							next = bp.Time()
 						}
 						break
 					}
 					// Write point
-					p := models.Point{
-						Name:            batches[b].Name,
-						Database:        dbrp.Database,
-						RetentionPolicy: dbrp.RetentionPolicy,
-						Tags:            bp.Tags,
-						Fields:          bp.Fields,
-						Time:            bp.Time,
-					}
+					p := edge.NewPointMessage(
+						batches[b].Name(),
+						dbrp.Database,
+						dbrp.RetentionPolicy,
+						models.Dimensions{},
+						bp.Fields(),
+						bp.Tags(),
+						bp.Time(),
+					)
 					source <- p
 				}
 				// Remove written points
-				batches[b].Points = batches[b].Points[i:]
+				batches[b].SetPoints(batches[b].Points()[i:])
 			}
 			current = next
 		}
@@ -1495,7 +1549,7 @@ func (r *Service) runQueryStream(source chan<- models.Point, q, cluster string) 
 	return nil
 }
 
-func (r *Service) runQueryBatch(source chan<- models.Batch, q string, cluster string) error {
+func (r *Service) runQueryBatch(source chan<- edge.BufferedBatchMessage, q string, cluster string) error {
 	defer close(source)
 	_, resp, err := r.execQuery(q, cluster)
 	if err != nil {
@@ -1503,7 +1557,7 @@ func (r *Service) runQueryBatch(source chan<- models.Batch, q string, cluster st
 	}
 	// Write results to sources
 	for _, res := range resp.Results {
-		batches, err := models.ResultToBatches(res, false)
+		batches, err := edge.ResultToBufferedBatches(res, false)
 		if err != nil {
 			return err
 		}
@@ -1514,7 +1568,7 @@ func (r *Service) runQueryBatch(source chan<- models.Batch, q string, cluster st
 	return nil
 }
 
-func (r *Service) saveBatchQuery(dataSource DataSource, batches <-chan models.Batch) error {
+func (r *Service) saveBatchQuery(dataSource DataSource, batches <-chan edge.BufferedBatchMessage) error {
 	archiver, err := dataSource.BatchArchiver()
 	if err != nil {
 		return err
@@ -1534,7 +1588,7 @@ func (r *Service) saveBatchQuery(dataSource DataSource, batches <-chan models.Ba
 	return archiver.Close()
 }
 
-func (s *Service) saveStreamQuery(dataSource DataSource, points <-chan models.Point, precision string) error {
+func (s *Service) saveStreamQuery(dataSource DataSource, points <-chan edge.PointMessage, precision string) error {
 	sw, err := dataSource.StreamWriter()
 	if err != nil {
 		return err
@@ -1606,10 +1660,16 @@ func parseDataSourceURL(rawurl string) (DataSource, error) {
 	}
 	switch u.Scheme {
 	case "file":
-		return fileSource(u.Path), nil
+		return fileSource(getFilePathFromUrl(u)), nil
 	default:
 		return nil, fmt.Errorf("unsupported data source scheme %s", u.Scheme)
 	}
+}
+
+//getFilePathFromUrl restores filesystem path from file URL
+func getFilePathFromUrl(url *url.URL) string {
+	//Host part on windows contains drive, on non windows it is empty
+	return url.Host + filepath.FromSlash(url.Path)
 }
 
 func (s fileSource) Size() (int64, error) {
@@ -1621,7 +1681,12 @@ func (s fileSource) Size() (int64, error) {
 }
 
 func (s fileSource) Remove() error {
-	return os.Remove(string(s))
+	err := os.Remove(string(s))
+	if err == os.ErrNotExist {
+		// Ignore file not exists errors as we are trying to remove the file.
+		return nil
+	}
+	return err
 }
 
 func (s fileSource) StreamWriter() (io.WriteCloser, error) {

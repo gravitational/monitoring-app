@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -14,8 +13,10 @@ import (
 
 	"github.com/influxdata/kapacitor/cmd/kapacitord/help"
 	"github.com/influxdata/kapacitor/cmd/kapacitord/run"
-	"github.com/influxdata/wlog"
+	"github.com/influxdata/kapacitor/services/diagnostic"
 )
+
+type Diagnostic run.Diagnostic
 
 // These variables are populated via the Go linker.
 var (
@@ -46,7 +47,7 @@ func main() {
 
 // Main represents the program execution.
 type Main struct {
-	Logger *log.Logger
+	Diag Diagnostic
 
 	Stdin  io.Reader
 	Stdout io.Writer
@@ -56,7 +57,7 @@ type Main struct {
 // NewMain return a new instance of Main.
 func NewMain() *Main {
 	return &Main{
-		Logger: wlog.New(os.Stderr, "[run] ", log.LstdFlags),
+		Diag:   diagnostic.BootstrapMainHandler(),
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
@@ -76,40 +77,55 @@ func (m *Main) Run(args ...string) error {
 		cmd.Version = version
 		cmd.Commit = commit
 		cmd.Branch = branch
+		cmd.Platform = "OSS"
 
 		err := cmd.Run(args...)
-		// Use logger from cmd since it may have special config now.
-		if cmd.Logger != nil {
-			m.Logger = cmd.Logger
+		// Use diagnostic from cmd since it may have special config now.
+		if cmd.Diag != nil {
+			m.Diag = cmd.Diag
 		}
 		if err != nil {
-			m.Logger.Println("E!", err)
+			m.Diag.Error("encountered error", err)
 			return fmt.Errorf("run: %s", err)
 		}
 
 		signalCh := make(chan os.Signal, 1)
-		signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-		m.Logger.Println("I! Listening for signals")
+		signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		m.Diag.Info("listening for signals")
 
-		// Block until one of the signals above is received
-		select {
-		case <-signalCh:
-			m.Logger.Println("I! Signal received, initializing clean shutdown...")
-			go func() {
-				cmd.Close()
-			}()
+	Loop:
+		for s := range signalCh {
+			switch s.String() {
+			case syscall.SIGTERM.String():
+				m.Diag.Info("SIGTERM received, initializing clean shutdown...")
+				go func() {
+					cmd.Close()
+				}()
+				break Loop
+
+			case syscall.SIGHUP.String():
+				m.Diag.Info("SIGHUP received, reloading tasks/templates/handlers directory...")
+				cmd.Server.Reload()
+
+			default:
+				m.Diag.Info("signal received, initializing clean shutdown...")
+				go func() {
+					cmd.Close()
+				}()
+				break Loop
+			}
 		}
 
 		// Block again until another signal is received, a shutdown timeout elapses,
 		// or the Command is gracefully closed
-		m.Logger.Println("I! Waiting for clean shutdown...")
+		m.Diag.Info("waiting for clean shutdown...")
 		select {
 		case <-signalCh:
-			m.Logger.Println("I! second signal received, initializing hard shutdown")
+			m.Diag.Info("second signal received, initializing hard shutdown")
 		case <-time.After(time.Second * 30):
-			m.Logger.Println("I! time limit reached, initializing hard shutdown")
+			m.Diag.Info("time limit reached, initializing hard shutdown")
 		case <-cmd.Closed:
-			m.Logger.Println("I! server shutdown completed")
+			m.Diag.Info("server shutdown completed")
 		}
 
 		// goodbye.
@@ -183,7 +199,7 @@ func (cmd *VersionCommand) Run(args ...string) error {
 	}
 
 	// Print version info.
-	fmt.Fprintf(cmd.Stdout, "Kapacitor %s (git: %s %s)\n", version, branch, commit)
+	fmt.Fprintf(cmd.Stdout, "Kapacitor OSS version %s (git: %s %s)\n", version, branch, commit)
 
 	return nil
 }

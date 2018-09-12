@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -14,17 +13,25 @@ import (
 	"time"
 
 	"github.com/influxdata/kapacitor/alert"
+	"github.com/influxdata/kapacitor/keyvalue"
+	"github.com/influxdata/kapacitor/models"
 	"github.com/pkg/errors"
 )
 
-type Service struct {
-	configValue atomic.Value
-	logger      *log.Logger
+type Diagnostic interface {
+	WithContext(ctx ...keyvalue.T) Diagnostic
+
+	Error(msg string, err error)
 }
 
-func NewService(c Config, l *log.Logger) *Service {
+type Service struct {
+	configValue atomic.Value
+	diag        Diagnostic
+}
+
+func NewService(c Config, d Diagnostic) *Service {
 	s := &Service{
-		logger: l,
+		diag: d,
 	}
 	s.configValue.Store(c)
 	return s
@@ -87,11 +94,11 @@ func (s *Service) Test(options interface{}) error {
 		o.Message,
 		o.EntityID,
 		time.Now(),
-		nil,
+		models.Result{},
 	)
 }
 
-func (s *Service) Alert(routingKey, messageType, message, entityID string, t time.Time, details interface{}) error {
+func (s *Service) Alert(routingKey, messageType, message, entityID string, t time.Time, details models.Result) error {
 	url, post, err := s.preparePost(routingKey, messageType, message, entityID, t, details)
 	if err != nil {
 		return err
@@ -122,7 +129,7 @@ func (s *Service) Alert(routingKey, messageType, message, entityID string, t tim
 	return nil
 }
 
-func (s *Service) preparePost(routingKey, messageType, message, entityID string, t time.Time, details interface{}) (string, io.Reader, error) {
+func (s *Service) preparePost(routingKey, messageType, message, entityID string, t time.Time, details models.Result) (string, io.Reader, error) {
 	c := s.config()
 	if !c.Enabled {
 		return "", nil, errors.New("service is not enabled")
@@ -134,7 +141,10 @@ func (s *Service) preparePost(routingKey, messageType, message, entityID string,
 	voData["state_message"] = message
 	voData["timestamp"] = t.Unix()
 	voData["monitoring_tool"] = "kapacitor"
-	if details != nil {
+
+	if c.JSONData {
+		voData["data"] = details
+	} else {
 		b, err := json.Marshal(details)
 		if err != nil {
 			return "", nil, err
@@ -168,16 +178,16 @@ type HandlerConfig struct {
 }
 
 type handler struct {
-	s      *Service
-	c      HandlerConfig
-	logger *log.Logger
+	s    *Service
+	c    HandlerConfig
+	diag Diagnostic
 }
 
-func (s *Service) Handler(c HandlerConfig, l *log.Logger) alert.Handler {
+func (s *Service) Handler(c HandlerConfig, ctx ...keyvalue.T) alert.Handler {
 	return &handler{
-		s:      s,
-		c:      c,
-		logger: l,
+		s:    s,
+		c:    c,
+		diag: s.diag.WithContext(ctx...),
 	}
 }
 
@@ -197,6 +207,6 @@ func (h *handler) Handle(event alert.Event) {
 		event.State.Time,
 		event.Data.Result,
 	); err != nil {
-		h.logger.Println("E! failed to send event to VictorOps", err)
+		h.diag.Error("failed to send event", err)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -16,13 +15,14 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/influxdata/kapacitor"
 	"github.com/influxdata/kapacitor/client/v1"
+	"github.com/influxdata/kapacitor/keyvalue"
+	"github.com/influxdata/kapacitor/server/vars"
 	"github.com/influxdata/kapacitor/services/httpd"
 	"github.com/influxdata/kapacitor/services/storage"
 	"github.com/influxdata/kapacitor/tick"
 	"github.com/influxdata/kapacitor/tick/ast"
-	"github.com/influxdata/kapacitor/vars"
+	"github.com/influxdata/kapacitor/uuid"
 	"github.com/pkg/errors"
-	"github.com/twinj/uuid"
 )
 
 const (
@@ -33,6 +33,20 @@ const (
 	templatesPathAnchored = "/templates/"
 )
 
+type Diagnostic interface {
+	StartingTask(taskID string)
+	StartedTask(taskID string)
+
+	FinishedTask(taskID string)
+
+	Error(msg string, err error, ctx ...keyvalue.T)
+
+	Debug(msg string)
+
+	AlreadyMigrated(entity, id string)
+	Migrated(entity, id string)
+}
+
 type Service struct {
 	oldDBDir         string
 	tasks            TaskDAO
@@ -42,6 +56,7 @@ type Service struct {
 	snapshotInterval time.Duration
 	StorageService   interface {
 		Store(namespace string) storage.Interface
+		Register(name string, store storage.StoreActioner)
 	}
 	HTTPDService interface {
 		AddRoutes([]httpd.Route) error
@@ -54,7 +69,7 @@ type Service struct {
 		Delete(*kapacitor.TaskMaster)
 	}
 
-	logger *log.Logger
+	diag Diagnostic
 }
 
 type taskStore struct {
@@ -63,16 +78,20 @@ type taskStore struct {
 	TICKScript string
 }
 
-func NewService(conf Config, l *log.Logger) *Service {
+func NewService(conf Config, d Diagnostic) *Service {
 	return &Service{
 		snapshotInterval: time.Duration(conf.SnapshotInterval),
-		logger:           l,
+		diag:             d,
 		oldDBDir:         conf.Dir,
 	}
 }
 
-// The storage namespace for all task data.
-const taskNamespace = "task_store"
+const (
+	// Public name for the task storage layer
+	tasksAPIName = "tasks"
+	// The storage namespace for all task data.
+	taskNamespace = "task_store"
+)
 
 func (ts *Service) Open() error {
 	// Create DAO
@@ -82,6 +101,7 @@ func (ts *Service) Open() error {
 		return err
 	}
 	ts.tasks = tasksDAO
+	ts.StorageService.Register(tasksAPIName, ts.tasks)
 	ts.templates = newTemplateKV(store)
 	ts.snapshots = newSnapshotKV(store)
 
@@ -177,12 +197,12 @@ func (ts *Service) Open() error {
 			numTasks++
 			if task.Status == Enabled {
 				numEnabledTasks++
-				ts.logger.Println("D! starting enabled task on startup", task.ID)
+				ts.diag.StartingTask(task.ID)
 				err = ts.startTask(task)
 				if err != nil {
-					ts.logger.Printf("E! error starting enabled task %s, err: %s\n", task.ID, err)
+					ts.diag.Error("failed to start enabled task", err, keyvalue.KV("task", task.ID))
 				} else {
-					ts.logger.Println("D! started task during startup", task.ID)
+					ts.diag.StartedTask(task.ID)
 				}
 			}
 		}
@@ -218,7 +238,7 @@ func (ts *Service) migrate() error {
 	// Connect to old boltdb
 	db, err := bolt.Open(filepath.Join(ts.oldDBDir, "task.db"), 0600, &bolt.Options{ReadOnly: true})
 	if err != nil {
-		ts.logger.Println("D! could not open old boltd for task_store. Not performing migration. Remove the `task_store.dir` configuration to disable migration.")
+		ts.diag.Debug("could not open old boltd for task_store. Not performing migration. Remove the `task_store.dir` configuration to disable migration.")
 		return nil
 	}
 
@@ -250,7 +270,7 @@ func (ts *Service) migrate() error {
 			task := &rawTask{}
 			err = dec.Decode(task)
 			if err != nil {
-				ts.logger.Println("E! corrupt data in old task_store boltdb tasks:", err)
+				ts.diag.Error("corrupt data in old task_store boltdb tasks", err)
 				return nil
 			}
 
@@ -299,10 +319,10 @@ func (ts *Service) migrate() error {
 					// Failed to migrate task stop process
 					return err
 				} else {
-					ts.logger.Printf("D! task %s has already been migrated skipping", task.Name)
+					ts.diag.AlreadyMigrated("task", task.Name)
 				}
 			} else {
-				ts.logger.Printf("D! task %s was migrated to new storage service", task.Name)
+				ts.diag.Migrated("task", task.Name)
 			}
 			return nil
 		})
@@ -323,7 +343,7 @@ func (ts *Service) migrate() error {
 			snapshot := &kapacitor.TaskSnapshot{}
 			err = dec.Decode(snapshot)
 			if err != nil {
-				ts.logger.Println("E! corrupt data in old task_store boltdb snapshots:", err)
+				ts.diag.Error("corrupt data in old task_store boltdb snapshots", err)
 				return nil
 			}
 
@@ -338,9 +358,9 @@ func (ts *Service) migrate() error {
 						// Failed to migrate snapshot stop process.
 						return err
 					}
-					ts.logger.Printf("D! snapshot %s was migrated to new storage service", id)
+					ts.diag.Migrated("snapshot", id)
 				} else {
-					ts.logger.Printf("D! snapshot %s skipped, already migrated to new storage service", id)
+					ts.diag.AlreadyMigrated("snapshot", id)
 				}
 			} else if err != nil {
 				return err
@@ -377,7 +397,7 @@ func (ts *Service) SaveSnapshot(id string, snapshot *kapacitor.TaskSnapshot) err
 func (ts *Service) HasSnapshot(id string) bool {
 	exists, err := ts.snapshots.Exists(id)
 	if err != nil {
-		ts.logger.Println("E! error checking for snapshot", err)
+		ts.diag.Error("error checking for snapshot", err)
 		return false
 	}
 	return exists
@@ -439,11 +459,14 @@ func (ts *Service) handleTask(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, fmt.Sprintf("invalid dot-view parameter %q", dotView), true, http.StatusBadRequest)
 		return
 	}
+
 	tmID := r.URL.Query().Get("replay-id")
 	if tmID == "" {
 		tmID = kapacitor.MainTaskMaster
 	}
+
 	tm := ts.TaskMasterLookup.Get(tmID)
+
 	if tm == nil {
 		httpd.HttpError(w, fmt.Sprintf("no running replay with ID: %s", tmID), true, http.StatusBadRequest)
 		return
@@ -452,7 +475,6 @@ func (ts *Service) handleTask(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, fmt.Sprintf("replay %s is not for task: %s", tmID, raw.ID), true, http.StatusBadRequest)
 		return
 	}
-
 	t, err := ts.convertTask(raw, scriptFormat, dotView, tm)
 	if err != nil {
 		httpd.HttpError(w, fmt.Sprintf("invalid task stored in db: %s", err.Error()), true, http.StatusInternalServerError)
@@ -476,6 +498,7 @@ var allTaskFields = []string{
 	"created",
 	"modified",
 	"last-enabled",
+	"vars",
 }
 
 const tasksBasePathAnchored = httpd.BasePath + tasksPathAnchored
@@ -607,7 +630,7 @@ func (ts *Service) handleListTasks(w http.ResponseWriter, r *http.Request) {
 				if executing {
 					s, err := tm.ExecutionStats(task.ID)
 					if err != nil {
-						ts.logger.Printf("E! failed to retrieve stats for task %s: %v", task.ID, err)
+						ts.diag.Error("failed to retriete stats for task", err, keyvalue.KV("task", task.ID))
 					} else {
 						value = client.ExecutionStats{
 							TaskStats: s.TaskStats,
@@ -630,6 +653,13 @@ func (ts *Service) handleListTasks(w http.ResponseWriter, r *http.Request) {
 				value = task.Modified
 			case "last-enabled":
 				value = task.LastEnabled
+			case "vars":
+				vars, err := ts.convertToClientVars(task.Vars)
+				if err != nil {
+					ts.diag.Error("failed to get vars for task", err, keyvalue.KV("task", task.ID))
+					break
+				}
+				value = vars
 			default:
 				httpd.HttpError(w, fmt.Sprintf("unsupported field %q", field), true, http.StatusBadRequest)
 				return
@@ -656,7 +686,7 @@ func (ts *Service) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if task.ID == "" {
-		task.ID = uuid.NewV4().String()
+		task.ID = uuid.New().String()
 	}
 	if !validTaskID.MatchString(task.ID) {
 		httpd.HttpError(w, fmt.Sprintf("task ID must contain only letters, numbers, '-', '.' and '_'. %q", task.ID), true, http.StatusBadRequest)
@@ -702,9 +732,6 @@ func (ts *Service) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			newTask.Type = StreamTask
 		case client.BatchTask:
 			newTask.Type = BatchTask
-		default:
-			httpd.HttpError(w, fmt.Sprintf("unknown type %q", task.Type), true, http.StatusBadRequest)
-			return
 		}
 
 		// Set tick script
@@ -723,10 +750,6 @@ func (ts *Service) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			RetentionPolicy: dbrp.RetentionPolicy,
 		}
 	}
-	if len(newTask.DBRPs) == 0 {
-		httpd.HttpError(w, fmt.Sprintf("must provide at least one database and retention policy."), true, http.StatusBadRequest)
-		return
-	}
 
 	// Set status
 	switch task.Status {
@@ -744,6 +767,23 @@ func (ts *Service) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
 		return
 	}
+	// Check for parity between tickscript and dbrp
+
+	pn, err := newProgramNodeFromTickscript(newTask.TICKscript)
+	if err != nil {
+		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
+		return
+	}
+
+	switch tt := taskTypeFromProgram(pn); tt {
+	case client.StreamTask:
+		newTask.Type = StreamTask
+	case client.BatchTask:
+		newTask.Type = BatchTask
+	default:
+		httpd.HttpError(w, fmt.Sprintf("invalid task type: %v", tt), true, http.StatusBadRequest)
+		return
+	}
 
 	// Validate task
 	_, err = ts.newKapacitorTask(newTask)
@@ -757,6 +797,28 @@ func (ts *Service) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	newTask.Modified = now
 	if newTask.Status == Enabled {
 		newTask.LastEnabled = now
+	}
+
+	dbrps := []DBRP{}
+	for _, dbrp := range dbrpsFromProgram(pn) {
+		dbrps = append(dbrps, DBRP{
+			Database:        dbrp.Database,
+			RetentionPolicy: dbrp.RetentionPolicy,
+		})
+	}
+
+	if len(dbrps) == 0 && len(newTask.DBRPs) == 0 {
+		httpd.HttpError(w, "must specify dbrp", true, http.StatusBadRequest)
+		return
+	}
+
+	if len(dbrps) > 0 && len(newTask.DBRPs) > 0 {
+		httpd.HttpError(w, "cannot specify dbrp in both implicitly and explicitly", true, http.StatusBadRequest)
+		return
+	}
+
+	if len(dbrps) != 0 {
+		newTask.DBRPs = dbrps
 	}
 
 	// Save task
@@ -851,14 +913,48 @@ func (ts *Service) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			updated.Type = BatchTask
 		}
 
+		oldPn, err := newProgramNodeFromTickscript(updated.TICKscript)
+		if err != nil {
+			httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
+			return
+		}
+
 		// Set tick script
 		if task.TICKscript != "" {
 			updated.TICKscript = task.TICKscript
+
+			newPn, err := newProgramNodeFromTickscript(updated.TICKscript)
+			if err != nil {
+				httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
+				return
+			}
+
+			if len(dbrpsFromProgram(oldPn)) > 0 && len(dbrpsFromProgram(newPn)) == 0 && len(task.DBRPs) == 0 {
+				httpd.HttpError(w, "must specify dbrp", true, http.StatusBadRequest)
+				return
+			}
 		}
 	}
 
-	// Set dbrps
-	if len(task.DBRPs) > 0 {
+	pn, err := newProgramNodeFromTickscript(updated.TICKscript)
+	if err != nil {
+		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
+		return
+	}
+
+	if dbrps := dbrpsFromProgram(pn); len(dbrps) > 0 && len(task.DBRPs) > 0 {
+		httpd.HttpError(w, "cannot specify dbrp in implicitly and explicitly", true, http.StatusBadRequest)
+		return
+	} else if len(dbrps) > 0 {
+		// make consistent
+		updated.DBRPs = []DBRP{}
+		for _, dbrp := range dbrpsFromProgram(pn) {
+			updated.DBRPs = append(updated.DBRPs, DBRP{
+				Database:        dbrp.Database,
+				RetentionPolicy: dbrp.RetentionPolicy,
+			})
+		}
+	} else if len(task.DBRPs) > 0 {
 		updated.DBRPs = make([]DBRP, len(task.DBRPs))
 		for i, dbrp := range task.DBRPs {
 			updated.DBRPs[i] = DBRP{
@@ -887,6 +983,17 @@ func (ts *Service) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// set task type from tickscript
+	switch tt := taskTypeFromProgram(pn); tt {
+	case client.StreamTask:
+		updated.Type = StreamTask
+	case client.BatchTask:
+		updated.Type = BatchTask
+	default:
+		httpd.HttpError(w, fmt.Sprintf("invalid task type: %v", tt), true, http.StatusBadRequest)
+		return
+	}
+
 	// Validate task
 	_, err = ts.newKapacitorTask(updated)
 	if err != nil {
@@ -899,6 +1006,7 @@ func (ts *Service) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if statusChanged && updated.Status == Enabled {
 		updated.LastEnabled = now
 	}
+
 	if original.ID != updated.ID {
 		// Task ID changed delete and re-create.
 		if err := ts.tasks.Create(updated); err != nil {
@@ -906,7 +1014,12 @@ func (ts *Service) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := ts.tasks.Delete(original.ID); err != nil {
-			ts.logger.Printf("E! failed to delete old task definition during ID change: old ID: %s new ID: %s, %s", original.ID, updated.ID, err.Error())
+			ts.diag.Error(
+				"failed to delete old task definition during ID change",
+				err,
+				keyvalue.KV("oldID", original.ID),
+				keyvalue.KV("newID", updated.ID),
+			)
 		}
 		if original.Status == Enabled && updated.Status == Enabled {
 			// Stop task and start it under new name
@@ -970,7 +1083,7 @@ func (ts *Service) convertTask(t Task, scriptFormat, dotView string, tm *kapacit
 			dot = tm.ExecutingDot(t.ID, dotView == "labels")
 			s, err := tm.ExecutionStats(t.ID)
 			if err != nil {
-				ts.logger.Printf("E! failed to retrieve stats for task %s: %v", t.ID, err)
+				ts.diag.Error("failed to retrieve stats for task", err, keyvalue.KV("task", t.ID))
 			} else {
 				stats.TaskStats = s.TaskStats
 				stats.NodeStats = s.NodeStats
@@ -1312,7 +1425,8 @@ func (ts *Service) deleteTask(id string) error {
 	}
 	if task.TemplateID != "" {
 		if err := ts.templates.DisassociateTask(task.TemplateID, task.ID); err != nil {
-			ts.logger.Printf("E! failed to disassociate task %s from template %s", task.TemplateID, task.ID)
+			ts.diag.Error("failed to disassociate task from template", err,
+				keyvalue.KV("template", task.TemplateID), keyvalue.KV("task", task.ID))
 		}
 	}
 	vars.NumTasksVar.Add(-1)
@@ -1511,7 +1625,7 @@ func (ts *Service) handleListTemplates(w http.ResponseWriter, r *http.Request) {
 			case "vars":
 				vars, err := ts.convertToClientVarsFromTick(task.Vars())
 				if err != nil {
-					ts.logger.Printf("E! failed to get vars for template %s: %s", template.ID, err)
+					ts.diag.Error("failed to get vars for template", err, keyvalue.KV("template", template.ID))
 					break
 				}
 				value = vars
@@ -1547,7 +1661,7 @@ func (ts *Service) handleCreateTemplate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if template.ID == "" {
-		template.ID = uuid.NewV4().String()
+		template.ID = uuid.New().String()
 	}
 	if !validTemplateID.MatchString(template.ID) {
 		httpd.HttpError(w, fmt.Sprintf("template ID must contain only letters, numbers, '-', '.' and '_'. %q", template.ID), true, http.StatusBadRequest)
@@ -1565,14 +1679,20 @@ func (ts *Service) handleCreateTemplate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Set template type
-	switch template.Type {
+	pn, err := newProgramNodeFromTickscript(template.TICKscript)
+	if err != nil {
+		httpd.HttpError(w, err.Error(), true, http.StatusBadRequest)
+		return
+	}
+
+	// set task type from tickscript
+	switch tt := taskTypeFromProgram(pn); tt {
 	case client.StreamTask:
 		newTemplate.Type = StreamTask
 	case client.BatchTask:
 		newTemplate.Type = BatchTask
 	default:
-		httpd.HttpError(w, fmt.Sprintf("unknown type %q", template.Type), true, http.StatusBadRequest)
+		httpd.HttpError(w, fmt.Sprintf("invalid task type: %v", tt), true, http.StatusBadRequest)
 		return
 	}
 
@@ -1675,7 +1795,8 @@ func (ts *Service) handleUpdateTemplate(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		if err := ts.templates.Delete(original.ID); err != nil {
-			ts.logger.Printf("E! failed to delete old template during ID change, old ID: %s new ID: %s, %s", original.ID, updated.ID, err.Error())
+			ts.diag.Error("failed to delete old template during ID change", err,
+				keyvalue.KV("oldID", original.ID), keyvalue.KV("newID", updated.ID))
 		}
 	} else {
 		if err := ts.templates.Replace(updated); err != nil {
@@ -1706,6 +1827,16 @@ func (ts *Service) handleUpdateTemplate(w http.ResponseWriter, r *http.Request) 
 // Rollsback all updated tasks if an error occurs.
 func (ts *Service) updateAllAssociatedTasks(old, new Template, taskIds []string) error {
 	var i int
+	oldPn, err := newProgramNodeFromTickscript(old.TICKscript)
+	if err != nil {
+		return fmt.Errorf("failed to parse old tickscript: %v", err)
+	}
+
+	newPn, err := newProgramNodeFromTickscript(new.TICKscript)
+	if err != nil {
+		return fmt.Errorf("failed to parse new tickscript: %v", err)
+	}
+
 	// Setup rollback function
 	defer func() {
 		if i == len(taskIds) {
@@ -1718,25 +1849,35 @@ func (ts *Service) updateAllAssociatedTasks(old, new Template, taskIds []string)
 			task, err := ts.tasks.Get(taskId)
 			if err != nil {
 				if err != ErrNoTaskExists {
-					ts.logger.Printf("E! error rolling back associated task %s: %s", taskId, err)
+					ts.diag.Error("error rolling back associated task", err, keyvalue.KV("task", taskId))
 				}
 				continue
 			}
 			task.TemplateID = old.ID
 			task.TICKscript = old.TICKscript
 			task.Type = old.Type
+			if len(dbrpsFromProgram(oldPn)) > 0 {
+				task.DBRPs = []DBRP{}
+				for _, dbrp := range dbrpsFromProgram(oldPn) {
+					task.DBRPs = append(task.DBRPs, DBRP{
+						Database:        dbrp.Database,
+						RetentionPolicy: dbrp.RetentionPolicy,
+					})
+				}
+			}
 			if err := ts.tasks.Replace(task); err != nil {
-				ts.logger.Printf("E! error rolling back associated task %s: %s", taskId, err)
+				ts.diag.Error("error rolling back associated task", err, keyvalue.KV("task", taskId))
 			}
 			if task.Status == Enabled {
 				ts.stopTask(taskId)
 				err := ts.startTask(task)
 				if err != nil {
-					ts.logger.Printf("E! error rolling back associated task %s: %s", taskId, err)
+					ts.diag.Error("error rolling back associated task", err, keyvalue.KV("task", taskId))
 				}
 			}
 		}
 	}()
+
 	for ; i < len(taskIds); i++ {
 		taskId := taskIds[i]
 		task, err := ts.tasks.Get(taskId)
@@ -1753,9 +1894,23 @@ func (ts *Service) updateAllAssociatedTasks(old, new Template, taskIds []string)
 				return fmt.Errorf("error updating task association %s: %s", taskId, err)
 			}
 		}
+
 		task.TemplateID = new.ID
 		task.TICKscript = new.TICKscript
 		task.Type = new.Type
+
+		if len(dbrpsFromProgram(oldPn)) > 0 || len(dbrpsFromProgram(newPn)) > 0 {
+
+			task.DBRPs = []DBRP{}
+			for _, dbrp := range dbrpsFromProgram(newPn) {
+				task.DBRPs = append(task.DBRPs, DBRP{
+					Database:        dbrp.Database,
+					RetentionPolicy: dbrp.RetentionPolicy,
+				})
+
+			}
+		}
+
 		if err := ts.tasks.Replace(task); err != nil {
 			return fmt.Errorf("error updating associated task %s: %s", taskId, err)
 		}
@@ -1767,6 +1922,7 @@ func (ts *Service) updateAllAssociatedTasks(old, new Template, taskIds []string)
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -1859,17 +2015,17 @@ func (ts *Service) startTask(task Task) error {
 	go func() {
 		// Wait for task to finish
 		err := et.Wait()
-		ts.logger.Printf("D! task %s finished", et.Task.ID)
+		ts.diag.FinishedTask(et.Task.ID)
 
 		if err != nil {
 			// Stop task
 			tm.StopTask(t.ID)
 
-			ts.logger.Printf("E! task %s finished with error: %s", et.Task.ID, err)
+			ts.diag.Error("task finished with error", err, keyvalue.KV("task", et.Task.ID))
 			// Save last error from task.
 			err = ts.saveLastError(t.ID, err.Error())
 			if err != nil {
-				ts.logger.Println("E! failed to save last error for task", et.Task.ID)
+				ts.diag.Error("failed to save last error for task", err, keyvalue.KV("task", et.Task.ID))
 			}
 		}
 	}()

@@ -1,14 +1,18 @@
 package alert
 
+//go:generate easyjson dao.go
+
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"path"
 	"regexp"
 	"time"
 
 	"github.com/influxdata/kapacitor/alert"
 	"github.com/influxdata/kapacitor/services/storage"
+	"github.com/mailru/easyjson/jlexer"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -19,25 +23,32 @@ var (
 // Data access object for HandlerSpec data.
 type HandlerSpecDAO interface {
 	// Retrieve a handler
-	Get(id string) (HandlerSpec, error)
+	Get(topic, id string) (HandlerSpec, error)
+	GetTx(tx storage.ReadOnlyTx, topic, id string) (HandlerSpec, error)
 
 	// Create a handler.
 	// ErrHandlerSpecExists is returned if a handler already exists with the same ID.
 	Create(h HandlerSpec) error
+	CreateTx(tx storage.Tx, h HandlerSpec) error
 
 	// Replace an existing handler.
 	// ErrNoHandlerSpecExists is returned if the handler does not exist.
 	Replace(h HandlerSpec) error
+	ReplaceTx(tx storage.Tx, h HandlerSpec) error
 
 	// Delete a handler.
 	// It is not an error to delete an non-existent handler.
-	Delete(id string) error
+	Delete(topic, id string) error
+	DeleteTx(tx storage.Tx, topic, id string) error
 
 	// List handlers matching a pattern.
 	// The pattern is shell/glob matching see https://golang.org/pkg/path/#Match
 	// Offset and limit are pagination bounds. Offset is inclusive starting at index 0.
 	// More results may exist while the number of returned items is equal to limit.
-	List(pattern string, offset, limit int) ([]HandlerSpec, error)
+	List(topic, pattern string, offset, limit int) ([]HandlerSpec, error)
+	ListTx(tx storage.ReadOnlyTx, topic, pattern string, offset, limit int) ([]HandlerSpec, error)
+
+	Rebuild() error
 }
 
 //--------------------------------------------------------------------
@@ -49,60 +60,61 @@ type HandlerSpecDAO interface {
 // defined here and nowhere else. So as to not accidentally change
 // the gob serialization format in incompatible ways.
 
-// version is the current version of the HandlerSpec structure.
-const handlerSpecVersion = 1
+const (
+	handlerSpecVersion1 = 1
+	handlerSpecVersion2 = 2
+)
 
 // HandlerSpec provides all the necessary information to create a handler.
 type HandlerSpec struct {
-	ID      string              `json:"id"`
-	Topics  []string            `json:"topics"`
-	Actions []HandlerActionSpec `json:"actions"`
+	ID      string                 `json:"id"`
+	Topic   string                 `json:"topic"`
+	Kind    string                 `json:"kind"`
+	Options map[string]interface{} `json:"options"`
+	Match   string                 `json:"match"`
 }
 
 var validHandlerID = regexp.MustCompile(`^[-\._\p{L}0-9]+$`)
 var validTopicID = regexp.MustCompile(`^[-:\._\p{L}0-9]+$`)
 
 func (h HandlerSpec) Validate() error {
+	if !validTopicID.MatchString(h.Topic) {
+		return fmt.Errorf("handler topic must contain only letters, numbers, '-', '.' and '_'. %q", h.ID)
+	}
 	if !validHandlerID.MatchString(h.ID) {
 		return fmt.Errorf("handler ID must contain only letters, numbers, '-', '.' and '_'. %q", h.ID)
 	}
-	for _, t := range h.Topics {
-		if !validTopicID.MatchString(t) {
-			return fmt.Errorf("topic must contain only letters, numbers, '-', '.', ':' and '_'. %q", t)
-		}
-	}
-	if len(h.Actions) == 0 {
-		return errors.New("must provide at least one action")
+	if h.Kind == "" {
+		return errors.New("handler Kind must not be empty")
 	}
 	return nil
 }
 
-func (h HandlerSpec) HasTopic(topic string) bool {
-	for _, t := range h.Topics {
-		if t == topic {
-			return true
-		}
-	}
-	return false
-}
-
-// HandlerActionSpec defines an action an handler can take.
-type HandlerActionSpec struct {
-	Kind    string                 `json:"kind"`
-	Options map[string]interface{} `json:"options"`
+func fullID(topic, handler string) string {
+	return path.Join(topic, handler)
 }
 
 func (h HandlerSpec) ObjectID() string {
-	return h.ID
+	return fullID(h.Topic, h.ID)
 }
 
 func (h HandlerSpec) MarshalBinary() ([]byte, error) {
-	return storage.VersionJSONEncode(handlerSpecVersion, h)
+	if err := h.Validate(); err != nil {
+		return nil, errors.Wrap(err, "invalid spec")
+	}
+	return storage.VersionJSONEncode(handlerSpecVersion2, h)
 }
 
 func (h *HandlerSpec) UnmarshalBinary(data []byte) error {
 	return storage.VersionJSONDecode(data, func(version int, dec *json.Decoder) error {
-		return dec.Decode(h)
+		switch version {
+		case handlerSpecVersion1:
+			return errors.New("version 1 is invalid cannot decode")
+		case handlerSpecVersion2:
+			return dec.Decode(h)
+		default:
+			return fmt.Errorf("unknown spec version %d: cannot decode", version)
+		}
 	})
 }
 
@@ -111,8 +123,12 @@ type handlerSpecKV struct {
 	store *storage.IndexedStore
 }
 
+const (
+	handlerPrefix = "handlers"
+)
+
 func newHandlerSpecKV(store storage.Interface) (*handlerSpecKV, error) {
-	c := storage.DefaultIndexedStoreConfig("handlers", func() storage.BinaryObject {
+	c := storage.DefaultIndexedStoreConfig(handlerPrefix, func() storage.BinaryObject {
 		return new(HandlerSpec)
 	})
 	istore, err := storage.NewIndexedStore(store, c)
@@ -133,8 +149,14 @@ func (kv *handlerSpecKV) error(err error) error {
 	return err
 }
 
-func (kv *handlerSpecKV) Get(id string) (HandlerSpec, error) {
-	o, err := kv.store.Get(id)
+func (kv *handlerSpecKV) Get(topic, id string) (HandlerSpec, error) {
+	return kv.getHelper(kv.store.Get(fullID(topic, id)))
+}
+func (kv *handlerSpecKV) GetTx(tx storage.ReadOnlyTx, topic, id string) (HandlerSpec, error) {
+	return kv.getHelper(kv.store.GetTx(tx, fullID(topic, id)))
+}
+
+func (kv *handlerSpecKV) getHelper(o storage.BinaryObject, err error) (HandlerSpec, error) {
 	if err != nil {
 		return HandlerSpec{}, kv.error(err)
 	}
@@ -148,17 +170,37 @@ func (kv *handlerSpecKV) Get(id string) (HandlerSpec, error) {
 func (kv *handlerSpecKV) Create(h HandlerSpec) error {
 	return kv.store.Create(&h)
 }
+func (kv *handlerSpecKV) CreateTx(tx storage.Tx, h HandlerSpec) error {
+	return kv.store.CreateTx(tx, &h)
+}
 
 func (kv *handlerSpecKV) Replace(h HandlerSpec) error {
 	return kv.store.Replace(&h)
 }
-
-func (kv *handlerSpecKV) Delete(id string) error {
-	return kv.store.Delete(id)
+func (kv *handlerSpecKV) ReplaceTx(tx storage.Tx, h HandlerSpec) error {
+	return kv.store.ReplaceTx(tx, &h)
 }
 
-func (kv *handlerSpecKV) List(pattern string, offset, limit int) ([]HandlerSpec, error) {
-	objects, err := kv.store.List(storage.DefaultIDIndex, pattern, offset, limit)
+func (kv *handlerSpecKV) Delete(topic, id string) error {
+	return kv.store.Delete(fullID(topic, id))
+}
+func (kv *handlerSpecKV) DeleteTx(tx storage.Tx, topic, id string) error {
+	return kv.store.DeleteTx(tx, fullID(topic, id))
+}
+
+func (kv *handlerSpecKV) List(topic, pattern string, offset, limit int) ([]HandlerSpec, error) {
+	if pattern == "" {
+		pattern = "*"
+	}
+	return kv.listHelper(kv.store.List(storage.DefaultIDIndex, fullID(topic, pattern), offset, limit))
+}
+func (kv *handlerSpecKV) ListTx(tx storage.ReadOnlyTx, topic, pattern string, offset, limit int) ([]HandlerSpec, error) {
+	if pattern == "" {
+		pattern = "*"
+	}
+	return kv.listHelper(kv.store.ListTx(tx, storage.DefaultIDIndex, fullID(topic, pattern), offset, limit))
+}
+func (kv *handlerSpecKV) listHelper(objects []storage.BinaryObject, err error) ([]HandlerSpec, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +213,10 @@ func (kv *handlerSpecKV) List(pattern string, offset, limit int) ([]HandlerSpec,
 		specs[i] = *h
 	}
 	return specs, nil
+}
+
+func (kv *handlerSpecKV) Rebuild() error {
+	return kv.store.Rebuild()
 }
 
 var (
@@ -194,15 +240,19 @@ type TopicStateDAO interface {
 	// Offset and limit are pagination bounds. Offset is inclusive starting at index 0.
 	// More results may exist while the number of returned items is equal to limit.
 	List(pattern string, offset, limit int) ([]TopicState, error)
+
+	Rebuild() error
 }
 
 const topicStateVersion = 1
 
+//easyjson:json
 type TopicState struct {
 	Topic       string                `json:"topic"`
 	EventStates map[string]EventState `json:"event-states"`
 }
 
+//easyjson:json
 type EventState struct {
 	Message  string        `json:"message"`
 	Details  string        `json:"details"`
@@ -220,8 +270,9 @@ func (t TopicState) MarshalBinary() ([]byte, error) {
 }
 
 func (t *TopicState) UnmarshalBinary(data []byte) error {
-	return storage.VersionJSONDecode(data, func(version int, dec *json.Decoder) error {
-		return dec.Decode(&t)
+	return storage.VersionEasyJSONDecode(data, func(version int, dec *jlexer.Lexer) error {
+		t.UnmarshalEasyJSON(dec)
+		return dec.Error()
 	})
 }
 
@@ -288,4 +339,8 @@ func (kv *topicStateKV) List(pattern string, offset, limit int) ([]TopicState, e
 		specs[i] = *t
 	}
 	return specs, nil
+}
+
+func (kv *topicStateKV) Rebuild() error {
+	return kv.store.Rebuild()
 }

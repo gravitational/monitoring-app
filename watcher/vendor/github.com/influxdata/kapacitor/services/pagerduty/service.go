@@ -7,12 +7,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sync/atomic"
 
 	"github.com/influxdata/kapacitor/alert"
+	"github.com/influxdata/kapacitor/keyvalue"
 )
+
+type Diagnostic interface {
+	WithContext(ctx ...keyvalue.T) Diagnostic
+	Error(msg string, err error)
+}
 
 type Service struct {
 	configValue atomic.Value
@@ -20,12 +25,12 @@ type Service struct {
 	HTTPDService interface {
 		URL() string
 	}
-	logger *log.Logger
+	diag Diagnostic
 }
 
-func NewService(c Config, l *log.Logger) *Service {
+func NewService(c Config, d Diagnostic) *Service {
 	s := &Service{
-		logger: l,
+		diag: d,
 	}
 	s.configValue.Store(c)
 	return s
@@ -63,6 +68,7 @@ func (s *Service) Global() bool {
 type testOptions struct {
 	IncidentKey string      `json:"incident-key"`
 	Description string      `json:"description"`
+	Details     string      `json:"details"`
 	Level       alert.Level `json:"level"`
 }
 
@@ -85,11 +91,11 @@ func (s *Service) Test(options interface{}) error {
 		o.IncidentKey,
 		o.Description,
 		o.Level,
-		nil,
+		o.Details,
 	)
 }
 
-func (s *Service) Alert(serviceKey, incidentKey, desc string, level alert.Level, details interface{}) error {
+func (s *Service) Alert(serviceKey, incidentKey, desc string, level alert.Level, details string) error {
 	url, post, err := s.preparePost(serviceKey, incidentKey, desc, level, details)
 	if err != nil {
 		return err
@@ -117,7 +123,7 @@ func (s *Service) Alert(serviceKey, incidentKey, desc string, level alert.Level,
 	return nil
 }
 
-func (s *Service) preparePost(serviceKey, incidentKey, desc string, level alert.Level, details interface{}) (string, io.Reader, error) {
+func (s *Service) preparePost(serviceKey, incidentKey, desc string, level alert.Level, details string) (string, io.Reader, error) {
 
 	c := s.config()
 	if !c.Enabled {
@@ -145,13 +151,8 @@ func (s *Service) preparePost(serviceKey, incidentKey, desc string, level alert.
 	pData["incident_key"] = incidentKey
 	pData["client"] = "kapacitor"
 	pData["client_url"] = s.HTTPDService.URL()
-	if details != nil {
-		b, err := json.Marshal(details)
-		if err != nil {
-			return "", nil, err
-		}
-		pData["details"] = string(b)
-	}
+
+	pData["details"] = details
 
 	// Post data to PagerDuty
 	var post bytes.Buffer
@@ -171,16 +172,16 @@ type HandlerConfig struct {
 }
 
 type handler struct {
-	s      *Service
-	c      HandlerConfig
-	logger *log.Logger
+	s    *Service
+	c    HandlerConfig
+	diag Diagnostic
 }
 
-func (s *Service) Handler(c HandlerConfig, l *log.Logger) alert.Handler {
+func (s *Service) Handler(c HandlerConfig, ctx ...keyvalue.T) alert.Handler {
 	return &handler{
-		s:      s,
-		c:      c,
-		logger: l,
+		s:    s,
+		c:    c,
+		diag: s.diag.WithContext(ctx...),
 	}
 }
 
@@ -190,8 +191,8 @@ func (h *handler) Handle(event alert.Event) {
 		event.State.ID,
 		event.State.Message,
 		event.State.Level,
-		event.Data.Result,
+		event.State.Details,
 	); err != nil {
-		h.logger.Println("E! failed to send event to PagerDuty", err)
+		h.diag.Error("failed to send event to PagerDuty", err)
 	}
 }

@@ -8,13 +8,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 
 	"github.com/BurntSushi/toml"
 	"github.com/influxdata/kapacitor/server"
-	"github.com/influxdata/kapacitor/services/logging"
-	"github.com/influxdata/kapacitor/tick"
+	"github.com/influxdata/kapacitor/services/diagnostic"
 )
 
 const logo = `
@@ -29,22 +27,32 @@ const logo = `
 
 `
 
+type Diagnostic interface {
+	Error(msg string, err error)
+	KapacitorStarting(version, branch, commit string)
+	GoVersion()
+	Info(msg string)
+}
+
 // Command represents the command executed by "kapacitord run".
 type Command struct {
-	Version string
-	Branch  string
-	Commit  string
+	Version  string
+	Branch   string
+	Commit   string
+	Platform string
 
 	closing chan struct{}
+	pidfile string
 	Closed  chan struct{}
 
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 
-	Server     *server.Server
-	Logger     *log.Logger
-	logService *logging.Service
+	Server      *server.Server
+	diagService *diagnostic.Service
+
+	Diag Diagnostic
 }
 
 // NewCommand return a new instance of Command.
@@ -96,29 +104,27 @@ func (cmd *Command) Run(args ...string) error {
 	}
 
 	// Initialize Logging Services
-	cmd.logService = logging.NewService(config.Logging, cmd.Stdout, cmd.Stderr)
-	err = cmd.logService.Open()
-	if err != nil {
-		return fmt.Errorf("init logging: %s", err)
+	cmd.diagService = diagnostic.NewService(config.Logging, cmd.Stdout, cmd.Stderr)
+	if err := cmd.diagService.Open(); err != nil {
+		return fmt.Errorf("failed to open diagnostic service: %v", err)
 	}
-	// Initialize packages loggers
-	tick.SetLogger(cmd.logService.NewLogger("[tick] ", log.LstdFlags))
 
-	// Initialize cmd logger
-	cmd.Logger = cmd.logService.NewLogger("[run] ", log.LstdFlags)
+	// Initialize cmd diagnostic
+	cmd.Diag = cmd.diagService.NewCmdHandler()
 
 	// Mark start-up in log.,
-	cmd.Logger.Printf("I! Kapacitor starting, version %s, branch %s, commit %s", cmd.Version, cmd.Branch, cmd.Commit)
-	cmd.Logger.Printf("I! Go version %s", runtime.Version())
+	cmd.Diag.KapacitorStarting(cmd.Version, cmd.Branch, cmd.Commit)
+	cmd.Diag.GoVersion()
 
 	// Write the PID file.
 	if err := cmd.writePIDFile(options.PIDFile); err != nil {
 		return fmt.Errorf("write pid file: %s", err)
 	}
+	cmd.pidfile = options.PIDFile
 
 	// Create server from config and start it.
-	buildInfo := server.BuildInfo{Version: cmd.Version, Commit: cmd.Commit, Branch: cmd.Branch}
-	s, err := server.New(config, buildInfo, cmd.logService)
+	buildInfo := server.BuildInfo{Version: cmd.Version, Commit: cmd.Commit, Branch: cmd.Branch, Platform: cmd.Platform}
+	s, err := server.New(config, buildInfo, cmd.diagService)
 	if err != nil {
 		return fmt.Errorf("create server: %s", err)
 	}
@@ -127,6 +133,7 @@ func (cmd *Command) Run(args ...string) error {
 	if err := s.Open(); err != nil {
 		return fmt.Errorf("open server: %s", err)
 	}
+
 	cmd.Server = s
 
 	// Begin monitoring the server's error channel.
@@ -138,12 +145,13 @@ func (cmd *Command) Run(args ...string) error {
 // Close shuts down the server.
 func (cmd *Command) Close() error {
 	defer close(cmd.Closed)
+	defer cmd.removePIDFile()
 	close(cmd.closing)
 	if cmd.Server != nil {
 		return cmd.Server.Close()
 	}
-	if cmd.logService != nil {
-		return cmd.logService.Close()
+	if cmd.diagService != nil {
+		return cmd.diagService.Close()
 	}
 	return nil
 }
@@ -153,10 +161,18 @@ func (cmd *Command) monitorServerErrors() {
 		select {
 		case err := <-cmd.Server.Err():
 			if err != nil {
-				cmd.Logger.Println("E! " + err.Error())
+				cmd.Diag.Error("encountered error", err)
 			}
 		case <-cmd.closing:
 			return
+		}
+	}
+}
+
+func (cmd *Command) removePIDFile() {
+	if cmd.pidfile != "" {
+		if err := os.Remove(cmd.pidfile); err != nil {
+			cmd.Diag.Error("unable to remove pidfile", err)
 		}
 	}
 }
@@ -187,8 +203,7 @@ func (cmd *Command) writePIDFile(path string) error {
 	}
 
 	// Ensure the required directory structure exists.
-	err := os.MkdirAll(filepath.Dir(path), 0777)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
 		return fmt.Errorf("mkdir: %s", err)
 	}
 
@@ -238,7 +253,7 @@ run starts the Kapacitor server.
                           Write logs to a file.
 
         -log-level <level>
-                          Sets the log level. One of debug,info,warn,error.
+                          Sets the log level. One of debug,info,error.
 `
 
 // Options represents the command line options that can be parsed.

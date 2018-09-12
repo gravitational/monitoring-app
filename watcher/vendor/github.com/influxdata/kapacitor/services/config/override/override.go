@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/copystructure"
+	"github.com/mitchellh/mapstructure"
 	"github.com/mitchellh/reflectwalk"
 	"github.com/pkg/errors"
 )
@@ -17,6 +18,7 @@ const (
 	structTagKey   = "override"
 	redactKeyword  = "redact"
 	elementKeyword = "element-key="
+	omitField      = "-"
 )
 
 // Validator is a type that can validate itself.
@@ -215,6 +217,9 @@ func (w *overrideWalker) StructField(f reflect.StructField, v reflect.Value) err
 		}
 
 		name := fieldName(f)
+		if name == omitField {
+			break
+		}
 		setValue, ok := w.o.Options[name]
 		if !ok {
 			name = strings.ToLower(name)
@@ -438,6 +443,19 @@ func weakCopyValue(dst, src reflect.Value) (err error) {
 			}
 			return fmt.Errorf("cannot convert string %q into %s", str, dstK)
 		}
+	} else if dstK == reflect.Struct && srcK == reflect.Map {
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			ErrorUnused: true,
+			Result:      addrDst.Interface(),
+			DecodeHook:  mapstructure.StringToTimeDurationHookFunc(),
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to initialize mapstructure decoder")
+		}
+		if err := dec.Decode(src.Interface()); err != nil {
+			return errors.Wrapf(err, "failed to decode options into %s", addrDst.Type())
+		}
+		return nil
 	} else {
 		return fmt.Errorf("wrong kind %s, expected value of kind %s: %t", srcK, dstK, srcK == dstK)
 	}
@@ -496,7 +514,7 @@ func (e Element) Redacted() (map[string]interface{}, []string, error) {
 	return walker.optionsMap(), walker.redactedList(), nil
 }
 
-// getElementKey returns the name of the field taht is used to uniquely identify elements of a list.
+// getElementKey returns the name of the field that is used to uniquely identify elements of a list.
 func getElementKey(f reflect.StructField) string {
 	parts := strings.Split(f.Tag.Get(structTagKey), ",")
 	if len(parts) > 1 {
@@ -509,29 +527,29 @@ func getElementKey(f reflect.StructField) string {
 	return ""
 }
 
-func findFieldByElementKey(v reflect.Value, elementKey string) (field reflect.Value) {
+func findFieldByElementKey(v reflect.Value, elementKey string) reflect.Value {
 	v = reflect.Indirect(v)
 	if v.Kind() != reflect.Struct {
-		return
+		return reflect.Value{}
 	}
-	field = v.FieldByName(elementKey)
+	field := v.FieldByName(elementKey)
 	if field.IsValid() {
-		return
+		return field
 	}
 
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
-		field = v.Field(i)
+		field := v.Field(i)
 		// Skip any unexported fields
 		if !field.CanSet() {
 			continue
 		}
 		name := fieldName(t.Field(i))
 		if name == elementKey {
-			return
+			return field
 		}
 	}
-	return
+	return reflect.Value{}
 }
 
 // redactWalker reads the the sections from the walked values and redacts and sensitive fields.
@@ -564,6 +582,9 @@ func (w *redactWalker) StructField(f reflect.StructField, v reflect.Value) error
 	// Top level
 	case 0:
 		name := fieldName(f)
+		if name == omitField {
+			break
+		}
 		var value interface{}
 		if isRedacted(f) {
 			value = !isZero(v)
@@ -607,9 +628,8 @@ func isZero(v reflect.Value) bool {
 		// Check structs recusively since not all of its field may be comparable
 		z := true
 		for i := 0; i < v.NumField() && z; i++ {
-			if f := v.Field(i); f.CanSet() {
-				z = z && isZero(f)
-			}
+			f := v.Field(i)
+			z = z && isZero(f)
 		}
 		return z
 	default:
@@ -633,12 +653,14 @@ type sectionWalker struct {
 	sections           map[string]Section
 	currentSectionName string
 	elementKeys        map[string]string
+	uniqueElements     map[string]bool
 }
 
 func newSectionWalker() *sectionWalker {
 	return &sectionWalker{
-		sections:    make(map[string]Section),
-		elementKeys: make(map[string]string),
+		sections:       make(map[string]Section),
+		elementKeys:    make(map[string]string),
+		uniqueElements: make(map[string]bool),
 	}
 }
 
@@ -664,6 +686,7 @@ func (w *sectionWalker) StructField(f reflect.StructField, v reflect.Value) erro
 		name, ok := getSectionName(f)
 		if ok {
 			w.currentSectionName = name
+			w.uniqueElements = make(map[string]bool)
 			elementKey := getElementKey(f)
 			w.elementKeys[name] = elementKey
 			if k := reflect.Indirect(v).Kind(); k == reflect.Struct {
@@ -707,6 +730,11 @@ func (w *sectionWalker) SliceElem(idx int, v reflect.Value) error {
 		} else {
 			return fmt.Errorf("could not find field with the name of the element key %q on element object", elementKey)
 		}
+
+		if w.uniqueElements[element] {
+			return fmt.Errorf("section %q has duplicate elements: %q", w.currentSectionName, element)
+		}
+		w.uniqueElements[element] = true
 		w.sections[w.currentSectionName] = append(w.sections[w.currentSectionName], Element{
 			value:   v.Interface(),
 			element: element,

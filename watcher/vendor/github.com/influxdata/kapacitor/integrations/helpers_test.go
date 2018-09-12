@@ -3,26 +3,27 @@ package integrations
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"testing"
 	"time"
 
-	"github.com/influxdata/influxdb/influxql"
 	"github.com/influxdata/kapacitor"
+	"github.com/influxdata/kapacitor/alert"
 	"github.com/influxdata/kapacitor/influxdb"
-	alertservice "github.com/influxdata/kapacitor/services/alert"
+	"github.com/influxdata/kapacitor/models"
 	"github.com/influxdata/kapacitor/services/httpd"
-	k8s "github.com/influxdata/kapacitor/services/k8s/client"
 	"github.com/influxdata/kapacitor/udf"
+	"github.com/influxdata/kapacitor/uuid"
 )
 
 func newHTTPDService() *httpd.Service {
 	// create API server
 	config := httpd.NewConfig()
 	config.BindAddress = ":0" // Choose port dynamically
-	httpService := httpd.NewService(config, "localhost", logService.NewLogger("[http] ", log.LstdFlags), logService)
+	config.LogEnabled = testing.Verbose()
+	httpService := httpd.NewService(config, "localhost", diagService.NewHTTPDHandler())
 	err := httpService.Open()
 	if err != nil {
 		panic(err)
@@ -47,7 +48,7 @@ func (m *MockInfluxDBService) NewNamedClient(name string) (influxdb.Client, erro
 	})
 }
 
-func compareResultsMetainfo(exp, got kapacitor.Result) (bool, string) {
+func compareResultsMetainfo(exp, got models.Result) (bool, string) {
 	if (exp.Err == nil && got.Err != nil) || (exp.Err != nil && got.Err == nil) {
 		return false, fmt.Sprintf("unexpected error: exp %v got %v", exp.Err, got.Err)
 	}
@@ -60,7 +61,7 @@ func compareResultsMetainfo(exp, got kapacitor.Result) (bool, string) {
 	return true, ""
 }
 
-func compareResults(exp, got kapacitor.Result) (bool, string) {
+func compareResults(exp, got models.Result) (bool, string) {
 	ok, msg := compareResultsMetainfo(exp, got)
 	if !ok {
 		return ok, msg
@@ -82,7 +83,7 @@ func compareResults(exp, got kapacitor.Result) (bool, string) {
 	return true, ""
 }
 
-func compareResultsIgnoreSeriesOrder(exp, got kapacitor.Result) (bool, string) {
+func compareResultsIgnoreSeriesOrder(exp, got models.Result) (bool, string) {
 	ok, msg := compareResultsMetainfo(exp, got)
 	if !ok {
 		return ok, msg
@@ -117,13 +118,12 @@ func compareResultsIgnoreSeriesOrder(exp, got kapacitor.Result) (bool, string) {
 	return true, ""
 }
 
-func compareAlertData(exp, got alertservice.AlertData) (bool, string) {
+func compareAlertData(exp, got alert.Data) (bool, string) {
 	// Pull out Result for comparison
-	expData := kapacitor.Result(exp.Data)
-	exp.Data = influxql.Result{}
-	gotData := kapacitor.Result(got.Data)
-	kapacitor.ConvertResultTimes(&gotData)
-	got.Data = influxql.Result{}
+	expData := exp.Data
+	exp.Data = models.Result{}
+	gotData := got.Data
+	got.Data = models.Result{}
 
 	if !reflect.DeepEqual(got, exp) {
 		return false, fmt.Sprintf("\ngot %v\nexp %v", got, exp)
@@ -135,7 +135,7 @@ func compareAlertData(exp, got alertservice.AlertData) (bool, string) {
 type UDFService struct {
 	ListFunc   func() []string
 	InfoFunc   func(name string) (udf.Info, bool)
-	CreateFunc func(name string, l *log.Logger, abortCallback func()) (udf.Interface, error)
+	CreateFunc func(name, taskID, nodeID string, d udf.Diagnostic, abortCallback func()) (udf.Interface, error)
 }
 
 func (u UDFService) List() []string {
@@ -146,8 +146,8 @@ func (u UDFService) Info(name string) (udf.Info, bool) {
 	return u.InfoFunc(name)
 }
 
-func (u UDFService) Create(name string, l *log.Logger, abortCallback func()) (udf.Interface, error) {
-	return u.CreateFunc(name, l, abortCallback)
+func (u UDFService) Create(name, taskID, nodeID string, d udf.Diagnostic, abortCallback func()) (udf.Interface, error) {
+	return u.CreateFunc(name, taskID, nodeID, d, abortCallback)
 }
 
 type taskStore struct{}
@@ -172,34 +172,71 @@ func (d deadman) Id() string              { return d.id }
 func (d deadman) Message() string         { return d.message }
 func (d deadman) Global() bool            { return d.global }
 
-type k8sAutoscale struct {
-	ScalesGetFunc    func(kind, name string) (*k8s.Scale, error)
-	ScalesUpdateFunc func(kind string, scale *k8s.Scale) error
-}
-type k8sScales struct {
-	ScalesGetFunc    func(kind, name string) (*k8s.Scale, error)
-	ScalesUpdateFunc func(kind string, scale *k8s.Scale) error
+type serverInfo struct {
+	clusterID,
+	serverID uuid.UUID
+
+	hostname,
+	version,
+	product,
+	platform string
+
+	numTasks,
+	numEnabledTasks,
+	numSubscriptions int64
+
+	uptime func() time.Duration
 }
 
-func (k k8sAutoscale) Versions() (k8s.APIVersions, error) {
-	return k8s.APIVersions{}, nil
-}
-func (k k8sAutoscale) Client() (k8s.Client, error) {
-	return k, nil
-}
-func (k k8sAutoscale) Scales(namespace string) k8s.ScalesInterface {
-	return k8sScales{
-		ScalesGetFunc:    k.ScalesGetFunc,
-		ScalesUpdateFunc: k.ScalesUpdateFunc,
+func newServerInfo() serverInfo {
+	return serverInfo{
+		clusterID: uuid.New(),
+		serverID:  uuid.New(),
+		hostname:  "localhost",
+		version:   "test",
+		product:   "kapacitor",
 	}
 }
-func (k k8sAutoscale) Update(c k8s.Config) error {
-	return nil
+
+func (i serverInfo) ClusterID() uuid.UUID {
+	return i.clusterID
 }
 
-func (k k8sScales) Get(kind, name string) (*k8s.Scale, error) {
-	return k.ScalesGetFunc(kind, name)
+func (i serverInfo) ServerID() uuid.UUID {
+	return i.serverID
 }
-func (k k8sScales) Update(kind string, scale *k8s.Scale) error {
-	return k.ScalesUpdateFunc(kind, scale)
+
+func (i serverInfo) Hostname() string {
+	return i.hostname
+}
+
+func (i serverInfo) Version() string {
+	return i.version
+}
+
+func (i serverInfo) Product() string {
+	return i.product
+}
+
+func (i serverInfo) Platform() string {
+	return i.platform
+}
+
+func (i serverInfo) NumTasks() int64 {
+	return i.numTasks
+}
+
+func (i serverInfo) NumEnabledTasks() int64 {
+	return i.numEnabledTasks
+}
+
+func (i serverInfo) NumSubscriptions() int64 {
+	return i.numSubscriptions
+}
+
+func (i serverInfo) Uptime() time.Duration {
+	if i.uptime != nil {
+		return i.uptime()
+	}
+	return 0
 }

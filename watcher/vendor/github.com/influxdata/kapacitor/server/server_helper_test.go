@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,8 +19,9 @@ import (
 	iclient "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/kapacitor/client/v1"
 	"github.com/influxdata/kapacitor/server"
-	"github.com/influxdata/kapacitor/services/logging"
-	"github.com/influxdata/kapacitor/services/logging/loggingtest"
+	"github.com/influxdata/kapacitor/services/diagnostic"
+	"github.com/influxdata/kapacitor/services/mqtt"
+	"github.com/influxdata/kapacitor/services/slack"
 	"github.com/influxdata/wlog"
 )
 
@@ -28,7 +30,7 @@ type Server struct {
 	*server.Server
 	Config    *server.Config
 	buildInfo server.BuildInfo
-	ls        logging.Interface
+	ds        *diagnostic.Service
 }
 
 // NewServer returns a new instance of Server.
@@ -40,8 +42,9 @@ func NewServer(c *server.Config) *Server {
 		Branch:  "testBranch",
 	}
 	c.HTTP.LogEnabled = testing.Verbose()
-	ls := loggingtest.New()
-	srv, err := server.New(c, buildInfo, ls)
+	ds := diagnostic.NewService(diagnostic.NewConfig(), ioutil.Discard, ioutil.Discard)
+	ds.Open()
+	srv, err := server.New(c, buildInfo, ds)
 	if err != nil {
 		panic(err)
 	}
@@ -49,14 +52,17 @@ func NewServer(c *server.Config) *Server {
 		Server:    srv,
 		Config:    c,
 		buildInfo: buildInfo,
-		ls:        ls,
+		ds:        ds,
 	}
 	return &s
 }
 
-func (s *Server) Restart() {
+func (s *Server) Stop() {
 	s.Server.Close()
-	srv, err := server.New(s.Config, s.buildInfo, s.ls)
+}
+
+func (s *Server) Start() {
+	srv, err := server.New(s.Config, s.buildInfo, s.ds)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -66,12 +72,27 @@ func (s *Server) Restart() {
 	s.Server = srv
 }
 
+func (s *Server) Restart() {
+	s.Stop()
+	s.Start()
+}
+
 // OpenServer opens a test server.
 func OpenDefaultServer() (*Server, *client.Client) {
 	c := NewConfig()
 	s := OpenServer(c)
 	client := Client(s)
 	return s, client
+}
+
+func OpenLoadServer() (*Server, *server.Config, *client.Client) {
+	c := NewConfig()
+	if err := copyFiles("testdata/load", c.Load.Dir); err != nil {
+		panic(err)
+	}
+	s := OpenServer(c)
+	client := Client(s)
+	return s, c, client
 }
 
 // OpenServer opens a test server.
@@ -201,6 +222,8 @@ func (s *Server) Stats() (stats, error) {
 // NewConfig returns the default config with temporary paths.
 func NewConfig() *server.Config {
 	c := server.NewConfig()
+	c.MQTT = mqtt.Configs{}
+	c.Slack = slack.Configs{slack.NewConfig()}
 	c.Reporting.Enabled = false
 	c.Replay.Dir = MustTempDir()
 	c.Storage.BoltDBPath = filepath.Join(MustTempDir(), "bolt.db")
@@ -209,6 +232,8 @@ func NewConfig() *server.Config {
 	//c.HTTP.BindAddress = "127.0.0.1:9092"
 	//c.HTTP.GZIP = false
 	c.InfluxDB[0].Enabled = false
+	c.Load.Enabled = true
+	c.Load.Dir = MustTempDir()
 	return c
 }
 
@@ -256,4 +281,52 @@ func (i *InfluxDB) URL() string {
 
 func (i *InfluxDB) Close() {
 	i.server.Close()
+}
+
+func copyFiles(src, dst string) error {
+	fs, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range fs {
+		if f.IsDir() {
+			if err := os.Mkdir(path.Join(dst, f.Name()), os.ModePerm); err != nil {
+				return err
+			}
+			// copy deeper files
+			if err := copyFiles(path.Join(src, f.Name()), path.Join(dst, f.Name())); err != nil {
+				return err
+			}
+		} else {
+			copyFile(path.Join(src, f.Name()), path.Join(dst, f.Name()))
+		}
+	}
+
+	return nil
+
+}
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	if err := dstFile.Sync(); err != nil {
+		return err
+	}
+
+	return nil
 }

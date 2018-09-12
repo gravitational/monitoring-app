@@ -3,6 +3,7 @@ package alerta
 import (
 	"net/url"
 
+	"github.com/influxdata/influxdb/toml"
 	"github.com/pkg/errors"
 )
 
@@ -15,10 +16,15 @@ type Config struct {
 	InsecureSkipVerify bool `toml:"insecure-skip-verify" override:"insecure-skip-verify"`
 	// The authentication token for this notification, can be overridden per alert.
 	Token string `toml:"token" override:"token,redact"`
+	// The prefix for the Authentication field where the token is stored
+	// This defaults to Bearer but you may need to set this to "Key" for older versions of alerta
+	TokenPrefix string `toml:"token-prefix" override:"token-prefix"`
 	// The environment in which to raise the alert.
 	Environment string `toml:"environment" override:"environment"`
 	// The origin of the alert.
 	Origin string `toml:"origin" override:"origin"`
+	// Optional timeout, can be overridden per alert.
+	Timeout toml.Duration `toml:"timeout" override:"timeout"`
 }
 
 func NewConfig() Config {

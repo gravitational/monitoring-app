@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,10 +11,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -25,9 +29,10 @@ import (
 
 // These variables are populated via the Go linker.
 var (
-	version string
-	commit  string
-	branch  string
+	version  string
+	commit   string
+	branch   string
+	platform string
 )
 
 var defaultURL = "http://localhost:9092"
@@ -46,28 +51,31 @@ Usage: kapacitor [options] [command] [args]
 
 Commands:
 
-	record          Record the result of a query or a snapshot of the current stream data.
-	define          Create/update a task.
-	define-template Create/update a template.
-	define-handler  Create/update an alert handler.
-	replay          Replay a recording to a task.
-	replay-live     Replay data against a task without recording it.
-	enable          Enable and start running a task with live data.
-	disable         Stop running a task.
-	reload          Reload a running task with an updated task definition.
-	push            Publish a task definition to another Kapacitor instance. Not implemented yet.
-	delete          Delete tasks, templates, recordings, replays, topics or handlers.
-	list            List information about tasks, templates, recordings, replays, topics, handlers or service-tests.
-	show            Display detailed information about a task.
-	show-template   Display detailed information about a template.
-	show-handler    Display detailed information about an alert handler.
-	show-topic      Display detailed information about an alert topic.
-	level           Sets the logging level on the kapacitord server.
-	stats           Display various stats about Kapacitor.
-	version         Displays the Kapacitor version info.
-	vars            Print debug vars in JSON format.
-	service-tests   Test a service.
-	help            Prints help for a command.
+	record                Record the result of a query or a snapshot of the current stream data.
+	define                Create/update a task.
+	define-template       Create/update a template.
+	define-topic-handler  Create/update an alert handler for a topic.
+	replay                Replay a recording to a task.
+	replay-live           Replay data against a task without recording it.
+	watch                 Watch logs for a task.
+	logs                  Follow arbitrary Kapacitor logs.
+	enable                Enable and start running a task with live data.
+	disable               Stop running a task.
+	reload                Reload a running task with an updated task definition.
+	push                  Publish a task definition to another Kapacitor instance. Not implemented yet.
+	delete                Delete tasks, templates, recordings, replays, topics or topic-handlers.
+	list                  List information about tasks, templates, recordings, replays, topics, topic-handlers or service-tests.
+	show                  Display detailed information about a task.
+	show-template         Display detailed information about a template.
+	show-topic-handler    Display detailed information about an alert handler for a topic.
+	show-topic            Display detailed information about an alert topic.
+	backup                Backup the Kapacitor database.
+	level                 Sets the logging level on the kapacitord server.
+	stats                 Display various stats about Kapacitor.
+	version               Displays the Kapacitor version info.
+	vars                  Print debug vars in JSON format.
+	service-tests         Test a service.
+	help                  Prints help for a command.
 
 Options:
 `
@@ -138,9 +146,9 @@ func main() {
 	case "define-template":
 		commandArgs = args
 		commandF = doDefineTemplate
-	case "define-handler":
+	case "define-topic-handler":
 		commandArgs = args
-		commandF = doDefineHandler
+		commandF = doDefineTopicHandler
 	case "replay":
 		replayFlags.Parse(args)
 		commandArgs = replayFlags.Args()
@@ -152,6 +160,12 @@ func main() {
 		}
 		commandArgs = args
 		commandF = doReplayLive
+	case "watch":
+		commandArgs = args
+		commandF = doWatch
+	case "logs":
+		commandArgs = args
+		commandF = doLogs
 	case "enable":
 		commandArgs = args
 		commandF = doEnable
@@ -174,12 +188,15 @@ func main() {
 	case "show-template":
 		commandArgs = args
 		commandF = doShowTemplate
-	case "show-handler":
+	case "show-topic-handler":
 		commandArgs = args
-		commandF = doShowHandler
+		commandF = doShowTopicHandler
 	case "show-topic":
 		commandArgs = args
 		commandF = doShowTopic
+	case "backup":
+		commandArgs = args
+		commandF = doBackup
 	case "level":
 		commandArgs = args
 		commandF = doLevel
@@ -256,8 +273,8 @@ func doHelp(args []string) error {
 			defineFlags.Usage()
 		case "define-template":
 			defineTemplateFlags.Usage()
-		case "define-handler":
-			defineHandlerUsage()
+		case "define-topic-handler":
+			defineTopicHandlerUsage()
 		case "replay":
 			replayFlags.Usage()
 		case "enable":
@@ -274,10 +291,16 @@ func doHelp(args []string) error {
 			showUsage()
 		case "show-template":
 			showTemplateUsage()
-		case "show-handler":
-			showHandlerUsage()
+		case "show-topic-handler":
+			showTopicHandlerUsage()
 		case "show-topic":
 			showTopicUsage()
+		case "backup":
+			backupUsage()
+		case "watch":
+			watchUsage()
+		case "logs":
+			logsUsage()
 		case "level":
 			levelUsage()
 		case "help":
@@ -536,6 +559,7 @@ var (
 	dtype       = defineFlags.String("type", "", "The task type (stream|batch)")
 	dtemplate   = defineFlags.String("template", "", "Optional template ID")
 	dvars       = defineFlags.String("vars", "", "Optional path to a JSON vars file")
+	dfile       = defineFlags.String("file", "", "Optional path to a YAML or JSON template task file. If id is given in the task file, it must match the Task id given on the command line.")
 	dnoReload   = defineFlags.Bool("no-reload", false, "Do not reload the task even if it is enabled")
 	ddbrp       = make(dbrps, 0)
 )
@@ -580,28 +604,26 @@ func (d *dbrps) Set(value string) error {
 	return nil
 }
 
-// read from txt starting with beginning quote until next unescaped quote.
+// parseQuotedStr reads from txt starting with beginning quote until next unescaped quote returning the unescaped string and the number of bytes read.
 func parseQuotedStr(txt string) (string, int) {
-	literal := txt[1 : len(txt)-1]
 	quote := txt[0]
 	// Unescape quotes
 	var buf bytes.Buffer
-	buf.Grow(len(literal))
-	last := 0
-	i := 0
-	for ; i < len(literal)-1; i++ {
-		if literal[i] == '\\' && literal[i+1] == quote {
-			buf.Write([]byte(literal[last:i]))
+	buf.Grow(len(txt))
+	last := 1
+	i := 1
+	for ; i < len(txt)-1; i++ {
+		if txt[i] == '\\' && txt[i+1] == quote {
+			buf.Write([]byte(txt[last:i]))
 			buf.Write([]byte{quote})
 			i += 2
 			last = i
-		} else if literal[i] == quote {
+		} else if txt[i] == quote {
 			break
 		}
 	}
-	buf.Write([]byte(literal[last:i]))
-	literal = buf.String()
-	return literal, i + 1
+	buf.Write([]byte(txt[last:i]))
+	return buf.String(), i + 1
 }
 
 func defineUsage() {
@@ -640,11 +662,13 @@ Options:
 }
 
 func doDefine(args []string) error {
-	if len(args) < 1 {
+	// should be getting 1 task ID and 0 or more pairs of flags
+	if len(args)%2 == 0 {
 		fmt.Fprintln(os.Stderr, "Must provide a task ID.")
 		defineFlags.Usage()
 		os.Exit(2)
 	}
+
 	defineFlags.Parse(args[1:])
 	id := args[0]
 
@@ -674,7 +698,7 @@ func doDefine(args []string) error {
 	if *dvars != "" {
 		f, err := os.Open(*dvars)
 		if err != nil {
-			return errors.Wrapf(err, "faild to open file %s", *dvars)
+			return errors.Wrapf(err, "failed to open file %s", *dvars)
 		}
 		defer f.Close()
 		dec := json.NewDecoder(f)
@@ -683,33 +707,101 @@ func doDefine(args []string) error {
 		}
 	}
 
+	fileVars := client.TaskVars{}
+	if *dfile != "" {
+		f, err := os.Open(*dfile)
+		if err != nil {
+			return errors.Wrapf(err, "failed to open file %s", *dfile)
+		}
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			return errors.Wrapf(err, "failed to read task vars file %q", *dfile)
+		}
+		defer f.Close()
+		switch ext := path.Ext(*dfile); ext {
+		case ".yaml", ".yml":
+			if err := yaml.Unmarshal(data, &fileVars); err != nil {
+				return errors.Wrapf(err, "failed to unmarshal yaml task vars file %q", *dfile)
+			}
+		case ".json":
+			if err := json.Unmarshal(data, &fileVars); err != nil {
+				return errors.Wrapf(err, "failed to unmarshal json task vars file %q", *dfile)
+			}
+		default:
+			return errors.New("bad file extension. Must be YAML or JSON")
+
+		}
+	}
+
 	l := cli.TaskLink(id)
 	task, _ := cli.Task(l, nil)
 	var err error
 	if task.ID == "" {
-		_, err = cli.CreateTask(client.CreateTaskOptions{
-			ID:         id,
-			TemplateID: *dtemplate,
-			Type:       ttype,
-			DBRPs:      ddbrp,
-			TICKscript: script,
-			Vars:       vars,
-			Status:     client.Disabled,
-		})
-	} else {
-		_, err = cli.UpdateTask(
-			l,
-			client.UpdateTaskOptions{
+		if *dfile != "" {
+			o, err := fileVars.CreateTaskOptions()
+			if o.ID == "" {
+				o.ID = id
+			} else if o.ID != id {
+				return errors.New("Task id given on command line does not match id in " + *dfile)
+			}
+			if err != nil {
+				return err
+			}
+			_, err = cli.CreateTask(o)
+			if err != nil {
+				return err
+			}
+		} else {
+			o := client.CreateTaskOptions{
+				ID:         id,
 				TemplateID: *dtemplate,
 				Type:       ttype,
 				DBRPs:      ddbrp,
 				TICKscript: script,
 				Vars:       vars,
-			},
-		)
-	}
-	if err != nil {
-		return err
+				Status:     client.Disabled,
+			}
+			_, err = cli.CreateTask(o)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		if *dfile != "" {
+			o, err := fileVars.UpdateTaskOptions()
+			if err != nil {
+				return err
+			}
+
+			if o.ID == "" {
+				o.ID = id
+			} else if o.ID != id {
+				return errors.New("Task id given on command line does not match id in " + *dfile)
+			}
+
+			_, err = cli.UpdateTask(
+				l,
+				o,
+			)
+			if err != nil {
+				return err
+			}
+		} else {
+			o := client.UpdateTaskOptions{
+				TemplateID: *dtemplate,
+				Type:       ttype,
+				DBRPs:      ddbrp,
+				TICKscript: script,
+				Vars:       vars,
+			}
+			_, err = cli.UpdateTask(
+				l,
+				o,
+			)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if !*dnoReload && task.Status == client.Enabled {
@@ -817,8 +909,8 @@ func doDefineTemplate(args []string) error {
 	return err
 }
 
-func defineHandlerUsage() {
-	var u = `Usage: kapacitor define-handler <path to handler file>
+func defineTopicHandlerUsage() {
+	var u = `Usage: kapacitor define-topic-handler <path to handler spec file>
 
 	Create or update a handler.
 
@@ -828,29 +920,30 @@ For example:
 
 	Define a handler using the slack.yaml file:
 
-		$ kapacitor define-handler slack.yaml
+		$ kapacitor define-topic-handler slack.yaml
 
+Options:
 `
 	fmt.Fprintln(os.Stderr, u)
 }
 
-func doDefineHandler(args []string) error {
-	if len(args) < 1 {
+func doDefineTopicHandler(args []string) error {
+	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "Must provide a path to a handler file.")
-		defineHandlerUsage()
+		defineTopicHandlerUsage()
 		os.Exit(2)
 	}
 	p := args[0]
 	f, err := os.Open(p)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open handler file %q", p)
+		return errors.Wrapf(err, "failed to open handler spec file %q", p)
 	}
 
 	// Decode file into HandlerOptions
-	var ho client.HandlerOptions
+	var ho client.TopicHandlerOptions
 	ext := path.Ext(p)
 	switch ext {
-	case ".yaml":
+	case ".yaml", ".yml":
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
 			return errors.Wrapf(err, "failed to read handler file %q", p)
@@ -864,12 +957,12 @@ func doDefineHandler(args []string) error {
 		}
 	}
 
-	l := cli.HandlerLink(ho.ID)
-	handler, _ := cli.Handler(l)
+	l := cli.TopicHandlerLink(ho.Topic, ho.ID)
+	handler, _ := cli.TopicHandler(l)
 	if handler.ID == "" {
-		_, err = cli.CreateHandler(ho)
+		_, err = cli.CreateTopicHandler(cli.TopicHandlersLink(ho.Topic), ho)
 	} else {
-		_, err = cli.ReplaceHandler(l, ho)
+		_, err = cli.ReplaceTopicHandler(l, ho)
 	}
 	return err
 }
@@ -1429,38 +1522,37 @@ func doShowTemplate(args []string) error {
 
 // Show Handler
 
-func showHandlerUsage() {
-	var u = `Usage: kapacitor show-handler [handler ID]
+func showTopicHandlerUsage() {
+	var u = `Usage: kapacitor show-topic-handler [topic ID] [handler ID]
 
 	Show details about a specific handler.
 `
 	fmt.Fprintln(os.Stderr, u)
 }
 
-func doShowHandler(args []string) error {
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "Must specify one handler ID")
-		showHandlerUsage()
+func doShowTopicHandler(args []string) error {
+	if len(args) != 2 {
+		fmt.Fprintln(os.Stderr, "Must specify both topic and handler IDs")
+		showTopicHandlerUsage()
 		os.Exit(2)
 	}
 
-	h, err := cli.Handler(cli.HandlerLink(args[0]))
+	topic := args[0]
+	handler := args[1]
+	h, err := cli.TopicHandler(cli.TopicHandlerLink(topic, handler))
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("ID:", h.ID)
-	fmt.Println("Topics:", fmt.Sprintf("[%s]", strings.Join(h.Topics, ", ")))
-	fmt.Println("Actions:")
-	actionOutFmt := "%-30s%s\n"
-	fmt.Printf(actionOutFmt, "Kind", "Options")
-	for _, a := range h.Actions {
-		options, err := json.Marshal(a.Options)
-		if err != nil {
-			return errors.Wrap(err, "failed to format action options")
-		}
-		fmt.Printf(actionOutFmt, a.Kind, string(options))
+	options, err := json.Marshal(h.Options)
+	if err != nil {
+		return errors.Wrap(err, "failed to format options")
 	}
+	fmt.Println("ID:", h.ID)
+	fmt.Println("Topic:", topic)
+	fmt.Println("Kind:", h.Kind)
+	fmt.Println("Match:", h.Match)
+	fmt.Println("Options:", string(options))
 	return nil
 }
 
@@ -1508,7 +1600,7 @@ func doShowTopic(args []string) error {
 
 	sort.Sort(topicEvents(te.Events))
 
-	th, err := cli.ListTopicHandlers(topic.HandlersLink)
+	th, err := cli.ListTopicHandlers(topic.HandlersLink, nil)
 	if err != nil {
 		return err
 	}
@@ -1533,11 +1625,23 @@ func doShowTopic(args []string) error {
 // List
 
 func listUsage() {
-	var u = `Usage: kapacitor list (tasks|templates|recordings|replays|topics|handlers|service-tests) [ID or pattern]...
+	var u = `Usage: kapacitor list (tasks|templates|recordings|replays|topics|topic-handlers|service-tests) [ID or pattern]...
 
 	List tasks, templates, recordings, replays, topics or handlers and their current state.
 
 	If no ID or pattern is given then all items will be listed.
+
+	Listing handlers requires that the topic ID or pattern be specified before the handler patterns.
+
+		$ kapacitor list topic-handlers [topicID or pattern] [ID or pattern]
+
+	For example list all handlers in the system topic
+
+		$ kapacitor list topic-handlers system
+
+	For example list all email* handlers in the system topic
+
+		$ kapacitor list topic-handlers system email*
 
 `
 	fmt.Fprintln(os.Stderr, u)
@@ -1557,7 +1661,7 @@ func (t TemplateList) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 
 func doList(args []string) error {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Must specify 'tasks', 'recordings', 'replays', 'topics', or 'handlers'")
+		fmt.Fprintln(os.Stderr, "Must specify 'tasks', 'recordings', 'replays', 'topics', or 'topic-handlers'")
 		listUsage()
 		os.Exit(2)
 	}
@@ -1735,50 +1839,60 @@ func doList(args []string) error {
 				fmt.Fprintf(os.Stdout, outFmt, s.Name)
 			}
 		}
-	case "handlers":
-		maxID := 2      // len("ID")
-		maxTopics := 6  // len("Topics")
-		maxActions := 7 // len("Actions")
+	case "topic-handlers":
+		topicPattern := patterns[0]
+		topics, err := cli.ListTopics(&client.ListTopicsOptions{
+			Pattern: topicPattern,
+		})
+		if err != nil {
+			return err
+		}
+		patterns = patterns[1:]
+		if len(patterns) == 0 {
+			// Use empty pattern to match all handlers
+			patterns = []string{""}
+		}
+		maxTopic := 10
+		maxID := 10
+		maxKind := 10
 		// The handlers are returned in sorted order already, no need to sort them here.
 		type info struct {
-			ID      string
-			Topics  string
-			Actions string
+			Topic string
+			ID    string
+			Kind  string
 		}
 		var allHandlers []info
-		for _, pattern := range patterns {
-			handlers, err := cli.ListHandlers(&client.ListHandlersOptions{
-				Pattern: pattern,
-			})
-			if err != nil {
-				return err
-			}
-			for _, h := range handlers.Handlers {
-				kinds := make([]string, len(h.Actions))
-				for i, a := range h.Actions {
-					kinds[i] = a.Kind
+		for _, topic := range topics.Topics {
+			for _, pattern := range patterns {
+				handlers, err := cli.ListTopicHandlers(topic.HandlersLink, &client.ListTopicHandlersOptions{
+					Pattern: pattern,
+				})
+				if err != nil {
+					return err
 				}
-				i := info{
-					ID:      h.ID,
-					Topics:  fmt.Sprintf("[%s]", strings.Join(h.Topics, ", ")),
-					Actions: fmt.Sprintf("[%s]", strings.Join(kinds, ", ")),
+				for _, h := range handlers.Handlers {
+					i := info{
+						Topic: topic.ID,
+						ID:    h.ID,
+						Kind:  h.Kind,
+					}
+					if l := len(i.ID); l > maxID {
+						maxID = l
+					}
+					if l := len(i.Topic); l > maxTopic {
+						maxTopic = l
+					}
+					if l := len(i.Kind); l > maxKind {
+						maxKind = l
+					}
+					allHandlers = append(allHandlers, i)
 				}
-				if l := len(i.ID); l > maxID {
-					maxID = l
-				}
-				if l := len(i.Topics); l > maxTopics {
-					maxTopics = l
-				}
-				if l := len(i.Actions); l > maxActions {
-					maxActions = l
-				}
-				allHandlers = append(allHandlers, i)
 			}
 		}
-		outFmt := fmt.Sprintf("%%-%dv%%-%dv%%-%dv\n", maxID+1, maxTopics+1, maxActions+1)
-		fmt.Fprintf(os.Stdout, outFmt, "ID", "Topics", "Actions")
+		outFmt := fmt.Sprintf("%%-%dv%%-%dv%%-%dv\n", maxTopic+1, maxID+1, maxKind+1)
+		fmt.Fprintf(os.Stdout, outFmt, "Topic", "ID", "Kind")
 		for _, h := range allHandlers {
-			fmt.Fprintf(os.Stdout, outFmt, h.ID, h.Topics, h.Actions)
+			fmt.Fprintf(os.Stdout, outFmt, h.Topic, h.ID, h.Kind)
 		}
 	case "topics":
 		maxID := 2    // len("ID")
@@ -1808,7 +1922,7 @@ func doList(args []string) error {
 			fmt.Fprintf(os.Stdout, outFmt, t.ID, t.Level, t.Collected)
 		}
 	default:
-		return fmt.Errorf("cannot list '%s' did you mean 'tasks', 'recordings', 'replays', 'topics', 'handlers' or 'service-tests'?", kind)
+		return fmt.Errorf("cannot list '%s' did you mean 'tasks', 'recordings', 'replays', 'topics', 'topic-handlers' or 'service-tests'?", kind)
 	}
 	return nil
 
@@ -1816,11 +1930,15 @@ func doList(args []string) error {
 
 // Delete
 func deleteUsage() {
-	var u = `Usage: kapacitor delete (tasks|templates|recordings|replays|topics|handlers) [ID or pattern]...
+	var u = `Usage: kapacitor delete (tasks|templates|recordings|replays|topics|topic-handlers) [ID or pattern]...
 
 	Delete a tasks, templates, recordings, replays, topics or handlers.
 
 	If a task is enabled it will be disabled and then deleted.
+
+	Deleting a handler requires that the topic be specified before the pattern.
+
+		$ kapacitor delete topic-handlers [topic] [ID or pattern]
 
 
 For example:
@@ -1836,6 +1954,10 @@ For example:
 	You can delete recordings:
 
 		$ kapacitor delete recordings b0a2ba8a-aeeb-45ec-bef9-1a2939963586
+
+	You can delete a handler in the topic 'system':
+
+		$ kapacitor delete topic-handlers system slack
 `
 	fmt.Fprintln(os.Stderr, u)
 }
@@ -1952,30 +2074,31 @@ func doDelete(args []string) error {
 				}
 			}
 		}
-	case "handlers":
-		for _, pattern := range args[1:] {
-			handlers, err := cli.ListHandlers(&client.ListHandlersOptions{
+	case "topic-handlers":
+		topic := args[1]
+		for _, pattern := range args[2:] {
+			handlers, err := cli.ListTopicHandlers(cli.TopicHandlersLink(topic), &client.ListTopicHandlersOptions{
 				Pattern: pattern,
 			})
 			if err != nil {
 				return err
 			}
 			for _, h := range handlers.Handlers {
-				err := cli.DeleteHandler(h.Link)
+				err := cli.DeleteTopicHandler(h.Link)
 				if err != nil {
 					return err
 				}
 			}
 		}
 	default:
-		return fmt.Errorf("cannot delete '%s' did you mean 'tasks', 'recordings' or 'replays'?", kind)
+		return fmt.Errorf("cannot delete '%s' did you mean 'tasks', 'templates', 'recordings', 'replays', 'topics' or 'topic-handlers'?", kind)
 	}
 	return nil
 }
 
 // Level
 func levelUsage() {
-	var u = `Usage: kapacitor level (debug|info|warn|error)
+	var u = `Usage: kapacitor level (debug|info|error)
 
 	Sets the logging level on the kapacitord server.
 `
@@ -2043,6 +2166,7 @@ func doStats(args []string) error {
 		fmt.Fprintf(os.Stdout, outFmtNum, "Tasks:", vars.NumTasks)
 		fmt.Fprintf(os.Stdout, outFmtNum, "Enabled Tasks:", vars.NumEnabledTasks)
 		fmt.Fprintf(os.Stdout, outFmtNum, "Subscriptions:", vars.NumSubscriptions)
+		fmt.Fprintf(os.Stdout, outFmtStr, "Platform:", vars.Platform)
 		fmt.Fprintf(os.Stdout, outFmtStr, "Version:", vars.Version)
 	case "ingress":
 		maxDB := 8  // len("Database")
@@ -2111,7 +2235,7 @@ func versionUsage() {
 }
 
 func doVersion(args []string) error {
-	fmt.Fprintf(os.Stdout, "Kapacitor %s (git: %s %s)\n", version, branch, commit)
+	fmt.Fprintf(os.Stdout, "Kapacitor %s %s (git: %s %s)\n", platform, version, branch, commit)
 	return nil
 }
 
@@ -2172,5 +2296,117 @@ func doServiceTest(args []string) error {
 		tr := results[i]
 		fmt.Fprintf(os.Stdout, outFmt, s.Name, tr.Success, tr.Message)
 	}
+	return nil
+}
+
+// Backup
+func backupUsage() {
+	var u = `Usage: kapacitor backup <output file>
+
+	Perform a backup of the Kapacitor database.
+
+	To restore a database first stop Kapacitor, then replace the existing kapacitor.db file with the backup file.
+`
+	fmt.Fprintln(os.Stderr, u)
+}
+
+func doBackup(args []string) error {
+	if len(args) != 1 {
+		return errors.New("must provide file path for backup.")
+	}
+	f, err := os.Create(args[0])
+	if err != nil {
+		return errors.Wrap(err, "failed to create backup file")
+	}
+	defer f.Close()
+	size, backup, err := cli.Backup()
+	if err != nil {
+		return errors.Wrap(err, "failed to perform backup")
+	}
+	n, err := io.Copy(f, backup)
+	if err != nil {
+		return errors.Wrap(err, "failed to save backup")
+	}
+	if n != size {
+		return fmt.Errorf("failed to download entire backup, only wrote %d bytes out of a total %d bytes.", n, size)
+	}
+	return nil
+}
+
+func watchUsage() {
+	var u = `Usage: kapacitor watch <task id> [<tags> ...]
+
+	Watch logs associated with a task.
+
+	Examples:
+
+		$ kapacitor watch mytask
+		$ kapacitor watch mytask node=log5
+`
+	fmt.Fprintln(os.Stderr, u)
+}
+
+func doWatch(args []string) error {
+	m := map[string]string{}
+	if len(args) < 1 {
+		return errors.New("must provide task ID.")
+	}
+	m["task"] = args[0]
+	for _, s := range args[1:] {
+		pair := strings.Split(s, "=")
+		if len(pair) != 2 {
+			return fmt.Errorf("bad keyvalue pair: '%v'", s)
+		}
+		m[pair[0]] = pair[1]
+	}
+
+	return tailLogs(m)
+}
+
+func logsUsage() {
+	var u = `Usage: kapacitor logs [<tags> ...]
+
+	Watch arbitrary kapacitor logs.
+
+		$ kapacitor logs service=http lvl=error
+		$ kapacitor logs service=http lvl=info+
+`
+	fmt.Fprintln(os.Stderr, u)
+}
+
+func doLogs(args []string) error {
+	m := map[string]string{}
+	for _, s := range args {
+		pair := strings.Split(s, "=")
+		if len(pair) != 2 {
+			return fmt.Errorf("bad keyvalue pair: '%v'", s)
+		}
+		m[pair[0]] = pair[1]
+	}
+
+	return tailLogs(m)
+}
+
+func tailLogs(m map[string]string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := false
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	var mu sync.Mutex
+	go func() {
+		<-sigs
+		cancel()
+		mu.Lock()
+		defer mu.Unlock()
+		done = true
+	}()
+
+	err := cli.Logs(ctx, os.Stdout, m)
+	mu.Lock()
+	defer mu.Unlock()
+	if err != nil && !done {
+		return errors.Wrap(err, "failed to retrieve logs")
+	}
+
 	return nil
 }

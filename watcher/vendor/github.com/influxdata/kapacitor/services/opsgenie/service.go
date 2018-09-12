@@ -7,22 +7,29 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	"github.com/influxdata/kapacitor/alert"
+	"github.com/influxdata/kapacitor/keyvalue"
+	"github.com/influxdata/kapacitor/models"
 )
+
+type Diagnostic interface {
+	WithContext(ctx ...keyvalue.T) Diagnostic
+
+	Error(msg string, err error)
+}
 
 type Service struct {
 	configValue atomic.Value
-	logger      *log.Logger
+	diag        Diagnostic
 }
 
-func NewService(c Config, l *log.Logger) *Service {
+func NewService(c Config, d Diagnostic) *Service {
 	s := &Service{
-		logger: l,
+		diag: d,
 	}
 	s.configValue.Store(c)
 	return s
@@ -88,11 +95,11 @@ func (s *Service) Test(options interface{}) error {
 		o.Message,
 		o.EntityID,
 		time.Now(),
-		nil,
+		models.Result{},
 	)
 }
 
-func (s *Service) Alert(teams []string, recipients []string, messageType, message, entityID string, t time.Time, details interface{}) error {
+func (s *Service) Alert(teams []string, recipients []string, messageType, message, entityID string, t time.Time, details models.Result) error {
 	url, post, err := s.preparePost(teams, recipients, messageType, message, entityID, t, details)
 	if err != nil {
 		return err
@@ -120,7 +127,7 @@ func (s *Service) Alert(teams []string, recipients []string, messageType, messag
 	return nil
 }
 
-func (s *Service) preparePost(teams []string, recipients []string, messageType, message, entityID string, t time.Time, details interface{}) (string, io.Reader, error) {
+func (s *Service) preparePost(teams []string, recipients []string, messageType, message, entityID string, t time.Time, details models.Result) (string, io.Reader, error) {
 	c := s.config()
 	if !c.Enabled {
 		return "", nil, errors.New("service is not enabled")
@@ -149,13 +156,11 @@ func (s *Service) preparePost(teams []string, recipients []string, messageType, 
 		ogData["note"] = message
 	}
 
-	if details != nil {
-		b, err := json.Marshal(details)
-		if err != nil {
-			return "", nil, err
-		}
-		ogData["description"] = string(b)
+	b, err := json.Marshal(details)
+	if err != nil {
+		return "", nil, err
 	}
+	ogData["description"] = string(b)
 
 	if len(teams) == 0 {
 		teams = c.Teams
@@ -176,7 +181,7 @@ func (s *Service) preparePost(teams []string, recipients []string, messageType, 
 	// Post data to VO
 	var post bytes.Buffer
 	enc := json.NewEncoder(&post)
-	err := enc.Encode(ogData)
+	err = enc.Encode(ogData)
 	if err != nil {
 		return "", nil, err
 	}
@@ -193,16 +198,16 @@ type HandlerConfig struct {
 }
 
 type handler struct {
-	s      *Service
-	c      HandlerConfig
-	logger *log.Logger
+	s    *Service
+	c    HandlerConfig
+	diag Diagnostic
 }
 
-func (s *Service) Handler(c HandlerConfig, l *log.Logger) alert.Handler {
+func (s *Service) Handler(c HandlerConfig, ctx ...keyvalue.T) alert.Handler {
 	return &handler{
-		s:      s,
-		c:      c,
-		logger: l,
+		s:    s,
+		c:    c,
+		diag: s.diag.WithContext(ctx...),
 	}
 }
 
@@ -223,6 +228,6 @@ func (h *handler) Handle(event alert.Event) {
 		event.State.Time,
 		event.Data.Result,
 	); err != nil {
-		h.logger.Println("E! failed to send event to OpsGenie", err)
+		h.diag.Error("failed to send event to OpsGenie", err)
 	}
 }

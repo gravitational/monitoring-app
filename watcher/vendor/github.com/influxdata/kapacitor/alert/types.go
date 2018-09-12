@@ -6,14 +6,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/influxdata/influxdb/influxql"
+	"github.com/influxdata/kapacitor/models"
 )
 
 type Event struct {
 	Topic         string
 	State         EventState
 	Data          EventData
+	NoExternal    bool
 	previousState EventState
+}
+
+func (e Event) AlertData() Data {
+	return Data{
+		ID:            e.State.ID,
+		Message:       e.State.Message,
+		Details:       e.State.Details,
+		Time:          e.State.Time,
+		Duration:      e.State.Duration,
+		Level:         e.State.Level,
+		Data:          e.Data.Result,
+		PreviousLevel: e.previousState.Level,
+		Recoverable:   e.Data.Recoverable,
+	}
 }
 
 func (e Event) PreviousState() EventState {
@@ -56,6 +71,9 @@ type EventData struct {
 	// TaskName is the name of the task that generated this event.
 	TaskName string
 
+	// Category is the category of the alert that generated this event.
+	Category string
+
 	// Concatenation of all group-by tags of the form [key=value,]+.
 	// If not groupBy is performed equal to literal 'nil'
 	Group string
@@ -66,7 +84,9 @@ type EventData struct {
 	// Fields of alerting data point.
 	Fields map[string]interface{}
 
-	Result influxql.Result
+	Recoverable bool
+
+	Result models.Result
 }
 
 // TemplateData is a structure containing all information available to use in templates for an Event.
@@ -149,7 +169,21 @@ func ParseLevel(s string) (l Level, err error) {
 	return
 }
 
-type TopicStatus struct {
+type TopicState struct {
 	Level     Level
 	Collected int64
+}
+
+// Data is a structure that contains relevant data about an alert event.
+// The structure is intended to be JSON encoded, providing a consistent data format.
+type Data struct {
+	ID            string        `json:"id"`
+	Message       string        `json:"message"`
+	Details       string        `json:"details"`
+	Time          time.Time     `json:"time"`
+	Duration      time.Duration `json:"duration"`
+	Level         Level         `json:"level"`
+	Data          models.Result `json:"data"`
+	PreviousLevel Level         `json:"previousLevel"`
+	Recoverable   bool          `json:"recoverable"`
 }
