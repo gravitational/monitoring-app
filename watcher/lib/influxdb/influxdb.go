@@ -61,22 +61,27 @@ func (c *Client) Setup() error {
 	queries := []string{
 		fmt.Sprintf(createAdminQuery, constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword),
 		fmt.Sprintf(createUserQuery, constants.InfluxDBGrafanaUser, constants.InfluxDBGrafanaPassword),
-		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase, constants.DurationDefault),
-		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser),
-		fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy,
-			constants.InfluxDBDatabase, constants.DurationDefault) + " default",
-		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionMedium, constants.InfluxDBDatabase,
-			constants.DurationMedium),
-		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionLong, constants.InfluxDBDatabase,
-			constants.DurationLong),
 	}
 	for _, query := range queries {
 		log.Infof("%v", query)
-
-		if err := c.postQuery(query); err != nil {
+		if _, err := c.postQuery(query); err != nil {
 			return trace.Wrap(err)
 		}
 	}
+
+	if err := c.createDatabase(); err != nil {
+		return trace.Wrap(err)
+	}
+
+	log.Infof("%v", fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser))
+	if _, err := c.postQuery(fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser)); err != nil {
+		return trace.Wrap(err)
+	}
+
+	if err := c.createRetentionPolicies(); err != nil {
+		return trace.Wrap(err)
+	}
+
 	return nil
 }
 
@@ -93,7 +98,7 @@ func (c *Client) CreateRollup(r Rollup) error {
 	}
 	log.Infof("%v", query)
 
-	if err = c.postQuery(query); err != nil {
+	if _, err = c.postQuery(query); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
@@ -112,7 +117,7 @@ func (c *Client) DeleteRollup(r Rollup) error {
 	}
 	log.Infof("%v", query)
 
-	if err = c.postQuery(query); err != nil {
+	if _, err = c.postQuery(query); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
@@ -136,19 +141,87 @@ func (c *Client) UpdateRollup(r Rollup) error {
 	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
 	log.Infof("%v", query)
 
-	if err = c.postQuery(query); err != nil {
+	if _, err = c.postQuery(query); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
 }
 
-func (c *Client) postQuery(query string) error {
+func (c *Client) postQuery(query string) (*client_v2.Response, error) {
 	response, err := c.client.Query(client_v2.NewQuery(query, "", ""))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		return nil, trace.Wrap(response.Error())
+	}
+
+	return response, nil
+}
+
+func (c *Client) createDatabase() error {
+	showDatabasesResponse, err := c.postQuery(showDatabasesQuery)
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	if response.Error() != nil {
-		return trace.Wrap(response.Error())
+
+	var createDatabase = true
+	// loop over response for `SHOW DATABASES`
+	for _, result := range showDatabasesResponse.Results {
+		for _, row := range result.Series {
+			if row.Values != nil && row.Values[0][0].(string) == constants.InfluxDBDatabase {
+				createDatabase = false
+				break
+			}
+		}
+	}
+
+	if createDatabase {
+		log.Infof("%v", fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase, constants.DurationDefault))
+		if _, err := c.postQuery(fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase, constants.DurationDefault)); err != nil {
+			return trace.Wrap(err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) createRetentionPolicies() error {
+	var retentionPoliciesInDB = map[string]bool{}
+	retentionPolicies := []string{
+		constants.InfluxDBRetentionPolicy,
+		constants.RetentionMedium,
+		constants.RetentionLong,
+	}
+	retentionPoliciesCreateQueries := map[string]string{
+		constants.InfluxDBRetentionPolicy: fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy, constants.InfluxDBDatabase, constants.DurationDefault) + " default",
+		constants.RetentionMedium:         fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionMedium, constants.InfluxDBDatabase, constants.DurationMedium),
+		constants.RetentionLong:           fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionLong, constants.InfluxDBDatabase, constants.DurationLong),
+	}
+
+	showRetentionPolicyResponse, err := c.postQuery(fmt.Sprintf(showRetentionPolicyQuery, constants.InfluxDBDatabase))
+	log.Infof("response: %v", showRetentionPolicyResponse)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	// loop over response for `SHOW RETENTION POLICIES for dbname`
+	for _, result := range showRetentionPolicyResponse.Results {
+		for _, row := range result.Series {
+			if row.Values != nil {
+				retentionPoliciesInDB[row.Values[0][0].(string)] = true
+			}
+		}
+
+	}
+	// create retention policy if it not exists
+	for _, policy := range retentionPolicies {
+		if !retentionPoliciesInDB[policy] {
+			log.Infof("%v", retentionPoliciesCreateQueries[policy])
+			if _, err := c.postQuery(retentionPoliciesCreateQueries[policy]); err != nil {
+				return trace.Wrap(err)
+			}
+		}
 	}
 
 	return nil
@@ -165,4 +238,8 @@ const (
 	createDatabaseQuery = "create database %q with duration %v"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
 	createRetentionPolicyQuery = "create retention policy %q on %q duration %v replication 1"
+	// showRetentionPolicyQuery is the InfluxDB query to show retention policies for database
+	showRetentionPolicyQuery = "show retention policies on %q"
+	// showDatabasesQuery is the InfluxDB query to show databases
+	showDatabasesQuery = "show databases"
 )
