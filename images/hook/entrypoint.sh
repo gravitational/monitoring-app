@@ -60,8 +60,16 @@ if [ $1 = "update" ]; then
 spec:
   template:
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: $NODE_NAME
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - $NODE_NAME
 EOF
 
     kubectl --namespace=kube-system patch deployment influxdb --patch="$(cat patch.yaml)"
