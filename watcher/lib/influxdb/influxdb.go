@@ -200,7 +200,6 @@ func (c *Client) createRetentionPolicies() error {
 	}
 
 	showRetentionPolicyResponse, err := c.postQuery(fmt.Sprintf(showRetentionPolicyQuery, constants.InfluxDBDatabase))
-	log.Infof("response: %v", showRetentionPolicyResponse)
 	if err != nil {
 		return trace.Wrap(err)
 	}
