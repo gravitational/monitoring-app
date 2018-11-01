@@ -16,6 +16,9 @@ if [ $1 = "update" ]; then
     rig delete rc/heapster --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
 
     echo "---> Deleting old 'influxdb' resources"
+    # Get node name where influxdb pod scheduled to patch deployment
+    # and reschedule the pod on the same node after update
+    NODE_NAME=$(kubectl --namespace=kube-system get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
     rig delete deployments/influxdb --resource-namespace=kube-system --force
     rig delete rc/influxdb --resource-namespace=kube-system --force # in case we're upgrading from version where it was still rc
 
@@ -54,6 +57,23 @@ if [ $1 = "update" ]; then
     echo "---> Creating or updating resources"
     rig upsert -f /var/lib/gravity/resources/resources.yaml --debug
     rig upsert -f /var/lib/gravity/resources/alerts.yaml --debug
+
+    read -r -d '' INFLUXDB_PATCH <<EOF
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - $NODE_NAME
+EOF
+    kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug

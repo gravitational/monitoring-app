@@ -61,7 +61,7 @@ func (c *Client) Setup() error {
 	queries := []string{
 		fmt.Sprintf(createAdminQuery, constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword),
 		fmt.Sprintf(createUserQuery, constants.InfluxDBGrafanaUser, constants.InfluxDBGrafanaPassword),
-		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase, constants.DurationDefault),
+		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase),
 		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser),
 		fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy,
 			constants.InfluxDBDatabase, constants.DurationDefault) + " default",
@@ -73,7 +73,7 @@ func (c *Client) Setup() error {
 	for _, query := range queries {
 		log.Infof("%v", query)
 
-		if err := c.postQuery(query); err != nil {
+		if err := c.execQuery(query); err != nil {
 			return trace.Wrap(err)
 		}
 	}
@@ -93,7 +93,7 @@ func (c *Client) CreateRollup(r Rollup) error {
 	}
 	log.Infof("%v", query)
 
-	if err = c.postQuery(query); err != nil {
+	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
@@ -112,7 +112,7 @@ func (c *Client) DeleteRollup(r Rollup) error {
 	}
 	log.Infof("%v", query)
 
-	if err = c.postQuery(query); err != nil {
+	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
@@ -136,13 +136,13 @@ func (c *Client) UpdateRollup(r Rollup) error {
 	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
 	log.Infof("%v", query)
 
-	if err = c.postQuery(query); err != nil {
+	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil
 }
 
-func (c *Client) postQuery(query string) error {
+func (c *Client) execQuery(query string) error {
 	response, err := c.client.Query(client_v2.NewQuery(query, "", ""))
 	if err != nil {
 		return trace.Wrap(err)
@@ -162,7 +162,7 @@ const (
 	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
 	grantReadQuery = "grant read on %q to %v"
 	// createDatabaseQuery is the InfluxDB query to create a database
-	createDatabaseQuery = "create database %q with duration %v"
+	createDatabaseQuery = "create database %q"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
 	createRetentionPolicyQuery = "create retention policy %q on %q duration %v replication 1"
 )
