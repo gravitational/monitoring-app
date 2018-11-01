@@ -58,7 +58,21 @@ if [ $1 = "update" ]; then
     rig upsert -f /var/lib/gravity/resources/resources.yaml --debug
     rig upsert -f /var/lib/gravity/resources/alerts.yaml --debug
 
-    INFLUXDB_PATCH="{\"spec\": {\"template\": {\"spec\": {\"affinity\": {\"nodeAffinity\": {\"preferredDuringSchedulingIgnoredDuringExecution\": [{\"weight\": 1,\"preference\": {\"matchExpressions\": [{\"key\": \"kubernetes.io/hostname\",\"operator\": \"In\",\"values\": [\"$NODE_NAME\"]}]}}]}}}}}}"
+    read -r -d '' INFLUXDB_PATCH <<EOF
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - $NODE_NAME
+EOF
     kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
 
     echo "---> Checking status"
