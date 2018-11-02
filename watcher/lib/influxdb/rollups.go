@@ -57,13 +57,57 @@ func (r Rollup) Check() error {
 	if len(r.Functions) == 0 {
 		return trace.BadParameter("parameter Functions is empty")
 	}
-	for _, rollup := range r.Functions {
-		err := rollup.Check()
-		if err != nil {
+	for _, function := range r.Functions {
+		if err := function.Check(); err != nil {
 			return trace.Wrap(err)
 		}
 	}
 	return nil
+}
+
+// buildCreateQuery returns a string with InfluxDB query to create rollup
+// based on the rollup configuration
+func (r *Rollup) buildCreateQuery() (string, error) {
+	var functions []string
+	for _, fn := range r.Functions {
+		function, err := fn.buildFunction()
+		if err != nil {
+			return "", trace.Wrap(err)
+		}
+		functions = append(functions, function)
+	}
+
+	var b bytes.Buffer
+	err := createQueryTemplate.Execute(&b, map[string]string{
+		"name":             r.Name,
+		"database":         constants.InfluxDBDatabase,
+		"functions":        strings.Join(functions, ", "),
+		"retention_into":   r.Retention,
+		"measurement_into": r.Name,
+		"retention_from":   constants.InfluxDBRetentionPolicy,
+		"measurement_from": r.Measurement,
+		"interval":         constants.RetentionToInterval[r.Retention],
+	})
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	return b.String(), nil
+}
+
+// buildDeleteQuery returns a string with InfluxDB query to delete rollup
+// based on the rollup configuration
+func (r *Rollup) buildDeleteQuery() (string, error) {
+	var b bytes.Buffer
+	err := deleteQueryTemplate.Execute(&b, map[string]string{
+		"name":     r.Name,
+		"database": constants.InfluxDBDatabase,
+	})
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	return b.String(), nil
 }
 
 // Function defines a single rollup function
@@ -78,12 +122,12 @@ type Function struct {
 
 // Check verifies the function configuration is correct
 func (f Function) Check() error {
-	if !utils.OneOf(f.Function, constants.SimpleFunctions) && !isCompositeFunc(f) {
+	if !utils.OneOf(f.Function, constants.SimpleFunctions) && !f.isComposite() {
 		return trace.BadParameter(
 			"invalid Function, must be one of %v, or a composite function starting with one of %v prefixes",
 			constants.SimpleFunctions, constants.CompositeFunctions)
 	}
-	if isCompositeFunc(f) {
+	if f.isComposite() {
 		funcAndValue := strings.Split(f.Function, "_")
 		if len(funcAndValue) != 2 {
 			return trace.BadParameter(
@@ -97,7 +141,7 @@ func (f Function) Check() error {
 }
 
 // buildFunction returns a function string based on the provided function configuration
-func buildFunction(f Function) (string, error) {
+func (f *Function) buildFunction() (string, error) {
 	alias := f.Alias
 	if alias == "" {
 		alias = f.Field
@@ -109,23 +153,23 @@ func buildFunction(f Function) (string, error) {
 		return "", trace.Wrap(err)
 	}
 
-	if isCompositeFunc(f) {
-		funcAndValue := strings.Split(f.Function, "_")
-		funcName := funcAndValue[0]
-		param := funcAndValue[1]
-
-		err := validateParam(funcName, param)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
+	if !f.isComposite() {
+		return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
 	}
 
-	return fmt.Sprintf(`%v("%v") as %v`, f.Function, f.Field, alias), nil
+	funcAndValue := strings.Split(f.Function, "_")
+	funcName := funcAndValue[0]
+	param := funcAndValue[1]
+
+	err = validateParam(funcName, param)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
 }
 
-// isCompositeFunc checks if the specified function is composite
-func isCompositeFunc(f Function) bool {
+// isComposite checks if the specified function is composite
+func (f *Function) isComposite() bool {
 	for _, name := range constants.CompositeFunctions {
 		if strings.HasPrefix(f.Function, name) {
 			return true
@@ -158,43 +202,6 @@ func validateParam(funcName, param string) error {
 	return nil
 }
 
-// buildQuery returns a string with InfluxDB query based on the rollup configuration
-func buildQuery(r Rollup, operation RollupOperation) (string, error) {
-	var functions []string
-	for _, fn := range r.Functions {
-		function, err := buildFunction(fn)
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		functions = append(functions, function)
-	}
-
-	var b bytes.Buffer
-	var err error
-	if operation == RollupCreate {
-		err = createQueryTemplate.Execute(&b, map[string]string{
-			"name":             r.Name,
-			"database":         constants.InfluxDBDatabase,
-			"functions":        strings.Join(functions, ", "),
-			"retention_into":   r.Retention,
-			"measurement_into": r.Name,
-			"retention_from":   constants.InfluxDBRetentionPolicy,
-			"measurement_from": r.Measurement,
-			"interval":         constants.RetentionToInterval[r.Retention],
-		})
-	} else {
-		err = deleteQueryTemplate.Execute(&b, map[string]string{
-			"name":     r.Name,
-			"database": constants.InfluxDBDatabase,
-		})
-	}
-	if err != nil {
-		return "", trace.Wrap(err)
-	}
-
-	return b.String(), nil
-}
-
 var (
 	// createQueryTemplate is the template for creating InfluxDB continuous query
 	createQueryTemplate = template.Must(template.New("query").Parse(
@@ -202,16 +209,4 @@ var (
 	// deleteQueryTemplate is the template for deleting Influx continuous query
 	deleteQueryTemplate = template.Must(template.New("query").Parse(
 		`drop continuous query "{{.name}}" on {{.database}}`))
-)
-
-// RollupOperation defines operation on continuous query
-type RollupOperation string
-
-const (
-	// RollupCreate defines create operation on continuous query
-	RollupCreate RollupOperation = "create"
-	// RollupDelete defines delete operation on continuous query
-	RollupDelete RollupOperation = "delete"
-	// RollupUpdate defines alter operation on continuous query
-	RollupUpdate RollupOperation = "update"
 )

@@ -18,6 +18,7 @@ package influxdb
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 
@@ -79,8 +80,8 @@ func (c *Client) Setup() error {
 	return nil
 }
 
-// ManageRollup creates/updates/deletes a rollup query in the database
-func (c *Client) ManageRollup(r Rollup, operation RollupOperation) error {
+// CreateRollup creates a rollup query in the database
+func (c *Client) CreateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
 		return trace.Wrap(err)
@@ -128,9 +129,11 @@ func (c *Client) UpdateRollup(r Rollup) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
+	createQuery, err := r.buildCreateQuery()
 	if err != nil {
 		return trace.Wrap(err)
 	}
+	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
 	log.Infof("%v", query)
 
 	if err = c.execQuery(query); err != nil {
