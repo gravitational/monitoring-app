@@ -71,7 +71,7 @@ func (c *Client) Setup() error {
 			constants.DurationLong),
 	}
 	for _, query := range queries {
-		log.Infof("%v", query)
+		log.WithField("query", query).Info("Setup query.")
 
 		if err := c.execQuery(query); err != nil {
 			return trace.Wrap(err)
@@ -91,7 +91,7 @@ func (c *Client) CreateRollup(r Rollup) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	log.Infof("%v", query)
+	log.WithField("query", query).Info("New rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
@@ -110,7 +110,7 @@ func (c *Client) DeleteRollup(r Rollup) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	log.Infof("%v", query)
+	log.WithField("query", query).Info("Remove rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
@@ -134,7 +134,7 @@ func (c *Client) UpdateRollup(r Rollup) error {
 		return trace.Wrap(err)
 	}
 	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
-	log.Infof("%v", query)
+	log.WithField("query", query).Info("Update rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
