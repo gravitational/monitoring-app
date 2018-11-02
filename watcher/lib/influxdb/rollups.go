@@ -19,9 +19,9 @@ package influxdb
 import (
 	"bytes"
 	"fmt"
-	"text/template"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/utils"
@@ -159,7 +159,7 @@ func validateParam(funcName, param string) error {
 }
 
 // buildQuery returns a string with InfluxDB query based on the rollup configuration
-func buildQuery(r Rollup) (string, error) {
+func buildQuery(r Rollup, operation RollupOperation) (string, error) {
 	var functions []string
 	for _, fn := range r.Functions {
 		function, err := buildFunction(fn)
@@ -170,16 +170,24 @@ func buildQuery(r Rollup) (string, error) {
 	}
 
 	var b bytes.Buffer
-	err := queryTemplate.Execute(&b, map[string]string{
-		"name":             r.Name,
-		"database":         constants.InfluxDBDatabase,
-		"functions":        strings.Join(functions, ", "),
-		"retention_into":   r.Retention,
-		"measurement_into": r.Name,
-		"retention_from":   constants.InfluxDBRetentionPolicy,
-		"measurement_from": r.Measurement,
-		"interval":         constants.RetentionToInterval[r.Retention],
-	})
+	var err error
+	if operation == RollupCreate {
+		err = createQueryTemplate.Execute(&b, map[string]string{
+			"name":             r.Name,
+			"database":         constants.InfluxDBDatabase,
+			"functions":        strings.Join(functions, ", "),
+			"retention_into":   r.Retention,
+			"measurement_into": r.Name,
+			"retention_from":   constants.InfluxDBRetentionPolicy,
+			"measurement_from": r.Measurement,
+			"interval":         constants.RetentionToInterval[r.Retention],
+		})
+	} else {
+		err = deleteQueryTemplate.Execute(&b, map[string]string{
+			"name":     r.Name,
+			"database": constants.InfluxDBDatabase,
+		})
+	}
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
@@ -188,7 +196,22 @@ func buildQuery(r Rollup) (string, error) {
 }
 
 var (
-	// queryTemplate is the template of the InfluxDB rollup query
-	queryTemplate = template.Must(template.New("query").Parse(
+	// createQueryTemplate is the template for creating InfluxDB continuous query
+	createQueryTemplate = template.Must(template.New("query").Parse(
 		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{.database}}."{{.retention_from}}"."{{.measurement_from}}" group by *, time({{.interval}}) end`))
+	// deleteQueryTemplate is the template for deleting Influx continuous query
+	deleteQueryTemplate = template.Must(template.New("query").Parse(
+		`drop continuous query "{{.name}}" on {{.database}}`))
+)
+
+// RollupOperation defines operation on continuous query
+type RollupOperation string
+
+const (
+	// RollupCreate defines create operation on continuous query
+	RollupCreate RollupOperation = "create"
+	// RollupDelete defines delete operation on continuous query
+	RollupDelete RollupOperation = "delete"
+	// RollupUpdate defines alter operation on continuous query
+	RollupUpdate RollupOperation = "update"
 )
