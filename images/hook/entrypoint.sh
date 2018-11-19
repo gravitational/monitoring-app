@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -e
 
 echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
@@ -7,6 +7,7 @@ echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 if [ $1 = "update" ]; then
     echo "---> Checking: $RIG_CHANGESET"
     if rig status $RIG_CHANGESET --retry-attempts=1 --retry-period=1s; then exit 0; fi
+
     echo "---> Starting update, changeset: $RIG_CHANGESET"
     rig cs delete --force -c cs/$RIG_CHANGESET
 
@@ -20,6 +21,9 @@ if [ $1 = "update" ]; then
         rig delete deployments/heapster --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'influxdb' resources"
+        # Get node name where influxdb pod scheduled to patch deployment
+        # and reschedule the pod on the same node after update
+        NODE_NAME=$(kubectl --namespace=kube-system get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
         rig delete deployments/influxdb --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'grafana' resources"
@@ -72,6 +76,23 @@ if [ $1 = "update" ]; then
     do
         rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
     done
+
+    read -r -d '' INFLUXDB_PATCH <<EOF
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - $NODE_NAME
+EOF
+    kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug
