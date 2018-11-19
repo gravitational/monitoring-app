@@ -79,6 +79,8 @@ const (
 	// DurationLong is the duration of "long" retention policy in format InfluxDB expects
 	DurationLong = "52w"
 
+	// DefaultInterval is the aggregation interval for "default" retention policy
+	DefaultInterval = "1m"
 	// IntervalMedium is the aggregation interval for "medium" retention policy
 	IntervalMedium = "5m"
 	// IntervalLong is the aggregation interval for "long" retention policy
@@ -189,6 +191,7 @@ var (
 
 	// AllRetentions contains names of all supported retention policies
 	AllRetentions = []string{
+		InfluxDBRetentionPolicy,
 		RetentionLong,
 		RetentionMedium,
 	}
