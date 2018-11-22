@@ -1,14 +1,14 @@
 FROM quay.io/gravitational/debian-grande:stretch
 ARG KAPACITOR_VERSION
-ARG GPG_KEY=05CE15085FC09D18E99EFB22684A14CF2582E0C5
 
 RUN apt-get update && \
     apt-get install -y curl wget gnupg dirmngr
 
-RUN do \
-      gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "${GPG_KEY}" || \
-      gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "${GPG_KEY}" || \
-      gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys "${GPG_KEY}" ; \
+RUN for key in 05CE15085FC09D18E99EFB22684A14CF2582E0C5
+    do \
+      gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
+      gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
+      gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
     done
 
 RUN wget -q https://dl.influxdata.com/kapacitor/releases/kapacitor_${KAPACITOR_VERSION}_amd64.deb.asc && \
