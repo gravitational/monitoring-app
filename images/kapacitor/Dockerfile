@@ -4,7 +4,7 @@ ARG KAPACITOR_VERSION
 RUN apt-get update && \
     apt-get install -y curl wget gnupg dirmngr
 
-RUN for key in 05CE15085FC09D18E99EFB22684A14CF2582E0C5 \
+RUN for key in 05CE15085FC09D18E99EFB22684A14CF2582E0C5; \
     do \
       gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
       gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
