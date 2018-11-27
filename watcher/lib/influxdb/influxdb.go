@@ -33,11 +33,11 @@ type Client struct {
 }
 
 // NewClient creates a new InfluxDB client
-func NewClient() (*Client, error) {
+func NewClient(username, password string) (*Client, error) {
 	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
 		Addr:     constants.InfluxDBAPIAddress,
-		Username: constants.InfluxDBAdminUser,
-		Password: constants.InfluxDBAdminPassword,
+		Username: username,
+		Password: password,
 	})
 	if err != nil {
 		return nil, trace.Wrap(err)

@@ -31,7 +31,7 @@ import (
 )
 
 func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
-	influxDBClient, err := influxdb.NewClient()
+	influxDBClient, err := influxdb.NewClient(influxdbAdminUsername, influxdbAdminPassword)
 	if err != nil {
 		return trace.Wrap(err)
 	}

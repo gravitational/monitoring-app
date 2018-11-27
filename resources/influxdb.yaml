@@ -213,3 +213,13 @@ data:
       enabled = true
       query-stats-enabled = false
       run-interval = "1s"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: influxdb
+  namespace: monitoring
+type: Opaque
+data:
+  username: cm9vdA==
+  password: cGFzc3dvcmQtZ29lcy1oZXJlCg==
