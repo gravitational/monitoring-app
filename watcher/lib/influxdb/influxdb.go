@@ -92,7 +92,7 @@ func (c *Client) Setup(config Config) error {
 			constants.DurationLong),
 	}
 	for _, query := range queries {
-		log.WithField("query", query).Info("Setup query.")
+		log.WithField("query", query).Debug("Setup query.")
 
 		if err := c.execQuery(query); err != nil {
 			return trace.Wrap(err)

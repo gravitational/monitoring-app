@@ -32,6 +32,7 @@ import (
 
 var (
 	mode           string
+	debug          bool
 	influxDBConfig influxdb.Config
 
 	envs = map[string]string{
@@ -51,6 +52,8 @@ var (
 )
 
 func init() {
+	log.SetLevel(log.InfoLevel)
+
 	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminPassword, "influxdb-admin-password", constants.InfluxDBAdminUser, "InfluxDB administrator password")
@@ -58,6 +61,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaPassword, "influxdb-grafana-password", constants.InfluxDBGrafanaUser, "InfluxDB grafana password")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafUser, "influxdb-telegraf-username", constants.InfluxDBTelegrafUser, "InfluxDB telegraf username")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafUser, "InfluxDB telegraf password")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debugging mode")
+
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	bindFlagEnv(rootCmd.PersistentFlags())
 }

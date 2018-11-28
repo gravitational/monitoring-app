@@ -66,16 +66,6 @@ spec:
               secretKeyRef:
                 name: grafana
                 key: password
-          - name: INFLUXDB_USER
-            valueFrom:
-              secretKeyRef:
-                name: grafana-influxdb-creds
-                key: username
-          - name: INFLUXDB_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: grafana-influxdb-creds
-                key: password
         volumeMounts:
           - name: config
             mountPath: /etc/grafana/cfg
@@ -359,8 +349,8 @@ data:
         type: influxdb
         access: proxy
         url: "http://influxdb.monitoring.svc:8086"
-        password: "grafana"
         user: "grafana"
+        password: "grafanaInfluxDBPassword"
         database: "k8s"
         isDefault: true
         version: 1
