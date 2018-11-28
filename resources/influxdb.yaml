@@ -48,6 +48,26 @@ spec:
               secretKeyRef:
                 name: influxdb
                 key: password
+          - name: INFLUXDB_GRAFANA_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: grafana-influxdb-creds
+                key: username
+          - name: INFLUXDB_GRAFANA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: grafana-influxdb-creds
+                key: password
+          - name: INFLUXDB_TELEGRAF_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: telegraf-influxdb-creds
+                key: username
+          - name: INFLUXDB_TELEGRAF_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: telegraf-influxdb-creds
+                key: password
       - name: influxdb
         image: monitoring-influxdb:latest
         command:
@@ -224,13 +244,3 @@ data:
       enabled = true
       query-stats-enabled = false
       run-interval = "1s"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: influxdb
-  namespace: monitoring
-type: Opaque
-data:
-  username: cm9vdA==
-  password: cGFzc3dvcmQtZ29lcy1oZXJlCg==

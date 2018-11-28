@@ -30,8 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
-	influxDBClient, err := influxdb.NewClient(influxdbAdminUsername, influxdbAdminPassword)
+func runRollupsWatcher(kubernetesClient *kubernetes.Client, config influxdb.Config) error {
+	influxDBClient, err := influxdb.NewClient(config)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -41,7 +41,7 @@ func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
 		return trace.Wrap(err)
 	}
 
-	err = influxDBClient.Setup()
+	err = influxDBClient.Setup(config)
 	if err != nil {
 		return trace.Wrap(err)
 	}

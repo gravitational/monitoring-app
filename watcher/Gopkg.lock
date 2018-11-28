@@ -160,6 +160,12 @@
   revision = "4a5e142f3251b3a98e8fd71c2a32eb225af06b6d"
 
 [[projects]]
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
+
+[[projects]]
   branch = "1.2"
   name = "github.com/influxdata/influxdb"
   packages = [
@@ -235,10 +241,16 @@
   version = "v1.0.3"
 
 [[projects]]
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
+  version = "v0.0.3"
+
+[[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
-  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
-  version = "v1.0.0"
+  revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
+  version = "v1.0.3"
 
 [[projects]]
   name = "github.com/uber-go/atomic"
@@ -455,6 +467,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c0bde81bb8e74ab1b018607398e517aec14b7ecd53ea3b6fdcd794e2081bf7c2"
+  inputs-digest = "630a4d82ab9955b232e2b3a4f849c4da8d49eb110f34d39bf6f9d9a4156354f9"
   solver-name = "gps-cdcl"
   solver-version = 1

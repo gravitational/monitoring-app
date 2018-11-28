@@ -27,17 +27,33 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Config is the configuration for InfluxDB
+type Config struct {
+	// InfluxDBAdminUser is the InfluxDB admin username
+	InfluxDBAdminUser string
+	// InfluxDBAdminPassword is the InfluxDB admin password
+	InfluxDBAdminPassword string
+	// InfluxDBGrafanaUser is the InfluxDB grafana username
+	InfluxDBGrafanaUser string
+	// InfluxDBGrafanaPassword is the InfluxDB grafana password
+	InfluxDBGrafanaPassword string
+	// InfluxDBTelegrafUser is the InfluxDB telegraf username
+	InfluxDBTelegrafUser string
+	// InfluxDBTelegrafPassword is the InfluxDB telegraf password
+	InfluxDBTelegrafPassword string
+}
+
 // Client is the InfluxDB API client
 type Client struct {
 	client client_v2.Client
 }
 
 // NewClient creates a new InfluxDB client
-func NewClient(username, password string) (*Client, error) {
+func NewClient(config Config) (*Client, error) {
 	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
 		Addr:     constants.InfluxDBAPIAddress,
-		Username: username,
-		Password: password,
+		Username: config.InfluxDBAdminUser,
+		Password: config.InfluxDBAdminPassword,
 	})
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -57,12 +73,17 @@ func (c *Client) Health() error {
 }
 
 // Setup sets up InfluxDB database
-func (c *Client) Setup() error {
+func (c *Client) Setup(config Config) error {
 	queries := []string{
-		fmt.Sprintf(createAdminQuery, constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword),
-		fmt.Sprintf(createUserQuery, constants.InfluxDBGrafanaUser, constants.InfluxDBGrafanaPassword),
+		// create admin user and users for Grafana/Telegraf applications
+		fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword),
+		fmt.Sprintf(createUserQuery, config.InfluxDBGrafanaUser, config.InfluxDBGrafanaPassword),
+		fmt.Sprintf(createUserQuery, config.InfluxDBTelegrafUser, config.InfluxDBTelegrafPassword),
 		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase),
-		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser),
+		// grant read access to grafana user
+		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, config.InfluxDBGrafanaUser),
+		// grant write access to telegraf user
+		fmt.Sprintf(grantAllQuery, constants.InfluxDBDatabase, config.InfluxDBTelegrafUser),
 		fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy,
 			constants.InfluxDBDatabase, constants.DurationDefault) + " default",
 		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionMedium, constants.InfluxDBDatabase,
@@ -161,6 +182,8 @@ const (
 	createUserQuery = "create user %v with password '%v'"
 	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
 	grantReadQuery = "grant read on %q to %v"
+	// grantAllQuery is the InfluxDB query to grant all privileges on a database to a user
+	grantAllQuery = "grant all on %q to %v"
 	// createDatabaseQuery is the InfluxDB query to create a database
 	createDatabaseQuery = "create database %q"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy

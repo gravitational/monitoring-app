@@ -21,67 +21,86 @@ import (
 	"os"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+	"github.com/gravitational/monitoring-app/watcher/lib/influxdb"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 var (
-	mode                  string
-	influxdbAdminUsername string
-	influxdbAdminPassword string
+	mode           string
+	influxDBConfig influxdb.Config
 
 	envs = map[string]string{
-		"influxdb-admin-username": "INFLUXDB_ADMIN_USERNAME",
-		"influxdb-admin-password": "INFLUXDB_ADMIN_PASSWORD",
+		"INFLUXDB_ADMIN_USERNAME":    "influxdb-admin-username",
+		"INFLUXDB_ADMIN_PASSWORD":    "influxdb-admin-password",
+		"INFLUXDB_GRAFANA_USERNAME":  "influxdb-grafana-username",
+		"INFLUXDB_GRAFANA_PASSWORD":  "influxdb-grafana-password",
+		"INFLUXDB_TELEGRAF_USERNAME": "influxdb-telegraf-username",
+		"INFLUXDB_TELEGRAF_PASSWORD": "influxdb-telegraf-password",
+	}
+
+	rootCmd = &cobra.Command{
+		Use:   "watcher",
+		Short: "Utility to manage InfluxDB/Grafana/Alerts",
+		RunE:  root,
 	}
 )
 
+func init() {
+	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminPassword, "influxdb-admin-password", constants.InfluxDBAdminUser, "InfluxDB administrator password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaUser, "influxdb-grafana-username", constants.InfluxDBGrafanaUser, "InfluxDB grafana username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaPassword, "influxdb-grafana-password", constants.InfluxDBGrafanaUser, "InfluxDB grafana password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafUser, "influxdb-telegraf-username", constants.InfluxDBTelegrafUser, "InfluxDB telegraf username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafUser, "InfluxDB telegraf password")
+
+	bindFlagEnv(rootCmd.PersistentFlags())
+}
+
 func main() {
-	var mode string
-	flag.StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
-	flag.StringVar(&influxdbAdminUsername, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
-	flag.StringVar(&influxdbAdminPassword, "influxdb-admin-password", constants.InfluxDBAdminUser, "InfluxDB administrator password")
-	flag.Parse()
+	if err := rootCmd.Execute(); err != nil {
+		log.Error(trace.DebugReport(err))
+		os.Exit(255)
+	}
+}
 
-	bindFlagEnv(&influxdbAdminUsername)
-	bindFlagEnv(&influxdbAdminPassword)
-
+func root(ccmd *cobra.Command, args []string) error {
 	client, err := kubernetes.NewClient()
 	if err != nil {
-		exitWithError(err)
+		return trace.Wrap(err)
 	}
 
 	switch mode {
 	case constants.ModeDashboards:
 		err = runDashboardsWatcher(client)
 	case constants.ModeRollups:
-		err = runRollupsWatcher(client)
+		err = runRollupsWatcher(client, influxDBConfig)
 	case constants.ModeAlerts:
 		err = runAlertsWatcher(client)
 	default:
-		fmt.Printf("ERROR: unknown mode %q\n", mode)
-		os.Exit(255)
+		return trace.Errorf("ERROR: unknown mode %q\n", mode)
 	}
 
 	if err != nil {
-		exitWithError(err)
+		return trace.Wrap(err)
 	}
-}
 
-func exitWithError(err error) {
-	log.Error(trace.DebugReport(err))
-	fmt.Printf("ERROR: %v\n", err.Error())
-	os.Exit(255)
+	return nil
 }
 
 // bindFlagEnv binds environment variables to command flags
-func bindFlagEnv(flag *string) {
-	if val, ok := envs[*flag]; ok {
-		if value := os.Getenv(val); value != "" {
-			*flag = value
+func bindFlagEnv(flagSet *flag.FlagSet) {
+	for env, flag := range envs {
+		cmdFlag := flagSet.Lookup(flag)
+		if cmdFlag != nil {
+			if value := os.Getenv(env); value != "" {
+				cmdFlag.Value.Set(value)
+			}
 		}
 	}
 }
