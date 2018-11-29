@@ -181,9 +181,9 @@ const (
 	// createUserQuery is the InfluxDB query to create a non-privileged user
 	createUserQuery = "create user %v with password '%v'"
 	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
-	grantReadQuery = "grant read on %q to '%v'"
+	grantReadQuery = "grant read on %q to %v"
 	// grantAllQuery is the InfluxDB query to grant all privileges on a database to a user
-	grantAllQuery = "grant all on %q to '%v'"
+	grantAllQuery = "grant all on %q to %v"
 	// createDatabaseQuery is the InfluxDB query to create a database
 	createDatabaseQuery = "create database %q"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
