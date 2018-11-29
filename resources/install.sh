@@ -10,7 +10,7 @@ sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/$password/g /var/lib/gravity/resources/sec
 # Generate password for InfluxDB grafana user
 password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ')
 sed -i s/grafanaInfluxDBPassword/$password/g /var/lib/gravity/resources/grafana.yaml
-sed -i s/cGRGY29ma2NHYllIekRZMUdadmg=/$(echo $password | /opt/bin/base64)/g /var/lib/gravity/resources/secrets.yaml
+sed -i s/cGRGY29ma2NHYllIekRZMUdadmg=/$(echo -n $password | /opt/bin/base64)/g /var/lib/gravity/resources/secrets.yaml
 
 # Generate password for InfluxDB telegraf user
 password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
