@@ -23,7 +23,7 @@ if [ $1 = "update" ]; then
         echo "---> Deleting old 'influxdb' resources"
         # Get node name where influxdb pod scheduled to patch deployment
         # and reschedule the pod on the same node after update
-        NODE_NAME=$(kubectl --namespace=kube-system get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
+        NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
         rig delete deployments/influxdb --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'grafana' resources"
@@ -39,6 +39,8 @@ if [ $1 = "update" ]; then
         echo "---> Deleting old secrets"
         rig delete secrets/grafana --resource-namespace=$namespace --force
         rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
+        rig delete secrets/telegraf-influxdb-creds --resource-namespace=$namespace --force
+        rig delete secrets/influxdb --resource-namespace=$namespace --force
 
         echo "---> Deleting old configmaps"
         for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default
