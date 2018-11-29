@@ -37,7 +37,6 @@ spec:
           runAsUser: -1
         args:
           - --mode=rollups
-          - --debug=true
         env:
           - name: INFLUXDB_ADMIN_USERNAME
             valueFrom:
