@@ -23,7 +23,9 @@ if [ $1 = "update" ]; then
         echo "---> Deleting old 'influxdb' resources"
         # Get node name where influxdb pod scheduled to patch deployment
         # and reschedule the pod on the same node after update
-        NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
+        if kubectl --namespace=$namespace get deployment influxdb --ignore-not-found=false 2>/dev/null; then
+            NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
+        fi
         rig delete deployments/influxdb --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'grafana' resources"
