@@ -25,7 +25,7 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/utils"
 
 	"github.com/gravitational/trace"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -59,7 +59,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 		case update := <-ch:
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				log := log.WithField("configmap", update.ResourceUpdate.Meta())
+				log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
 					err := client.CreateDashboard(dashboard)
 
@@ -68,7 +68,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 					}
 				}
 			case watch.Deleted:
-				log := log.WithField("configmap", update.ResourceUpdate.Meta())
+				log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
 					err := client.DeleteDashboard(dashboard)
 

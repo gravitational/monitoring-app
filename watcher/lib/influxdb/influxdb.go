@@ -59,6 +59,27 @@ func NewClient(config Config) (*Client, error) {
 		return nil, trace.Wrap(err)
 	}
 
+	// check authentication
+	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		if strings.Contains(err.Error(), "authorization failed") {
+			// try root/root for backward compatibility
+			client, err = client_v2.NewHTTPClient(client_v2.HTTPConfig{
+				Addr:     constants.InfluxDBAPIAddress,
+				Username: constants.InfluxDBAdminUser,
+				Password: constants.InfluxDBAdminPassword,
+			})
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			return &Client{client: client}, nil
+		}
+		return nil, trace.Wrap(response.Error())
+	}
+
 	return &Client{client: client}, nil
 }
 
@@ -188,4 +209,6 @@ const (
 	createDatabaseQuery = "create database %q"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
 	createRetentionPolicyQuery = "create retention policy %q on %q duration %v replication 1"
+	// checkAuthenticationQuery is the simple query to check that authentication was successful
+	checkAuthenticationQuery = "show databases"
 )

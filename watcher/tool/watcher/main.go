@@ -23,14 +23,15 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/influxdb"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
+	"github.com/sirupsen/logrus"
 
 	"github.com/gravitational/trace"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 var (
+	log            = logrus.New()
 	mode           string
 	debug          bool
 	influxDBConfig influxdb.Config
@@ -52,7 +53,7 @@ var (
 )
 
 func init() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(logrus.InfoLevel)
 
 	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
@@ -64,7 +65,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debugging mode")
 
 	if debug {
-		log.SetLevel(log.DebugLevel)
+		log.Level = logrus.DebugLevel
 	}
 
 	bindFlagEnv(rootCmd.PersistentFlags())

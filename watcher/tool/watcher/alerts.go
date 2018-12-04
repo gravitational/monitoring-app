@@ -27,7 +27,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
@@ -77,7 +77,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 	for {
 		select {
 		case update := <-alertCh:
-			log := log.WithField("configmap", update.ResourceUpdate.Meta())
+			log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			switch update.EventType {
 			case watch.Added, watch.Modified:
@@ -86,7 +86,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 				}
 			}
 		case update := <-smtpCh:
-			log := log.WithField("secret", update.ResourceUpdate.Meta())
+			log := logrus.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
 			client := kubeClient.Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
@@ -96,7 +96,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 				}
 			}
 		case update := <-alertTargetCh:
-			log := log.WithField("configmap", update.ResourceUpdate.Meta())
+			log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			client := kubeClient.ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
@@ -115,7 +115,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 	}
 }
 
-func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
+func createAlert(client *kapacitor.Client, spec []byte, log *logrus.Entry) error {
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -133,7 +133,7 @@ func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
 	return nil
 }
 
-func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
+func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte, log *logrus.Entry) error {
 	log.Debugf("update SMTP config from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -173,7 +173,7 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 	return nil
 }
 
-func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
+func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte, log *logrus.Entry) error {
 	log.Debugf("update alert target from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -209,7 +209,7 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 	return nil
 }
 
-func deleteAlertTarget(client *kapacitor.Client, log *log.Entry) error {
+func deleteAlertTarget(client *kapacitor.Client, log *logrus.Entry) error {
 	log.Debug("delete alert target")
 	return trace.Wrap(client.DeleteAlertTarget())
 }

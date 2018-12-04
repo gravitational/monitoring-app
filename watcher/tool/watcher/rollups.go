@@ -26,7 +26,7 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/utils"
 
 	"github.com/gravitational/trace"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -63,7 +63,7 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 	for {
 		select {
 		case update := <-ch:
-			log := log.WithField("configmap", update.ResourceUpdate.Meta())
+			log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 			for _, v := range update.Data {
 				var rollups []influxdb.Rollup
 				err := json.Unmarshal([]byte(v), &rollups)
