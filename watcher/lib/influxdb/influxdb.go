@@ -65,7 +65,7 @@ func NewClient(config Config) (*Client, error) {
 		return nil, trace.Wrap(err)
 	}
 	if response.Error() != nil {
-		if strings.Contains(err.Error(), "authorization failed") {
+		if strings.Contains(response.Error().Error(), "authorization failed") {
 			// try root/root for backward compatibility
 			client, err = client_v2.NewHTTPClient(client_v2.HTTPConfig{
 				Addr:     constants.InfluxDBAPIAddress,
