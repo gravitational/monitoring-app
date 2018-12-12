@@ -95,11 +95,10 @@ func (c *Client) Health() error {
 
 // Setup sets up InfluxDB database
 func (c *Client) Setup(config Config) error {
+	if err := c.ManageUsers(config); err != nil {
+		return trace.Wrap(err)
+	}
 	queries := []string{
-		// create admin user and users for Grafana/Telegraf applications
-		fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword),
-		fmt.Sprintf(createUserQuery, config.InfluxDBGrafanaUser, config.InfluxDBGrafanaPassword),
-		fmt.Sprintf(createUserQuery, config.InfluxDBTelegrafUser, config.InfluxDBTelegrafPassword),
 		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase),
 		// grant read access to grafana user
 		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, config.InfluxDBGrafanaUser),
@@ -111,6 +110,24 @@ func (c *Client) Setup(config Config) error {
 			constants.DurationMedium),
 		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionLong, constants.InfluxDBDatabase,
 			constants.DurationLong),
+	}
+	for _, query := range queries {
+		log.WithField("query", query).Debug("Setup query.")
+
+		if err := c.execQuery(query); err != nil {
+			return trace.Wrap(err)
+		}
+	}
+	return nil
+}
+
+// ManageUsers manages users in the database
+func (c *Client) ManageUsers(config Config) error {
+	queries := []string{
+		// create admin user and users for Grafana/Telegraf applications
+		fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword),
+		fmt.Sprintf(createUserQuery, config.InfluxDBGrafanaUser, config.InfluxDBGrafanaPassword),
+		fmt.Sprintf(createUserQuery, config.InfluxDBTelegrafUser, config.InfluxDBTelegrafPassword),
 	}
 	for _, query := range queries {
 		log.WithField("query", query).Debug("Setup query.")
@@ -199,6 +216,8 @@ func (c *Client) execQuery(query string) error {
 const (
 	// createAdminQuery is the InfluxDB query to create admin user
 	createAdminQuery = "create user %v with password '%v' with all privileges"
+	// updatePasswordQuery is the InfluxDB query to update password for the user
+	updatePasswordQuery = "set password for '%v' = '%v'"
 	// createUserQuery is the InfluxDB query to create a non-privileged user
 	createUserQuery = "create user %v with password '%v'"
 	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
