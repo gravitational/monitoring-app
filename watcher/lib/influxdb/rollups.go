@@ -40,7 +40,7 @@ type Rollup struct {
 	Name string `json:"name"`
 	// Functions is a list of functions for rollup calculation
 	Functions []Function `json:"functions"`
-	// CustomFrom is a custom 'from' clause
+	// CustomFrom is a custom 'from' clause. Either CustomFrom or Measurement must be provided.
 	CustomFrom string `json:"custom_from,omitempty"`
 	// CustomGroupBy is a custom 'group by' clause
 	CustomGroupBy string `json:"custom_group_by,omitempty"`
@@ -54,7 +54,7 @@ func (r Rollup) Check() error {
 			"invalid Retention, must be one of: %v", constants.AllRetentions))
 	}
 	if r.Measurement == "" && r.CustomFrom == "" {
-		errors = append(errors, trace.BadParameter("parameter Measurement or CustomFrom is missing"))
+		errors = append(errors, trace.BadParameter("either Measurement or CustomFrom must be provided"))
 	}
 	if r.Name == "" {
 		errors = append(errors, trace.BadParameter("parameter Name is missing"))
@@ -213,7 +213,7 @@ func validateParam(funcName, param string) error {
 var (
 	// createQueryTemplate is the template for creating InfluxDB continuous query
 	createQueryTemplate = template.Must(template.New("query").Parse(
-		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{if ne .custom_from ""}}{{.custom_from}}{{else}}{{.database}}."{{.retention_from}}"."{{.measurement_from}}"{{end}} group by {{if ne .custom_group_by ""}}{{.custom_group_by}}{{else}}*, time({{.interval}}){{end}} end`))
+		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{if .custom_from}}{{.custom_from}}{{else}}{{.database}}."{{.retention_from}}"."{{.measurement_from}}"{{end}} group by {{if .custom_group_by}}{{.custom_group_by}}{{else}}*, time({{.interval}}){{end}} end`))
 	// deleteQueryTemplate is the template for deleting Influx continuous query
 	deleteQueryTemplate = template.Must(template.New("query").Parse(
 		`drop continuous query "{{.name}}" on {{.database}}`))
