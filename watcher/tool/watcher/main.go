@@ -25,13 +25,13 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 	"github.com/sirupsen/logrus"
 
+	teleutils "github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 var (
-	log            = logrus.New()
 	mode           string
 	debug          bool
 	influxDBConfig influxdb.Config
@@ -53,7 +53,7 @@ var (
 )
 
 func init() {
-	log.SetLevel(logrus.DebugLevel)
+	level := logrus.InfoLevel
 
 	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
@@ -64,16 +64,19 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafUser, "InfluxDB telegraf password")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debugging mode")
 
+	trace.SetDebug(debug)
 	if debug {
-		log.Level = logrus.DebugLevel
+		level = logrus.DebugLevel
 	}
+	logrus.SetFormatter(&trace.TextFormatter{})
+	teleutils.InitLogger(teleutils.LoggingForCLI, level)
 
 	bindFlagEnv(rootCmd.PersistentFlags())
 }
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Error(trace.DebugReport(err))
+		logrus.Error(trace.DebugReport(err))
 		os.Exit(255)
 	}
 }
