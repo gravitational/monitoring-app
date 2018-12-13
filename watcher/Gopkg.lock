@@ -25,12 +25,6 @@
   revision = "309aa717adbf351e92864cbedf9cca0b769a4b5a"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/codahale/lunk"
-  packages = ["."]
-  revision = "3bb9f3be3053e35972e4a0725dd6e44ae203bc99"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -160,16 +154,10 @@
   revision = "f39421c51f636f6a03a79a168aacc628e37a584b"
 
 [[projects]]
-  name = "github.com/gravitational/teleport"
-  packages = ["lib/utils"]
-  revision = "6fae65d57605531c2bfcf6fa04b54103726a9b60"
-  version = "v0.0.11"
-
-[[projects]]
-  branch = "master"
   name = "github.com/gravitational/trace"
   packages = ["."]
-  revision = "4a5e142f3251b3a98e8fd71c2a32eb225af06b6d"
+  revision = "3318e711adee0b3f48d3399ebf5aaddf329a2b4f"
+  version = "1.1.5"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -479,6 +467,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b1a806c48852e8b2680db3162c95002af05371ac7c151295eaecad5314a6f523"
+  inputs-digest = "a05f1505f8f1e2d9323294107228f01bb3bbac0aaff643149005aa3975e58a1a"
   solver-name = "gps-cdcl"
   solver-version = 1

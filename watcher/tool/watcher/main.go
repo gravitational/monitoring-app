@@ -25,7 +25,6 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 	"github.com/sirupsen/logrus"
 
-	teleutils "github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -69,7 +68,7 @@ func init() {
 		level = logrus.DebugLevel
 	}
 	logrus.SetFormatter(&trace.TextFormatter{})
-	teleutils.InitLogger(teleutils.LoggingForCLI, level)
+	logrus.SetLevel(level)
 
 	bindFlagEnv(rootCmd.PersistentFlags())
 }
