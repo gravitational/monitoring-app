@@ -123,17 +123,32 @@ func (c *Client) Setup(config Config) error {
 
 // ManageUsers manages users in the database
 func (c *Client) ManageUsers(config Config) error {
-	queries := []string{
-		// create admin user and users for Grafana/Telegraf applications
-		fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword),
-		fmt.Sprintf(createUserQuery, config.InfluxDBGrafanaUser, config.InfluxDBGrafanaPassword),
-		fmt.Sprintf(createUserQuery, config.InfluxDBTelegrafUser, config.InfluxDBTelegrafPassword),
+	var users = map[string]string{
+		config.InfluxDBAdminUser:    config.InfluxDBAdminPassword,
+		config.InfluxDBGrafanaUser:  config.InfluxDBGrafanaPassword,
+		config.InfluxDBTelegrafUser: config.InfluxDBTelegrafPassword,
 	}
-	for _, query := range queries {
-		log.WithField("query", query).Debug("Setup query.")
 
-		if err := c.execQuery(query); err != nil {
+	for user, password := range users {
+		query := fmt.Sprintf(createUserQuery, user, password)
+		if user == config.InfluxDBAdminUser {
+			query = fmt.Sprintf(createAdminQuery, user, password)
+		}
+		log.WithField("query", query).Debug("User create query.")
+		response, err := c.client.Query(client_v2.NewQuery(query, "", ""))
+		if err != nil {
 			return trace.Wrap(err)
+		}
+
+		if response.Error() != nil {
+			if strings.Contains(response.Error().Error(), "user already exists") {
+				log.WithField("query", query).Debug("Password update query.")
+				if err = c.execQuery(fmt.Sprintf(updatePasswordQuery, user, password)); err != nil {
+					return trace.Wrap(err)
+				}
+				return nil
+			}
+			return trace.Wrap(response.Error())
 		}
 	}
 	return nil
