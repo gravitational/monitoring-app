@@ -232,7 +232,7 @@ const (
 	// createAdminQuery is the InfluxDB query to create admin user
 	createAdminQuery = "create user %v with password '%v' with all privileges"
 	// updatePasswordQuery is the InfluxDB query to update password for the user
-	updatePasswordQuery = "set password for '%v' = '%v'"
+	updatePasswordQuery = "set password for %v = '%v'"
 	// createUserQuery is the InfluxDB query to create a non-privileged user
 	createUserQuery = "create user %v with password '%v'"
 	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
