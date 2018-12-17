@@ -9,7 +9,7 @@ export
 EXTRA_GRAVITY_OPTIONS ?=
 
 IMPORT_IMAGE_FLAGS := --set-image=monitoring-influxdb:$(VERSION) \
-	--set-image=monitoring-heapster:$(VERSION) \
+	--set-image=monitoring-metrics-server:$(VERSION) \
 	--set-image=monitoring-grafana:$(VERSION) \
 	--set-image=monitoring-kapacitor:$(VERSION) \
 	--set-image=monitoring-telegraf:$(VERSION) \

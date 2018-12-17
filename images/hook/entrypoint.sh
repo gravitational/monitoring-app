@@ -72,9 +72,15 @@ if [ $1 = "update" ]; then
     sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
 
     echo "---> Creating or updating resources"
-    for filename in security smtp influxdb grafana heapster kapacitor telegraf alerts
+    for name in security smtp influxdb grafana metrics-server kapacitor telegraf alerts
     do
-        rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
+        if [ -d $name ]; then
+            for file in /var/lib/gravity/resources/${name}/*.yaml; do
+                rig upsert -f /var/lib/gravity/resources/${name}/${file}.yaml --debug
+            done
+        else
+            rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
+        fi
     done
 
     read -r -d '' INFLUXDB_PATCH <<EOF
