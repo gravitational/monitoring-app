@@ -29,7 +29,7 @@ spec:
         emptyDir: {}
       containers:
       - name: metrics-server
-        image: metrics-server:latest
+        image: monitoring-metrics-server:latest
         imagePullPolicy: Always
         volumeMounts:
         - name: tmp-dir
