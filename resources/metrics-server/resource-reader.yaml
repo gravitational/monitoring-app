@@ -5,6 +5,14 @@ metadata:
   name: system:metrics-server
 rules:
 - apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - privileged
+  verbs:
+  - use
+- apiGroups:
   - ""
   resources:
   - pods
