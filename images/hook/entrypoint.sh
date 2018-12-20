@@ -74,13 +74,7 @@ if [ $1 = "update" ]; then
     echo "---> Creating or updating resources"
     for name in security smtp influxdb grafana metrics-server kapacitor telegraf alerts
     do
-        if [ -d $name ]; then
-            for file in /var/lib/gravity/resources/${name}/*.yaml; do
-                rig upsert -f /var/lib/gravity/resources/${name}/${file}.yaml --debug
-            done
-        else
-            rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
-        fi
+        rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
     read -r -d '' INFLUXDB_PATCH <<EOF
