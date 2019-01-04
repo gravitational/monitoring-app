@@ -32,12 +32,12 @@ import (
 func main() {
 	var mode string
 	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
-	ver := flag.Bool("version", false, "print current watcher version")
+	ver := flag.Bool("version", false, "print version")
 	flag.Parse()
 
 	if *ver {
 		version.Print()
-		os.Exit(0)
+		return
 	}
 
 	client, err := kubernetes.NewClient()
