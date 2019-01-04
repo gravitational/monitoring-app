@@ -33,8 +33,22 @@ spec:
       securityContext:
         runAsUser: -1
       containers:
-      - name: telegraf
-        image: monitoring-telegraf:latest
+        - name: telegraf
+          image: monitoring-telegraf:latest
+          resources:
+            limits:
+              memory: "100Mi"
+              cpu: "100m"
+            requests:
+              memory: "50Mi"
+              cpu: "50m"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf
+      volumes:
+        - name: config
+          configMap:
+            name: telegraf-deployment
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -146,6 +160,43 @@ data:
       bearer_token = /var/run/secrets/kubernetes.io/serviceaccount/token
       response_timeout = "5s"
       tls_ca = /var/lib/gravity/secrets/root.cert
-      tls_cert = /var/lib/gravity/secrets/apiserver.cert
-      tls_key = /var/lib/gravity/secrets/apiserver.key
       insecure_skip_verify = false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegraf-deployment
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: telegraf
+data:
+  telegraf.conf: | +
+    [global_tags]
+    [agent]
+      interval = "20s"
+      round_interval = true
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      collection_jitter = "0s"
+      flush_interval = "10s"
+      flush_jitter = "0s"
+      precision = ""
+      debug = false
+      quiet = true
+      hostname = ""
+      omit_hostname = false
+
+    [[outputs.influxdb]]
+      urls = ["http://influxdb.monitoring.svc:8086"] # required
+      database = "k8s" # required
+      retention_policy = ""
+      timeout = "5s"
+      username = "root"
+      password = "root"
+
+    [[inputs.prometheus]]
+      name_prefix = "k8s_"
+      urls = ["https://kubernetes.default.svc.cluster.local/metrics"]
+      ssl_ca = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+      bearer_token = '/var/run/secrets/kubernetes.io/serviceaccount/token'

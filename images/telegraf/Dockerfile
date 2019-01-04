@@ -19,7 +19,5 @@ RUN apt-get update && \
         /telegraf.tar.gz \
         /etc/telegraf/*
 
-ADD rootfs/ /
-
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["/usr/bin/telegraf", "--config", "/etc/telegraf/telegraf.conf"]
