@@ -84,7 +84,68 @@ spec:
           volumeMounts:
             - name: certificates
               mountPath: /var/lib/gravity/secrets
+            - name: config
+              mountPath: /etc/telegraf
       volumes:
         - name: certificates
           hostPath:
             path: /var/lib/gravity/secrets
+        - name: config
+          configMap:
+            name: telegraf-node
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegraf-node
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: telegraf
+data:
+  telegraf.conf: | +
+    [global_tags]
+    [agent]
+      interval = "20s"
+      round_interval = true
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      collection_jitter = "0s"
+      flush_interval = "10s"
+      flush_jitter = "0s"
+      precision = ""
+      debug = false
+      quiet = true
+      hostname = ""
+      omit_hostname = false
+
+    [[outputs.influxdb]]
+      urls = ["http://influxdb.monitoring.svc:8086"] # required
+      database = "k8s" # required
+      retention_policy = ""
+      timeout = "5s"
+      username = "root"
+      password = "root"
+
+    [[inputs.prometheus]]
+      urls = ["http://$NODE_NAME:7580/metrics"]
+      [inputs.prometheus.tags]
+        nodename = "$NODE_NAME"
+
+    [[inputs.prometheus]]
+      urls = ["https://$NODE_NAME:2379/metrics"]
+      namepass = ["etcd_rafthttp_message_*"]
+      ssl_ca = '/var/lib/gravity/secrets/root.cert'
+      ssl_cert = '/var/lib/gravity/secrets/etcd.cert'
+      ssl_key = '/var/lib/gravity/secrets/etcd.key'
+      [inputs.prometheus.tags]
+        nodename = "$NODE_NAME"
+
+    [[inputs.kubernetes]]
+      url = "https://localhost:10250"
+      bearer_token = /var/run/secrets/kubernetes.io/serviceaccount/token
+      response_timeout = "5s"
+      tls_ca = /var/lib/gravity/secrets/root.cert
+      tls_cert = /var/lib/gravity/secrets/apiserver.cert
+      tls_key = /var/lib/gravity/secrets/apiserver.key
+      insecure_skip_verify = false

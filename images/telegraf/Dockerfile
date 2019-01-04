@@ -21,7 +21,5 @@ RUN apt-get update && \
 
 ADD rootfs/ /
 
-RUN chmod a+rx /usr/local/bin/run*.sh
-
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["/usr/local/bin/run.sh"]
+CMD ["/usr/bin/telegraf", "--config", "/etc/telegraf/telegraf.conf"]
