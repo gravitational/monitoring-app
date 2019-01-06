@@ -82,7 +82,6 @@ spec:
       containers:
         - name: telegraf
           image: monitoring-telegraf:latest
-          command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run.sh"]
           env:
             - name: NODE_NAME
               valueFrom:
