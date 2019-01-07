@@ -21,6 +21,7 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
+      hostNetwork: true
       serviceAccountName: monitoring
       tolerations:
       - key: "gravitational.io/runlevel"
@@ -133,7 +134,7 @@ data:
       omit_hostname = false
 
     [[outputs.influxdb]]
-      urls = ["http://influxdb.monitoring.svc:8086"] # required
+      urls = ["http://influxdb.monitoring.svc.cluster.local:8086"] # required
       database = "k8s" # required
       retention_policy = ""
       timeout = "5s"
@@ -159,7 +160,7 @@ data:
       bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
       #  response_timeout = "5s"
       tls_ca = "/var/lib/gravity/secrets/root.cert"
-      insecure_skip_verify = false
+      insecure_skip_verify = true
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -187,7 +188,7 @@ data:
       omit_hostname = false
 
     [[outputs.influxdb]]
-      urls = ["http://influxdb.monitoring.svc:8086"] # required
+      urls = ["http://influxdb.monitoring.svc.cluster.local:8086"] # required
       database = "k8s" # required
       retention_policy = ""
       timeout = "5s"
