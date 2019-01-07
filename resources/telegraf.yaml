@@ -156,9 +156,9 @@ data:
 
     [[inputs.kubernetes]]
       url = "https://localhost:10250"
-      bearer_token = /var/run/secrets/kubernetes.io/serviceaccount/token
-      response_timeout = "5s"
-      tls_ca = /var/lib/gravity/secrets/root.cert
+      bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      #  response_timeout = "5s"
+      tls_ca = "/var/lib/gravity/secrets/root.cert"
       insecure_skip_verify = false
 ---
 apiVersion: v1
