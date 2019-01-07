@@ -21,7 +21,6 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      hostNetwork: true
       serviceAccountName: monitoring
       tolerations:
       - key: "gravitational.io/runlevel"
@@ -72,6 +71,7 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
+      hostNetwork: true
       serviceAccountName: monitoring
       tolerations:
         # allows to run on master nodes
