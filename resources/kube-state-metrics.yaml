@@ -19,7 +19,8 @@ spec:
     targetPort: telemetry
     protocol: TCP
   selector:
-    k8s-app: kube-state-metrics
+    app: monitoring
+    component: kube-state-metrics
 ---
 apiVersion: apps/v1
 kind: DaemonSet
