@@ -200,3 +200,6 @@ data:
       urls = ["https://kubernetes.default.svc.cluster.local/metrics"]
       ssl_ca = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
       bearer_token = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+
+    [[inputs.prometheus]]
+      urls = ["http://kube-state-metrics.monitoring.svc.cluster.local:8080/metrics"]

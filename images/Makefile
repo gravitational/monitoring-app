@@ -1,11 +1,12 @@
 .PHONY: all metrics-server metrics-server-build metrics-server-clean influxdb influxdb-build \
-	influxdb-clean grafana kapacitor telegraf deploy
+	influxdb-clean grafana kapacitor telegraf deploy kube-state-metrics
 
 GRAFANA_VERSION := 5.1.0
 METRICS_SERVER_VERSION := 0.3.1
 INFLUXDB_VERSION := 1.5.2
 KAPACITOR_VERSION := 1.5.0
 TELEGRAF_VERSION := 1.9.1
+KUBE_STATE_METRICS_VERSION := 1.4.0
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
@@ -16,6 +17,7 @@ GRAFANA_TAG   := monitoring-grafana:$(VERSION)
 KAPACITOR_TAG := monitoring-kapacitor:$(VERSION)
 TELEGRAF_TAG  := monitoring-telegraf:$(VERSION)
 HOOK_TAG := monitoring-hook:$(VERSION)
+KUBE_STATE_METRICS_VERSION := 1.3.1
 
 REPO_URL := quay.io/gravitational
 
@@ -48,7 +50,10 @@ kapacitor:
 telegraf:
 	$(MAKE) -e BUILDIMAGE=$(TELEGRAF_TAG) EXTRA_ARGS="--build-arg TELEGRAF_VERSION=$(TELEGRAF_VERSION)" TARGETDIR=$@ make-docker-image
 
-all: metrics-server influxdb grafana kapacitor telegraf hook
+kube-state-metrics:
+	$(MAKE) -e BUILDIMAGE=$(KUBE_STATE_METRICS_TAG) EXTRA_ARGS="--build-arg KUBE_STATE_METRICS_VERSION=$(KUBE_STATE_METRICS_VERSION)" TARGETDIR=$@ make-docker-image
+
+all: metrics-server influxdb grafana kapacitor telegraf hook kube-state-metrics
 
 clean: influxdb-clean
 
