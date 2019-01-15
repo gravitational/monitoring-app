@@ -141,6 +141,22 @@ data:
       username = "root"
       password = "root"
 
+    [[inputs.cpu]]
+      percpu = true
+      totalcpu = true
+      collect_cpu_time = false
+      report_active = false
+    [[inputs.disk]]
+      ignore_fs = ["tmpfs", "devtmpfs", "devfs"]
+    [[inputs.diskio]]
+    [[inputs.kernel]]
+    [[inputs.mem]]
+    [[inputs.processes]]
+    [[inputs.swap]]
+    [[inputs.system]]
+    [[inputs.docker]]
+      endpoint = "unix:///var/run/docker.sock"
+
     [[inputs.prometheus]]
       urls = ["http://$NODE_NAME:7580/metrics"]
       [inputs.prometheus.tags]
