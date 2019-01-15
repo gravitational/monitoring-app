@@ -88,19 +88,49 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: "HOST_PROC"
+              value: "/rootfs/proc"
+            - name: "HOST_SYS"
+              value: "/rootfs/sys"
           resources:
             limits:
+              memory: "500Mi"
+              cpu: "500m"
+            requests:
               memory: "100Mi"
               cpu: "100m"
-            requests:
-              memory: "50Mi"
-              cpu: "50m"
           volumeMounts:
+            - name: sys
+              mountPath: /rootfs/sys
+              readOnly: true
+            - name: docker
+              mountPath: /var/run/docker.sock
+              readOnly: true
+            - name: proc
+              mountPath: /rootfs/proc
+              readOnly: true
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: utmp
+              mountPath: /var/run/utmp
+              readOnly: true
             - name: certificates
               mountPath: /var/lib/gravity/secrets
             - name: config
               mountPath: /etc/telegraf
       volumes:
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: utmp
+          hostPath:
+            path: /var/run/utmp
         - name: certificates
           hostPath:
             path: /var/lib/gravity/secrets
@@ -172,7 +202,7 @@ data:
         nodename = "$NODE_NAME"
 
     [[inputs.kubernetes]]
-      url = "https://localhost:10250"
+      url = "https://$NODE_NAME:10250"
       bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
       #  response_timeout = "5s"
       tls_ca = "/var/lib/gravity/secrets/root.cert"
