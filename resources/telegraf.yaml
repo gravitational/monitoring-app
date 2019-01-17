@@ -103,14 +103,12 @@ spec:
             - name: sys
               mountPath: /rootfs/sys
               readOnly: true
-            - name: docker
+            - name: docker-socket
               mountPath: /var/run/docker.sock
               readOnly: true
             - name: proc
               mountPath: /rootfs/proc
               readOnly: true
-            - name: docker-socket
-              mountPath: /var/run/docker.sock
             - name: utmp
               mountPath: /var/run/utmp
               readOnly: true
