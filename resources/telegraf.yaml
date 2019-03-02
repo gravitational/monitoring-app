@@ -31,10 +31,10 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       securityContext:
-        runAsUser: -1
+        runAsUser: 1000
       containers:
         - name: telegraf
-          image: monitoring-telegraf:latest
+          image: leader.telekube.local:5000/monitoring-telegraf:5.2.2
           resources:
             limits:
               memory: "100Mi"
@@ -57,17 +57,17 @@ metadata:
   namespace: monitoring
   labels:
     app: monitoring
-    component: telegraf
+    component: telegraf-node
 spec:
   selector:
     matchLabels:
       app: monitoring
-      component: telegraf
+      component: telegraf-node
   template:
     metadata:
       labels:
         app: monitoring
-        component: telegraf
+        component: telegraf-node
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
@@ -79,10 +79,10 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       securityContext:
-        runAsUser: -1
+        runAsUser: 1000
       containers:
         - name: telegraf
-          image: monitoring-telegraf:latest
+          image: leader.telekube.local:5000/monitoring-telegraf:5.2.2
           env:
             - name: NODE_NAME
               valueFrom:
@@ -92,6 +92,8 @@ spec:
               value: "/rootfs/proc"
             - name: "HOST_SYS"
               value: "/rootfs/sys"
+            - name: "HOST_MOUNT_PREFIX"
+              value: "/rootfs"
           resources:
             limits:
               memory: "500Mi"
@@ -100,6 +102,9 @@ spec:
               memory: "100Mi"
               cpu: "100m"
           volumeMounts:
+            - name: hostroot
+              mountPath: /rootfs
+              readOnly: true
             - name: sys
               mountPath: /rootfs/sys
               readOnly: true
@@ -135,6 +140,9 @@ spec:
         - name: config
           configMap:
             name: telegraf-node
+        - name: hostroot
+          hostPath:
+            path: /
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -177,13 +185,19 @@ data:
     [[inputs.disk]]
       ignore_fs = ["tmpfs", "devtmpfs", "devfs"]
     [[inputs.diskio]]
+    [[inputs.interrupts]]
     [[inputs.kernel]]
+    [[inputs.linux_sysctl_fs]]
     [[inputs.mem]]
+    [[inputs.net]]
+    [[inputs.netstat]]
     [[inputs.processes]]
     [[inputs.swap]]
     [[inputs.system]]
     [[inputs.docker]]
       endpoint = "unix:///var/run/docker.sock"
+      docker_label_exclude:
+        - "annotation.kubernetes.io/*"
 
     [[inputs.prometheus]]
       urls = ["http://$NODE_NAME:7580/metrics"]
