@@ -4243,7 +4243,7 @@ data:
               "text": "sergei-dev-0",
               "value": "sergei-dev-0"
             },
-            "datasource": "InfluxDB",
+            "datasource": "influxdb-datasource",
             "definition": "SHOW TAG VALUES FROM \"system\" WITH KEY = \"host\"",
             "hide": 0,
             "includeAll": false,
@@ -4270,7 +4270,7 @@ data:
               "text": "All",
               "value": "$__all"
             },
-            "datasource": "InfluxDB",
+            "datasource": "influxdb-datasource",
             "definition": "SHOW TAG VALUES FROM \"net\" WITH KEY = \"interface\" WHERE host =~ /$nodename/",
             "hide": 0,
             "includeAll": true,
@@ -4296,7 +4296,7 @@ data:
               "text": "All",
               "value": "$__all"
             },
-            "datasource": "InfluxDB",
+            "datasource": "influxdb-datasource",
             "definition": "SHOW TAG VALUES FROM \"diskio\" WITH KEY = \"name\" WHERE host =~ /$nodename/",
             "hide": 0,
             "includeAll": true,
@@ -4321,7 +4321,7 @@ data:
               "text": "All",
               "value": "$__all"
             },
-            "datasource": "InfluxDB",
+            "datasource": "influxdb-datasource",
             "definition": "SHOW TAG VALUES FROM \"disk\" WITH KEY = \"path\" WHERE host =~ /$nodename/",
             "hide": 0,
             "includeAll": true,
@@ -5335,13 +5335,13 @@ data:
             "allValue": null,
             "current": {
               "tags": [],
-              "text": "kube-system + monitoring",
+              "text": "kube-system",
               "value": [
                 "kube-system",
                 "monitoring"
               ]
             },
-            "datasource": "InfluxDB",
+            "datasource": "influxdb-datasource",
             "definition": "SHOW TAG VALUES FROM \"kube_pod_info\" WITH KEY = \"namespace\"",
             "hide": 0,
             "includeAll": true,
@@ -5369,7 +5369,7 @@ data:
               "text": "influxdb-59c96d999b-r2zlk",
               "value": "influxdb-59c96d999b-r2zlk"
             },
-            "datasource": "InfluxDB",
+            "datasource": "influxdb-datasource",
             "definition": "SHOW TAG VALUES FROM \"kube_pod_info\" WITH KEY = \"pod\" WHERE \"namespace\" =~ /^$namespace$/",
             "hide": 0,
             "includeAll": false,
