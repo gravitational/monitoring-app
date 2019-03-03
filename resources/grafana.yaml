@@ -414,7 +414,7 @@ data:
           }
         ]
       },
-      "editable": true,
+      "editable": false,
       "gnetId": null,
       "graphTooltip": 0,
       "id": 1,
@@ -4325,7 +4325,7 @@ data:
             "definition": "SHOW TAG VALUES FROM \"disk\" WITH KEY = \"path\" WHERE host =~ /$nodename/",
             "hide": 0,
             "includeAll": true,
-            "label": null,
+            "label": "Mountpoint",
             "multi": true,
             "name": "mountpoint",
             "options": [],
@@ -4374,7 +4374,7 @@ data:
       },
       "timezone": "browser",
       "title": "Cluster",
-      "uid": "N1Uh_9uiz",
+      "uid": "kDSPderiz",
       "version": 11
     }
   pods.json: |
@@ -4392,7 +4392,7 @@ data:
           }
         ]
       },
-      "editable": true,
+      "editable": false,
       "gnetId": null,
       "graphTooltip": 0,
       "id": 4,
