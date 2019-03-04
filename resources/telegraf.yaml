@@ -196,8 +196,7 @@ data:
     [[inputs.system]]
     [[inputs.docker]]
       endpoint = "unix:///var/run/docker.sock"
-      docker_label_exclude:
-        - "annotation.kubernetes.io/*"
+      docker_label_exclude = ["annotation.kubernetes.io/*"]
 
     [[inputs.prometheus]]
       urls = ["http://$NODE_NAME:7580/metrics"]

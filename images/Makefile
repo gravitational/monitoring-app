@@ -1,9 +1,9 @@
 .PHONY: all metrics-server metrics-server-build metrics-server-clean influxdb influxdb-build \
 	influxdb-clean grafana kapacitor telegraf deploy kube-state-metrics
 
-GRAFANA_VERSION := 5.1.0
+GRAFANA_VERSION := 5.4.3
 METRICS_SERVER_VERSION := 0.3.1
-INFLUXDB_VERSION := 1.5.2
+INFLUXDB_VERSION := 1.7.4
 KAPACITOR_VERSION := 1.5.0
 TELEGRAF_VERSION := 1.9.1
 KUBE_STATE_METRICS_VERSION := 1.4.0
