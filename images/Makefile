@@ -1,8 +1,8 @@
 .PHONY: all metrics-server grafana deploy kube-state-metrics
 
-GRAFANA_VERSION := 5.4.3
+GRAFANA_VERSION := 6.0.2
 METRICS_SERVER_VERSION := 0.3.1
-KUBE_STATE_METRICS_VERSION := 1.4.0
+KUBE_STATE_METRICS_VERSION := 1.5.0
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all

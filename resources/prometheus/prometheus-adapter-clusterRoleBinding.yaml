@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring:prometheus-adapter
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: monitoring:prometheus-adapter
+subjects:
+- kind: ServiceAccount
+  name: prometheus-adapter
+  namespace: monitoring
