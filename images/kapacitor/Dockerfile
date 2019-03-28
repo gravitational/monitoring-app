@@ -2,7 +2,7 @@ FROM quay.io/gravitational/debian-grande:stretch
 ARG KAPACITOR_VERSION
 
 RUN apt-get update && \
-    apt-get install -y curl wget
+    apt-get install -y curl wget gnupg dirmgr
 
 RUN for key in 05CE15085FC09D18E99EFB22684A14CF2582E0C5; \
     do \
