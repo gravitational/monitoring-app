@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-grande:0.0.1
+FROM quay.io/gravitational/debian-grande:stretch
 ARG KAPACITOR_VERSION
 
 RUN apt-get update && \

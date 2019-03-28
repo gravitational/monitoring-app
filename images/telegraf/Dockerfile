@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-grande:0.0.1
+FROM quay.io/gravitational/debian-grande:stretch
 ARG TELEGRAF_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
