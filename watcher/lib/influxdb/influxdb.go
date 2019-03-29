@@ -84,7 +84,7 @@ func (c *Client) Setup() error {
 		log.Infof("%v", query)
 
 		err := c.execQuery(query)
-		if err != nil && !strings.Contains(err.Error(), "retention policy already exists") {
+		if err != nil && !trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
 			return trace.Wrap(err)
 		}
 	}
@@ -163,6 +163,14 @@ func (c *Client) execQuery(query string) error {
 	}
 
 	return nil
+}
+
+// ConvertInfluxDBError converts error from InfluxDB query results
+func ConvertInfluxDBError(err error) error {
+	if strings.Contains(err.Error(), "retention policy already exists") {
+		return trace.AlreadyExists("retention policy already exists")
+	}
+	return err
 }
 
 const (
