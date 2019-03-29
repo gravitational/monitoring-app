@@ -84,7 +84,11 @@ func (c *Client) Setup() error {
 		log.Infof("%v", query)
 
 		err := c.execQuery(query)
-		if err != nil && !trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+		if err != nil {
+			if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+				log.Info("Retention policy already exists with different attributes.")
+				continue
+			}
 			return trace.Wrap(err)
 		}
 	}
