@@ -63,6 +63,16 @@ func (c *Client) Setup() error {
 		fmt.Sprintf(createUserQuery, constants.InfluxDBGrafanaUser, constants.InfluxDBGrafanaPassword),
 		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase),
 		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser),
+	}
+	for _, query := range queries {
+		log.Infof("%v", query)
+
+		if err := c.execQuery(query); err != nil {
+			return trace.Wrap(err)
+		}
+	}
+
+	queries = []string{
 		fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy,
 			constants.InfluxDBDatabase, constants.DurationDefault) + " default",
 		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionMedium, constants.InfluxDBDatabase,
@@ -73,7 +83,12 @@ func (c *Client) Setup() error {
 	for _, query := range queries {
 		log.Infof("%v", query)
 
-		if err := c.execQuery(query); err != nil {
+		err := c.execQuery(query)
+		if err != nil {
+			if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+				log.Info("Retention policy already exists with different attributes.")
+				continue
+			}
 			return trace.Wrap(err)
 		}
 	}
@@ -152,6 +167,14 @@ func (c *Client) execQuery(query string) error {
 	}
 
 	return nil
+}
+
+// ConvertInfluxDBError converts error from InfluxDB query results
+func ConvertInfluxDBError(err error) error {
+	if strings.Contains(err.Error(), "retention policy already exists") {
+		return trace.AlreadyExists("retention policy already exists")
+	}
+	return err
 }
 
 const (
