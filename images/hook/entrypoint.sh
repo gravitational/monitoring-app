@@ -58,7 +58,7 @@ if [ $1 = "update" ]; then
     rig upsert -f /var/lib/gravity/resources/resources.yaml --debug
     rig upsert -f /var/lib/gravity/resources/alerts.yaml --debug
 
-    read -r -d '' INFLUXDB_PATCH <<EOF
+    cat  <<EOF > /tmp/influxdb.yaml
 spec:
   template:
     spec:
@@ -73,7 +73,7 @@ spec:
                 values:
                 - $NODE_NAME
 EOF
-    kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
+    kubectl --namespace=kube-system patch deployment influxdb --patch="$(cat /tmp/influxdb.yaml)"
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug
