@@ -2410,3 +2410,4 @@ spec:
           - availableReplicas
           - unavailableReplicas
   version: v1
+status: {}
