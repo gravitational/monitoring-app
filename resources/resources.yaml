@@ -4433,4 +4433,3 @@ spec:
   selector:
     app: monitoring
     component: kapacitor
-  type: NodePort
