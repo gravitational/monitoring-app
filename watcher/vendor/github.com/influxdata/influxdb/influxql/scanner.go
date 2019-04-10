@@ -294,7 +294,7 @@ func (s *Scanner) scanNumber() (tok Token, pos Pos, lit string) {
 	return NUMBER, pos, buf.String()
 }
 
-// scanDigits consumes a contiguous series of digits.
+// scanDigits consume a contiguous series of digits.
 func (s *Scanner) scanDigits() string {
 	var buf bytes.Buffer
 	for {

@@ -153,6 +153,7 @@ def run_generate():
     logging.info("Running generate...")
     run("go install ./vendor/github.com/golang/protobuf/protoc-gen-go")
     run("go install ./vendor/github.com/benbjohnson/tmpl")
+    run("go install ./vendor/github.com/mailru/easyjson/easyjson")
     generate_cmd = ["go", "generate"]
     generate_cmd.extend(go_list())
     p = subprocess.Popen(generate_cmd)
@@ -164,21 +165,24 @@ def run_generate():
         logging.error("Generate failed.")
         return False
 
-def go_get(branch, update=False, no_uncommitted=False):
+def go_get():
     """
     Retrieve build dependencies or restore pinned dependencies.
     """
-    # All Kapacitor deps should be vendored so do not go get them
-    logging.info("Pretending to retrieve Go dependencies...")
-
-    # Check for uncommitted changes if no_uncommitted was given.
-    if no_uncommitted:
-        changes = run("git status --porcelain").strip()
-        if len(changes) > 0:
-            logging.error("There are un-committed changes in your local branch, --no-uncommited was given, cannot continue")
-            return False
-
+    # Nothing to do, all dependencies are vendored.
     return True
+
+def check_nochanges():
+    """
+    Check that there are no changes
+    """
+    changes = run("git status --porcelain").strip()
+    if len(changes) > 0:
+        logging.error("There are un-committed changes in your local branch, --no-uncommited was given, cannot continue")
+        logging.debug("Changes:\n{}".format(changes))
+        return False
+    return True
+
 
 def run_tests(race, parallel, timeout, no_vet):
     """Run the Go test suite on binary output.
@@ -239,7 +243,7 @@ def package_python_udf(version, dist_dir):
     fname = "python-kapacitor_udf-{}.tar.gz".format(version)
     outfile = os.path.join(dist_dir, fname)
 
-    tar_cmd = ['tar', '-cz', '-C', './udf/agent/py', '--transform', 's/^./kapacitor_udf-{}/'.format(version), '-f']
+    tar_cmd = ['tar', '-cz', '-C', './udf/agent/py', '--owner=root', '--group=root', '--transform', 's/^./kapacitor_udf-{}/'.format(version), '-f']
     tar_cmd.append(outfile)
     exclude_list = ['*.pyc', '*.pyo', '__pycache__']
     for e in exclude_list:
@@ -575,22 +579,22 @@ def build(version=None,
             build_command += "-tags {} ".format(','.join(tags))
         if "1.4" in get_go_version():
             if static:
-                build_command += "-ldflags=\"-s -X main.version {} -X main.branch {} -X main.commit {}\" ".format(version,
+                build_command += "-ldflags=\"-s -X main.version {} -X main.branch {} -X main.commit {} -X main.platform OSS\" ".format(version,
                                                                                                                   get_current_branch(),
                                                                                                                   get_current_commit())
             else:
-                build_command += "-ldflags=\"-X main.version {} -X main.branch {} -X main.commit {}\" ".format(version,
+                build_command += "-ldflags=\"-X main.version {} -X main.branch {} -X main.commit {} -X main.platform OSS\" ".format(version,
                                                                                                                get_current_branch(),
                                                                                                                get_current_commit())
 
         else:
             # Starting with Go 1.5, the linker flag arguments changed to 'name=value' from 'name value'
             if static:
-                build_command += "-ldflags=\"-s -X main.version={} -X main.branch={} -X main.commit={}\" ".format(version,
+                build_command += "-ldflags=\"-s -X main.version={} -X main.branch={} -X main.commit={} -X main.platform=OSS\" ".format(version,
                                                                                                                   get_current_branch(),
                                                                                                                   get_current_commit())
             else:
-                build_command += "-ldflags=\"-X main.version={} -X main.branch={} -X main.commit={}\" ".format(version,
+                build_command += "-ldflags=\"-X main.version={} -X main.branch={} -X main.commit={} -X main.platform=OSS\" ".format(version,
                                                                                                                get_current_branch(),
                                                                                                                get_current_commit())
         if static:
@@ -721,7 +725,7 @@ def package(build_output, pkg_name, version, nightly=False, iteration=1, static=
                                                             package_arch)
                         current_location = os.path.join(os.getcwd(), current_location)
                         if package_type == 'tar':
-                            tar_command = "cd {} && tar -cvzf {}.tar.gz ./*".format(package_build_root, name)
+                            tar_command = "cd {} && tar -cvzf {}.tar.gz --owner=root --group=root ./*".format(package_build_root, name)
                             run(tar_command, shell=True)
                             run("mv {}.tar.gz {}".format(os.path.join(package_build_root, name), current_location), shell=True)
                             outfile = os.path.join(current_location, name + ".tar.gz")
@@ -745,7 +749,7 @@ def package(build_output, pkg_name, version, nightly=False, iteration=1, static=
                             package_build_root,
                             current_location)
                         if package_type == "rpm":
-                            fpm_command += "--depends coreutils --rpm-posttrans {}".format(POSTINST_SCRIPT)
+                            fpm_command += "--depends coreutils --depends shadow-utils --rpm-posttrans {}".format(POSTINST_SCRIPT)
                         out = run(fpm_command, shell=True)
                         matches = re.search(':path=>"(.*)"', out)
                         outfile = None
@@ -819,12 +823,16 @@ def main(args):
         logging.info("Moving to git commit: {}".format(args.commit))
         run("git checkout {}".format(args.commit))
 
+    if not args.no_get:
+        if not go_get():
+            return 1
+
     if args.generate:
         if not run_generate():
             return 1
 
-    if not args.no_get:
-        if not go_get(args.branch, update=args.update, no_uncommitted=args.no_uncommitted):
+    if args.no_uncommitted:
+        if not check_nochanges():
             return 1
 
     if args.test:

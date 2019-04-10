@@ -25,13 +25,20 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 
 	"github.com/gravitational/trace"
+	"github.com/gravitational/version"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	var mode string
 	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
+	ver := flag.Bool("version", false, "print version")
 	flag.Parse()
+
+	if *ver {
+		version.Print()
+		return
+	}
 
 	client, err := kubernetes.NewClient()
 	if err != nil {

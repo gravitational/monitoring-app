@@ -4,14 +4,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/influxdata/kapacitor/edge"
+	"github.com/influxdata/kapacitor/keyvalue"
 	"github.com/influxdata/kapacitor/models"
+	"github.com/influxdata/kapacitor/udf/agent"
 )
 
 var ErrServerStopped = errors.New("server already stopped")
+
+type Diagnostic interface {
+	Error(msg string, err error, ctx ...keyvalue.T)
+
+	UDFLog(msg string)
+}
 
 // Server provides an implementation for the core communication with UDFs.
 // The Server provides only a partial implementation of udf.Interface as
@@ -46,11 +54,9 @@ type Server struct {
 	// If abort fails after sometime this will be called
 	killCallback func()
 
-	pointIn chan models.Point
-	batchIn chan models.Batch
+	inMsg chan edge.Message
 
-	pointOut chan models.Point
-	batchOut chan models.Batch
+	outMsg chan edge.Message
 
 	stopped  bool
 	stopping chan struct{}
@@ -60,72 +66,72 @@ type Server struct {
 	err   error
 	errMu sync.Mutex
 
-	requests      chan *Request
+	requests      chan *agent.Request
 	requestsGroup sync.WaitGroup
 
 	keepalive        chan int64
 	keepaliveTimeout time.Duration
 
-	in  ByteReadReader
+	taskID string
+	nodeID string
+
+	in  agent.ByteReadReader
 	out io.WriteCloser
 
 	// Group for waiting on read/write goroutines
 	ioGroup sync.WaitGroup
 
-	mu     sync.Mutex
-	logger *log.Logger
+	mu   sync.Mutex
+	diag Diagnostic
 
 	responseBuf []byte
 
-	infoResponse     chan *Response
-	initResponse     chan *Response
-	snapshotResponse chan *Response
-	restoreResponse  chan *Response
+	infoResponse     chan *agent.Response
+	initResponse     chan *agent.Response
+	snapshotResponse chan *agent.Response
+	restoreResponse  chan *agent.Response
 
-	batch *models.Batch
+	// Buffer up batch messages
+	begin  *agent.BeginBatch
+	points []edge.BatchPointMessage
 }
 
 func NewServer(
-	in ByteReadReader,
+	taskID, nodeID string,
+	in agent.ByteReadReader,
 	out io.WriteCloser,
-	l *log.Logger,
+	d Diagnostic,
 	timeout time.Duration,
 	abortCallback func(),
 	killCallback func(),
 ) *Server {
 	s := &Server{
+		taskID:           taskID,
+		nodeID:           nodeID,
 		in:               in,
 		out:              out,
-		logger:           l,
-		requests:         make(chan *Request),
+		diag:             d,
+		requests:         make(chan *agent.Request),
 		keepalive:        make(chan int64, 1),
 		keepaliveTimeout: timeout,
 		abortCallback:    abortCallback,
 		killCallback:     killCallback,
-		pointIn:          make(chan models.Point),
-		batchIn:          make(chan models.Batch),
-		pointOut:         make(chan models.Point),
-		batchOut:         make(chan models.Batch),
-		infoResponse:     make(chan *Response, 1),
-		initResponse:     make(chan *Response, 1),
-		snapshotResponse: make(chan *Response, 1),
-		restoreResponse:  make(chan *Response, 1),
+		inMsg:            make(chan edge.Message),
+		outMsg:           make(chan edge.Message),
+		infoResponse:     make(chan *agent.Response, 1),
+		initResponse:     make(chan *agent.Response, 1),
+		snapshotResponse: make(chan *agent.Response, 1),
+		restoreResponse:  make(chan *agent.Response, 1),
 	}
 
 	return s
 }
 
-func (s *Server) PointIn() chan<- models.Point {
-	return s.pointIn
+func (s *Server) In() chan<- edge.Message {
+	return s.inMsg
 }
-func (s *Server) BatchIn() chan<- models.Batch {
-	return s.batchIn
-}
-func (s *Server) PointOut() <-chan models.Point {
-	return s.pointOut
-}
-func (s *Server) BatchOut() <-chan models.Batch {
-	return s.batchOut
+func (s *Server) Out() <-chan edge.Message {
+	return s.outMsg
 }
 
 func (s *Server) setError(err error) {
@@ -222,8 +228,7 @@ func (s *Server) stop() error {
 
 	close(s.requests)
 
-	close(s.pointIn)
-	close(s.batchIn)
+	close(s.inMsg)
 
 	s.ioGroup.Wait()
 
@@ -234,24 +239,24 @@ func (s *Server) stop() error {
 }
 
 type Info struct {
-	Wants    EdgeType
-	Provides EdgeType
-	Options  map[string]*OptionInfo
+	Wants    agent.EdgeType
+	Provides agent.EdgeType
+	Options  map[string]*agent.OptionInfo
 }
 
 // Get information about the process, available options etc.
 // Info need not be called every time a process is started.
 func (s *Server) Info() (Info, error) {
 	info := Info{}
-	req := &Request{Message: &Request_Info{
-		Info: &InfoRequest{},
+	req := &agent.Request{Message: &agent.Request_Info{
+		Info: &agent.InfoRequest{},
 	}}
 
 	resp, err := s.doRequestResponse(req, s.infoResponse)
 	if err != nil {
 		return info, err
 	}
-	ri := resp.Message.(*Response_Info).Info
+	ri := resp.Message.(*agent.Response_Info).Info
 	info.Options = ri.Options
 	info.Wants = ri.Wants
 	info.Provides = ri.Provides
@@ -261,10 +266,12 @@ func (s *Server) Info() (Info, error) {
 
 // Initialize the process with a set of Options.
 // Calling Init is required even if you do not have any specific Options, just pass nil
-func (s *Server) Init(options []*Option) error {
-	req := &Request{Message: &Request_Init{
-		Init: &InitRequest{
+func (s *Server) Init(options []*agent.Option) error {
+	req := &agent.Request{Message: &agent.Request_Init{
+		Init: &agent.InitRequest{
 			Options: options,
+			TaskID:  s.taskID,
+			NodeID:  s.nodeID,
 		},
 	}}
 	resp, err := s.doRequestResponse(req, s.initResponse)
@@ -272,7 +279,7 @@ func (s *Server) Init(options []*Option) error {
 		return err
 	}
 
-	init := resp.Message.(*Response_Init).Init
+	init := resp.Message.(*agent.Response_Init).Init
 	if !init.Success {
 		return fmt.Errorf("failed to initialize processes %s", init.Error)
 	}
@@ -281,36 +288,36 @@ func (s *Server) Init(options []*Option) error {
 
 // Request a snapshot from the process.
 func (s *Server) Snapshot() ([]byte, error) {
-	req := &Request{Message: &Request_Snapshot{
-		Snapshot: &SnapshotRequest{},
+	req := &agent.Request{Message: &agent.Request_Snapshot{
+		Snapshot: &agent.SnapshotRequest{},
 	}}
 	resp, err := s.doRequestResponse(req, s.snapshotResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	snapshot := resp.Message.(*Response_Snapshot).Snapshot.Snapshot
+	snapshot := resp.Message.(*agent.Response_Snapshot).Snapshot.Snapshot
 	return snapshot, nil
 }
 
 // Request to restore a snapshot.
 func (s *Server) Restore(snapshot []byte) error {
-	req := &Request{Message: &Request_Restore{
-		Restore: &RestoreRequest{snapshot},
+	req := &agent.Request{Message: &agent.Request_Restore{
+		Restore: &agent.RestoreRequest{snapshot},
 	}}
 	resp, err := s.doRequestResponse(req, s.restoreResponse)
 	if err != nil {
 		return err
 	}
 
-	restore := resp.Message.(*Response_Restore).Restore
+	restore := resp.Message.(*agent.Response_Restore).Restore
 	if !restore.Success {
 		return fmt.Errorf("error restoring snapshot: %s", restore.Error)
 	}
 	return nil
 }
 
-func (s *Server) doRequestResponse(req *Request, respC chan *Response) (*Response, error) {
+func (s *Server) doRequestResponse(req *agent.Request, respC chan *agent.Response) (*agent.Response, error) {
 	err := func() error {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -342,11 +349,11 @@ func (s *Server) doRequestResponse(req *Request, respC chan *Response) (*Respons
 	}
 }
 
-func (s *Server) doResponse(response *Response, respC chan *Response) {
+func (s *Server) doResponse(response *agent.Response, respC chan *agent.Response) {
 	select {
 	case respC <- response:
 	default:
-		s.logger.Printf("E! received %T without requesting it", response.Message)
+		s.diag.Error("received message without requesting it", fmt.Errorf("did not expect %T message", response.Message))
 	}
 }
 
@@ -361,8 +368,8 @@ func (s *Server) runKeepalive() {
 	for {
 		select {
 		case <-ticker.C:
-			req := &Request{Message: &Request_Keepalive{
-				Keepalive: &KeepaliveRequest{
+			req := &agent.Request{Message: &agent.Request_Keepalive{
+				Keepalive: &agent.KeepaliveRequest{
 					Time: time.Now().UnixNano(),
 				},
 			}}
@@ -397,7 +404,7 @@ func (s *Server) watchKeepalive() {
 				default:
 					// We failed to abort just kill it.
 					if s.killCallback != nil {
-						s.logger.Println("E! process not responding! killing")
+						s.diag.Error("killing process", errors.New("process not responding"))
 						s.killCallback()
 					}
 				}
@@ -424,7 +431,7 @@ func (s *Server) watchKeepalive() {
 				break
 			}
 			err = fmt.Errorf("keepalive timedout, last keepalive received was: %s", time.Unix(0, last))
-			s.logger.Println("E!", err)
+			s.diag.Error("encountered error", err)
 			return
 		case <-s.stopping:
 			return
@@ -435,25 +442,40 @@ func (s *Server) watchKeepalive() {
 // Write Requests
 func (s *Server) writeData() error {
 	defer s.out.Close()
+	var begin edge.BeginBatchMessage
 	for {
 		select {
-		case pt, ok := <-s.pointIn:
-			if ok {
-				err := s.writePoint(pt)
-				if err != nil {
-					return err
-				}
-			} else {
-				s.pointIn = nil
+		case m, ok := <-s.inMsg:
+			if !ok {
+				s.inMsg = nil
 			}
-		case bt, ok := <-s.batchIn:
-			if ok {
-				err := s.writeBatch(bt)
+			switch msg := m.(type) {
+			case edge.PointMessage:
+				err := s.writePoint(msg)
 				if err != nil {
 					return err
 				}
-			} else {
-				s.batchIn = nil
+			case edge.BeginBatchMessage:
+				begin = msg
+				err := s.writeBeginBatch(msg)
+				if err != nil {
+					return err
+				}
+			case edge.BatchPointMessage:
+				err := s.writeBatchPoint(begin.GroupID(), msg)
+				if err != nil {
+					return err
+				}
+			case edge.EndBatchMessage:
+				err := s.writeEndBatch(begin.Name(), begin.Time(), begin.GroupInfo(), msg)
+				if err != nil {
+					return err
+				}
+			case edge.BufferedBatchMessage:
+				err := s.writeBufferedBatch(msg)
+				if err != nil {
+					return err
+				}
 			}
 		case req, ok := <-s.requests:
 			if ok {
@@ -467,30 +489,31 @@ func (s *Server) writeData() error {
 		case <-s.aborting:
 			return s.err
 		}
-		if s.pointIn == nil && s.batchIn == nil && s.requests == nil {
+		if s.inMsg == nil && s.requests == nil {
 			break
 		}
 	}
 	return nil
 }
 
-func (s *Server) writePoint(pt models.Point) error {
-	strs, floats, ints := s.fieldsToTypedMaps(pt.Fields)
-	udfPoint := &Point{
-		Time:            pt.Time.UnixNano(),
-		Name:            pt.Name,
-		Database:        pt.Database,
-		RetentionPolicy: pt.RetentionPolicy,
-		Group:           string(pt.Group),
-		Dimensions:      pt.Dimensions.TagNames,
-		ByName:          pt.Dimensions.ByName,
-		Tags:            pt.Tags,
+func (s *Server) writePoint(p edge.PointMessage) error {
+	strs, floats, ints, bools := s.fieldsToTypedMaps(p.Fields())
+	udfPoint := &agent.Point{
+		Time:            p.Time().UnixNano(),
+		Name:            p.Name(),
+		Database:        p.Database(),
+		RetentionPolicy: p.RetentionPolicy(),
+		Group:           string(p.GroupID()),
+		Dimensions:      p.Dimensions().TagNames,
+		ByName:          p.Dimensions().ByName,
+		Tags:            p.Tags(),
 		FieldsDouble:    floats,
 		FieldsInt:       ints,
 		FieldsString:    strs,
+		FieldsBool:      bools,
 	}
-	req := &Request{
-		Message: &Request_Point{udfPoint},
+	req := &agent.Request{
+		Message: &agent.Request_Point{Point: udfPoint},
 	}
 	return s.writeRequest(req)
 }
@@ -499,6 +522,7 @@ func (s *Server) fieldsToTypedMaps(fields models.Fields) (
 	strs map[string]string,
 	floats map[string]float64,
 	ints map[string]int64,
+	bools map[string]bool,
 ) {
 	for k, v := range fields {
 		switch value := v.(type) {
@@ -517,6 +541,11 @@ func (s *Server) fieldsToTypedMaps(fields models.Fields) (
 				ints = make(map[string]int64)
 			}
 			ints[k] = value
+		case bool:
+			if bools == nil {
+				bools = make(map[string]bool)
+			}
+			bools[k] = value
 		default:
 			panic("unsupported field value type")
 		}
@@ -528,6 +557,7 @@ func (s *Server) typeMapsToFields(
 	strs map[string]string,
 	floats map[string]float64,
 	ints map[string]int64,
+	bools map[string]bool,
 ) models.Fields {
 	fields := make(models.Fields)
 	for k, v := range strs {
@@ -539,55 +569,72 @@ func (s *Server) typeMapsToFields(
 	for k, v := range floats {
 		fields[k] = v
 	}
+	for k, v := range bools {
+		fields[k] = v
+	}
 	return fields
 }
 
-func (s *Server) writeBatch(b models.Batch) error {
-	req := &Request{
-		Message: &Request_Begin{&BeginBatch{
-			Name:   b.Name,
-			Group:  string(b.Group),
-			Tags:   b.Tags,
-			Size:   int64(len(b.Points)),
-			ByName: b.ByName,
-		}},
+func (s *Server) writeBeginBatch(begin edge.BeginBatchMessage) error {
+	req := &agent.Request{
+		Message: &agent.Request_Begin{
+			Begin: &agent.BeginBatch{
+				Name:   begin.Name(),
+				Group:  string(begin.GroupID()),
+				Tags:   begin.Tags(),
+				Size:   int64(begin.SizeHint()),
+				ByName: begin.Dimensions().ByName,
+			}},
 	}
-	err := s.writeRequest(req)
-	if err != nil {
-		return err
-	}
-	rp := &Request_Point{}
-	req.Message = rp
-	for _, pt := range b.Points {
-		strs, floats, ints := s.fieldsToTypedMaps(pt.Fields)
-		udfPoint := &Point{
-			Time:         pt.Time.UnixNano(),
-			Group:        string(b.Group),
-			Tags:         pt.Tags,
-			FieldsDouble: floats,
-			FieldsInt:    ints,
-			FieldsString: strs,
-		}
-		rp.Point = udfPoint
-		err := s.writeRequest(req)
-		if err != nil {
-			return err
-		}
-	}
+	return s.writeRequest(req)
+}
 
-	req.Message = &Request_End{
-		&EndBatch{
-			Name:  b.Name,
-			Group: string(b.Group),
-			Tmax:  b.TMax.UnixNano(),
-			Tags:  b.Tags,
+func (s *Server) writeBatchPoint(group models.GroupID, bp edge.BatchPointMessage) error {
+	strs, floats, ints, bools := s.fieldsToTypedMaps(bp.Fields())
+	req := &agent.Request{
+		Message: &agent.Request_Point{
+			Point: &agent.Point{
+				Time:         bp.Time().UnixNano(),
+				Group:        string(group),
+				Tags:         bp.Tags(),
+				FieldsDouble: floats,
+				FieldsInt:    ints,
+				FieldsString: strs,
+				FieldsBool:   bools,
+			},
 		},
 	}
 	return s.writeRequest(req)
 }
 
-func (s *Server) writeRequest(req *Request) error {
-	err := WriteMessage(req, s.out)
+func (s *Server) writeEndBatch(name string, tmax time.Time, groupInfo edge.GroupInfo, end edge.EndBatchMessage) error {
+	req := &agent.Request{
+		Message: &agent.Request_End{
+			End: &agent.EndBatch{
+				Name:  name,
+				Group: string(groupInfo.ID),
+				Tmax:  tmax.UnixNano(),
+				Tags:  groupInfo.Tags,
+			},
+		},
+	}
+	return s.writeRequest(req)
+}
+
+func (s *Server) writeBufferedBatch(batch edge.BufferedBatchMessage) error {
+	if err := s.writeBeginBatch(batch.Begin()); err != nil {
+		return err
+	}
+	for _, bp := range batch.Points() {
+		if err := s.writeBatchPoint(batch.GroupID(), bp); err != nil {
+			return err
+		}
+	}
+	return s.writeEndBatch(batch.Name(), batch.Time(), batch.GroupInfo(), batch.End())
+}
+
+func (s *Server) writeRequest(req *agent.Request) error {
+	err := agent.WriteMessage(req, s.out)
 	if err != nil {
 		err = fmt.Errorf("write error: %s", err)
 	}
@@ -597,8 +644,7 @@ func (s *Server) writeRequest(req *Request) error {
 // Read Responses from STDOUT of the process.
 func (s *Server) readData() error {
 	defer func() {
-		close(s.pointOut)
-		close(s.batchOut)
+		close(s.outMsg)
 	}()
 	for {
 		response, err := s.readResponse()
@@ -616,16 +662,16 @@ func (s *Server) readData() error {
 	}
 }
 
-func (s *Server) readResponse() (*Response, error) {
-	response := new(Response)
-	err := ReadMessage(&s.responseBuf, s.in, response)
+func (s *Server) readResponse() (*agent.Response, error) {
+	response := new(agent.Response)
+	err := agent.ReadMessage(&s.responseBuf, s.in, response)
 	if err != nil {
 		return nil, err
 	}
 	return response, nil
 }
 
-func (s *Server) handleResponse(response *Response) error {
+func (s *Server) handleResponse(response *agent.Response) error {
 	// Always reset the keepalive timer since we received a response
 	select {
 	case s.keepalive <- time.Now().UnixNano():
@@ -637,68 +683,76 @@ func (s *Server) handleResponse(response *Response) error {
 	}
 	// handle response
 	switch msg := response.Message.(type) {
-	case *Response_Keepalive:
+	case *agent.Response_Keepalive:
 		// Noop we already reset the keepalive timer
-	case *Response_Info:
+	case *agent.Response_Info:
 		s.doResponse(response, s.infoResponse)
-	case *Response_Init:
+	case *agent.Response_Init:
 		s.doResponse(response, s.initResponse)
-	case *Response_Snapshot:
+	case *agent.Response_Snapshot:
 		s.doResponse(response, s.snapshotResponse)
-	case *Response_Restore:
+	case *agent.Response_Restore:
 		s.doResponse(response, s.restoreResponse)
-	case *Response_Error:
-		s.logger.Println("E!", msg.Error.Error)
+	case *agent.Response_Error:
+		s.diag.Error("received error message", errors.New(msg.Error.Error))
 		return errors.New(msg.Error.Error)
-	case *Response_Begin:
-		s.batch = &models.Batch{
-			ByName: msg.Begin.ByName,
-			Points: make([]models.BatchPoint, 0, msg.Begin.Size),
-		}
-	case *Response_Point:
-		if s.batch != nil {
-			pt := models.BatchPoint{
-				Time: time.Unix(0, msg.Point.Time).UTC(),
-				Tags: msg.Point.Tags,
-				Fields: s.typeMapsToFields(
+	case *agent.Response_Begin:
+		s.begin = msg.Begin
+		s.points = make([]edge.BatchPointMessage, 0, msg.Begin.Size)
+	case *agent.Response_Point:
+		if s.points != nil {
+			bp := edge.NewBatchPointMessage(
+				s.typeMapsToFields(
 					msg.Point.FieldsString,
 					msg.Point.FieldsDouble,
 					msg.Point.FieldsInt,
+					msg.Point.FieldsBool,
 				),
-			}
-			s.batch.Points = append(s.batch.Points, pt)
+				msg.Point.Tags,
+				time.Unix(0, msg.Point.Time).UTC(),
+			)
+			s.points = append(s.points, bp)
 		} else {
-			pt := models.Point{
-				Time:            time.Unix(0, msg.Point.Time).UTC(),
-				Name:            msg.Point.Name,
-				Database:        msg.Point.Database,
-				RetentionPolicy: msg.Point.RetentionPolicy,
-				Group:           models.GroupID(msg.Point.Group),
-				Dimensions:      models.Dimensions{ByName: msg.Point.ByName, TagNames: msg.Point.Dimensions},
-				Tags:            msg.Point.Tags,
-				Fields: s.typeMapsToFields(
+			p := edge.NewPointMessage(
+				msg.Point.Name,
+				msg.Point.Database,
+				msg.Point.RetentionPolicy,
+				models.Dimensions{ByName: msg.Point.ByName, TagNames: msg.Point.Dimensions},
+				s.typeMapsToFields(
 					msg.Point.FieldsString,
 					msg.Point.FieldsDouble,
 					msg.Point.FieldsInt,
+					msg.Point.FieldsBool,
 				),
-			}
+				msg.Point.Tags,
+				time.Unix(0, msg.Point.Time).UTC(),
+			)
 			select {
-			case s.pointOut <- pt:
+			case s.outMsg <- p:
 			case <-s.aborting:
 				return s.err
 			}
 		}
-	case *Response_End:
-		s.batch.Name = msg.End.Name
-		s.batch.TMax = time.Unix(0, msg.End.Tmax).UTC()
-		s.batch.Group = models.GroupID(msg.End.Group)
-		s.batch.Tags = msg.End.Tags
+	case *agent.Response_End:
+		begin := edge.NewBeginBatchMessage(
+			msg.End.Name,
+			msg.End.Tags,
+			s.begin.ByName,
+			time.Unix(0, msg.End.Tmax).UTC(),
+			len(s.points),
+		)
+		bufferedBatch := edge.NewBufferedBatchMessage(
+			begin,
+			s.points,
+			edge.NewEndBatchMessage(),
+		)
 		select {
-		case s.batchOut <- *s.batch:
+		case s.outMsg <- bufferedBatch:
 		case <-s.aborting:
 			return s.err
 		}
-		s.batch = nil
+		s.begin = nil
+		s.points = nil
 	default:
 		panic(fmt.Sprintf("unexpected response message %T", msg))
 	}

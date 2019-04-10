@@ -1,5 +1,5 @@
 /*
-Copyright 2015 Gravitational, Inc.
+Copyright 2015-2019 Gravitational, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ func (s *TraceSuite) TestWrap(c *C) {
 
 	c.Assert(line(DebugReport(err)), Matches, ".*trace_test.go.*")
 	c.Assert(line(UserMessage(err)), Not(Matches), ".*trace_test.go.*")
+	c.Assert(line(UserMessage(err)), Matches, ".*param.*")
 }
 
 func (s *TraceSuite) TestOrigError(c *C) {
@@ -60,20 +61,6 @@ func (s *TraceSuite) TestOrigError(c *C) {
 func (s *TraceSuite) TestIsEOF(c *C) {
 	c.Assert(IsEOF(io.EOF), Equals, true)
 	c.Assert(IsEOF(Wrap(io.EOF)), Equals, true)
-}
-
-func (s *TraceSuite) TestWrapMessage(c *C) {
-	testErr := fmt.Errorf("description")
-
-	err := Wrap(testErr)
-
-	SetDebug(true)
-	c.Assert(line(err.Error()), Matches, ".*trace_test.go.*")
-	c.Assert(line(err.Error()), Matches, ".*description.*")
-
-	SetDebug(false)
-	c.Assert(line(err.Error()), Not(Matches), ".*trace_test.go.*")
-	c.Assert(line(err.Error()), Matches, ".*description.*")
 }
 
 func (s *TraceSuite) TestWrapUserMessage(c *C) {
@@ -229,6 +216,79 @@ func (s *TraceSuite) TestTextFormatter(c *C) {
 	}
 }
 
+func (s *TraceSuite) TestTextFormatterWithColors(c *C) {
+	padding := 6
+	f := &TextFormatter{
+		DisableTimestamp: true,
+		ComponentPadding: padding,
+		EnableColors:     true,
+	}
+	log.SetFormatter(f)
+
+	type testCase struct {
+		log     func()
+		match   string
+		comment string
+	}
+
+	testCases := []testCase{
+		{
+			comment: "test info color",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "test",
+				}).Info("hello")
+			},
+			match: `^\x1b\[36mINFO\x1b\[0m \[TEST\] hello.*`,
+		},
+		{
+			comment: "info color padding overflow",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "longline",
+				}).Info("hello")
+			},
+			match: `^\x1b\[36mINFO\x1b\[0m \[LONG\] hello.*`,
+		},
+		{
+			comment: "test debug color",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "test",
+				}).Debug("hello")
+			},
+			match: `^\x1b\[37mDEBU\x1b\[0m \[TEST\] hello.*`,
+		},
+		{
+			comment: "test warn color",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "test",
+				}).Warning("hello")
+			},
+			match: `^\x1b\[33mWARN\x1b\[0m \[TEST\] hello.*`,
+		},
+		{
+			comment: "test error color",
+			log: func() {
+				log.WithFields(log.Fields{
+					Component: "test",
+				}).Error("hello")
+			},
+			match: `^\x1b\[31mERRO\x1b\[0m \[TEST\] hello.*`,
+		},
+	}
+
+	for i, tc := range testCases {
+		comment := Commentf("test case %v %v, expected match: %v", i+1, tc.comment, tc.match)
+		buf := &bytes.Buffer{}
+		log.SetOutput(buf)
+		log.SetLevel(log.DebugLevel)
+		tc.log()
+		c.Assert(line(buf.String()), Matches, tc.match, comment)
+	}
+}
+
 func (s *TraceSuite) TestGenericErrors(c *C) {
 	testCases := []struct {
 		Err        error
@@ -270,6 +330,11 @@ func (s *TraceSuite) TestGenericErrors(c *C) {
 			Predicate:  IsLimitExceeded,
 			StatusCode: http.StatusTooManyRequests,
 		},
+		{
+			Err:        NotImplemented("not implemented"),
+			Predicate:  IsNotImplemented,
+			StatusCode: http.StatusNotImplemented,
+		},
 	}
 
 	for i, testCase := range testCases {
@@ -279,7 +344,7 @@ func (s *TraceSuite) TestGenericErrors(c *C) {
 
 		t := err.(*TraceErr)
 		c.Assert(len(t.Traces), Not(Equals), 0, comment)
-		c.Assert(line(err.Error()), Matches, "*.trace_test.go.*", comment)
+		c.Assert(line(DebugReport(err)), Matches, "*.trace_test.go.*", comment)
 		c.Assert(testCase.Predicate(err), Equals, true, comment)
 
 		w := newTestWriter()
@@ -353,9 +418,10 @@ func (s *TraceSuite) TestAggregateConvertsToCommonErrors(c *C) {
 		Predicate          func(error) bool
 		RoundtripPredicate func(error) bool
 		StatusCode         int
+		comment            string
 	}{
 		{
-			// Aggregate unwraps to first aggregated error
+			comment: "Aggregate unwraps to first aggregated error",
 			Err: NewAggregate(BadParameter("invalid value of foo"),
 				LimitExceeded("limit exceeded")),
 			Predicate:          IsAggregate,
@@ -363,7 +429,7 @@ func (s *TraceSuite) TestAggregateConvertsToCommonErrors(c *C) {
 			StatusCode:         http.StatusBadRequest,
 		},
 		{
-			// Nested aggregate unwraps recursively
+			comment: "Nested aggregate unwraps recursively",
 			Err: NewAggregate(NewAggregate(BadParameter("invalid value of foo"),
 				LimitExceeded("limit exceeded"))),
 			Predicate:          IsAggregate,
@@ -371,12 +437,12 @@ func (s *TraceSuite) TestAggregateConvertsToCommonErrors(c *C) {
 			StatusCode:         http.StatusBadRequest,
 		},
 	}
-	for i, testCase := range testCases {
-		comment := Commentf("test case #%v", i+1)
+	for _, testCase := range testCases {
+		comment := Commentf(testCase.comment)
 		SetDebug(true)
 		err := testCase.Err
 
-		c.Assert(line(err.Error()), Matches, "*.trace_test.go.*", comment)
+		c.Assert(line(DebugReport(err)), Matches, "*.trace_test.go.*", comment)
 		c.Assert(testCase.Predicate(err), Equals, true, comment)
 
 		w := newTestWriter()

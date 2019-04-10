@@ -286,51 +286,44 @@ func Test_ReportsErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "ListTopicHandlers",
-			fnc: func(c *client.Client) error {
-				_, err := c.ListTopicHandlers(c.TopicHandlersLink(""))
-				return err
-			},
-		},
-		{
 			name: "Handler",
 			fnc: func(c *client.Client) error {
-				_, err := c.Handler(c.HandlerLink(""))
+				_, err := c.TopicHandler(c.TopicHandlerLink("", ""))
 				return err
 			},
 		},
 		{
 			name: "CreateHandler",
 			fnc: func(c *client.Client) error {
-				_, err := c.CreateHandler(client.HandlerOptions{})
+				_, err := c.CreateTopicHandler(c.TopicHandlersLink(""), client.TopicHandlerOptions{})
 				return err
 			},
 		},
 		{
 			name: "PatchHandler",
 			fnc: func(c *client.Client) error {
-				_, err := c.PatchHandler(c.HandlerLink(""), nil)
+				_, err := c.PatchTopicHandler(c.TopicHandlerLink("", ""), nil)
 				return err
 			},
 		},
 		{
 			name: "ReplaceHandler",
 			fnc: func(c *client.Client) error {
-				_, err := c.ReplaceHandler(c.HandlerLink(""), client.HandlerOptions{})
+				_, err := c.ReplaceTopicHandler(c.TopicHandlerLink("", ""), client.TopicHandlerOptions{})
 				return err
 			},
 		},
 		{
 			name: "DeleteHandler",
 			fnc: func(c *client.Client) error {
-				err := c.DeleteHandler(c.HandlerLink(""))
+				err := c.DeleteTopicHandler(c.TopicHandlerLink("", ""))
 				return err
 			},
 		},
 		{
 			name: "ListHandlers",
 			fnc: func(c *client.Client) error {
-				_, err := c.ListHandlers(nil)
+				_, err := c.ListTopicHandlers(c.TopicHandlersLink(""), nil)
 				return err
 			},
 		},
@@ -410,7 +403,7 @@ func Test_Task(t *testing.T) {
 	"id": "t1",
 	"type":"stream",
 	"dbrps":[{"db":"db","rp":"rp"}],
-	"script":"stream\n    |from()\n        .measurement('cpu')\n",
+	"script":"stream\n\t|from()\n\t\t.measurement('cpu')\n",
 	"dot": "digraph t1 {}",
 	"status" : "enabled",
 	"executing" : false,
@@ -439,8 +432,8 @@ func Test_Task(t *testing.T) {
 			RetentionPolicy: "rp",
 		}},
 		TICKscript: `stream
-    |from()
-        .measurement('cpu')
+	|from()
+		.measurement('cpu')
 `,
 		Dot:            "digraph t1 {}",
 		Status:         client.Enabled,
@@ -464,8 +457,8 @@ func Test_Task_Labels(t *testing.T) {
 	"id": "t1",
 	"type":"stream",
 	"dbrps":[{"db":"db","rp":"rp"}],
-	"script":"stream\n    |from()\n        .measurement('cpu')\n",
-	"dot": "digraph t1 {\n}",
+	"script":"stream|from().measurement('cpu')",
+	"dot": "digraph t1 {}",
 	"status" : "enabled",
 	"executing" : false,
 	"error": ""
@@ -492,11 +485,8 @@ func Test_Task_Labels(t *testing.T) {
 			Database:        "db",
 			RetentionPolicy: "rp",
 		}},
-		TICKscript: `stream
-    |from()
-        .measurement('cpu')
-`,
-		Dot:            "digraph t1 {\n}",
+		TICKscript:     "stream|from().measurement('cpu')",
+		Dot:            "digraph t1 {}",
 		Status:         client.Enabled,
 		Executing:      false,
 		Error:          "",
@@ -966,25 +956,25 @@ func Test_TaskOutput(t *testing.T) {
 		if r.URL.Path == "/kapacitor/v1/tasks/taskname/cpu" && r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "series": [
-        {
-            "name": "cpu",
-            "columns": [
-                "time",
-                "value"
-            ],
-            "values": [
-                [
-                    "2015-01-29T21:55:43.702900257Z",
-                    55
-                ],
-                [
-                    "2015-01-29T21:56:43.702900257Z",
-                    42
-                ]
-            ]
-        }
-    ]
+	"series": [
+		{
+			"name": "cpu",
+			"columns": [
+				"time",
+				"value"
+			],
+			"values": [
+				[
+					"2015-01-29T21:55:43.702900257Z",
+					55
+				],
+				[
+					"2015-01-29T21:56:43.702900257Z",
+					42
+				]
+			]
+		}
+	]
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1030,8 +1020,8 @@ func Test_Template(t *testing.T) {
 			fmt.Fprintf(w, `{
 	"link": {"rel":"self", "href":"/kapacitor/v1/templates/t1"},
 	"type":"stream",
-	"script":"var x = 5\nstream\n    |from()\n        .measurement('cpu')\n",
-    "vars": {"x":{"value": 5, "type":"int"}},
+	"script":"var x = 5 stream|from().measurement('cpu')",
+	"vars": {"x":{"value": 5, "type":"int"}},
 	"dot": "digraph t1 {}",
 	"error": ""
 }`)
@@ -1050,15 +1040,11 @@ func Test_Template(t *testing.T) {
 		t.Fatal(err)
 	}
 	exp := client.Template{
-		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/templates/t1"},
-		Type: client.StreamTask,
-		TICKscript: `var x = 5
-stream
-    |from()
-        .measurement('cpu')
-`,
-		Dot:   "digraph t1 {}",
-		Error: "",
+		Link:       client.Link{Relation: client.Self, Href: "/kapacitor/v1/templates/t1"},
+		Type:       client.StreamTask,
+		TICKscript: "var x = 5 stream|from().measurement('cpu')",
+		Dot:        "digraph t1 {}",
+		Error:      "",
 		Vars: client.Vars{
 			"x": {
 				Type:  client.VarInt,
@@ -1679,7 +1665,18 @@ func Test_Replay(t *testing.T) {
 		"clock": "fast",
 		"error": "",
 		"status": "finished",
-		"progress": 1.0
+		"progress": 1.0,
+		"stats": {
+			"task-stats" : {
+				"throughput" : 5.6
+			},
+			"node-stats" : {
+				"stream1" : {
+					"processed" : 1500,
+					"avg_exec_time_ns": 2345.83
+				}
+			}
+		}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1705,6 +1702,17 @@ func Test_Replay(t *testing.T) {
 		Error:         "",
 		Status:        client.Finished,
 		Progress:      1.0,
+		ExecutionStats: client.ExecutionStats{
+			TaskStats: map[string]interface{}{
+				"throughput": 5.6,
+			},
+			NodeStats: map[string]map[string]interface{}{
+				"stream1": map[string]interface{}{
+					"processed":        1500.0,
+					"avg_exec_time_ns": 2345.83,
+				},
+			},
+		},
 	}
 	if !reflect.DeepEqual(exp, replay) {
 		t.Errorf("unexpected replay got: %v exp %v", replay, exp)
@@ -1724,7 +1732,8 @@ func Test_ReplayRunning(t *testing.T) {
 		"clock": "fast",
 		"error": "",
 		"status": "running",
-		"progress": 0.67
+		"progress": 0.67,
+		"stats": {}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1741,15 +1750,16 @@ func Test_ReplayRunning(t *testing.T) {
 		t.Fatal(err)
 	}
 	exp := client.Replay{
-		Link:          client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/replayid"},
-		ID:            "replayid",
-		Task:          "taskid",
-		Recording:     "recordingid",
-		RecordingTime: false,
-		Clock:         client.Fast,
-		Error:         "",
-		Status:        client.Running,
-		Progress:      0.67,
+		Link:           client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/replayid"},
+		ID:             "replayid",
+		Task:           "taskid",
+		Recording:      "recordingid",
+		RecordingTime:  false,
+		Clock:          client.Fast,
+		Error:          "",
+		Status:         client.Running,
+		Progress:       0.67,
+		ExecutionStats: client.ExecutionStats{},
 	}
 	if !reflect.DeepEqual(exp, replay) {
 		t.Errorf("unexpected replay got: %v exp %v", replay, exp)
@@ -1915,7 +1925,8 @@ func Test_ListReplays(t *testing.T) {
 		"recording-time": true,
 		"error": "",
 		"status": "running",
-		"progress": 0.67
+		"progress": 0.67,
+		"stats": {}
 	},
 	{
 		"link": {"rel":"self", "href":"/kapacitor/v1/replays/rpid2"},
@@ -1926,7 +1937,19 @@ func Test_ListReplays(t *testing.T) {
 		"recording-time": false,
 		"error": "",
 		"status": "finished",
-		"progress": 1.0
+		"progress": 1.0,
+		"stats": {
+			"task-stats" : {
+				"throughput" : 5.6
+			},
+			"node-stats" : {
+				"stream1" : {
+					"processed" : 1500,
+					"avg_exec_time_ns": 2345.83
+				}
+			}
+		}
+
 	}
 ]}`)
 		} else {
@@ -1945,14 +1968,15 @@ func Test_ListReplays(t *testing.T) {
 	}
 	exp := []client.Replay{
 		{
-			Link:          client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/rpid1"},
-			ID:            "rpid1",
-			Task:          "taskid",
-			Recording:     "recordingid",
-			Clock:         client.Fast,
-			RecordingTime: true,
-			Status:        client.Running,
-			Progress:      0.67,
+			Link:           client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/rpid1"},
+			ID:             "rpid1",
+			Task:           "taskid",
+			Recording:      "recordingid",
+			Clock:          client.Fast,
+			RecordingTime:  true,
+			Status:         client.Running,
+			Progress:       0.67,
+			ExecutionStats: client.ExecutionStats{},
 		},
 		{
 			Link:          client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/rpid2"},
@@ -1963,6 +1987,17 @@ func Test_ListReplays(t *testing.T) {
 			RecordingTime: false,
 			Status:        client.Finished,
 			Progress:      1.0,
+			ExecutionStats: client.ExecutionStats{
+				TaskStats: map[string]interface{}{
+					"throughput": 5.6,
+				},
+				NodeStats: map[string]map[string]interface{}{
+					"stream1": map[string]interface{}{
+						"processed":        1500.0,
+						"avg_exec_time_ns": 2345.83,
+					},
+				},
+			},
 		},
 	}
 	if !reflect.DeepEqual(exp, tasks) {
@@ -1988,7 +2023,8 @@ func Test_ListReplays_Filter(t *testing.T) {
 		"id": "rpid1",
 		"error": "",
 		"status": "running",
-		"progress": 0.67
+		"progress": 0.67,
+		"stats": {}
 	}
 ]}`)
 		} else {
@@ -2011,10 +2047,11 @@ func Test_ListReplays_Filter(t *testing.T) {
 	}
 	exp := []client.Replay{
 		{
-			Link:     client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/rpid1"},
-			ID:       "rpid1",
-			Status:   client.Running,
-			Progress: 0.67,
+			Link:           client.Link{Relation: client.Self, Href: "/kapacitor/v1/replays/rpid1"},
+			ID:             "rpid1",
+			Status:         client.Running,
+			Progress:       0.67,
+			ExecutionStats: client.ExecutionStats{},
 		},
 	}
 	if !reflect.DeepEqual(exp, tasks) {
@@ -2480,15 +2517,15 @@ func Test_DoServiceTest(t *testing.T) {
 
 func Test_Topic(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/topics/system" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system" &&
 			r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link": {"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system"},
-    "events-link" : {"rel":"events","href":"/kapacitor/v1preview/alerts/topics/system/events"},
-    "handlers-link": {"rel":"handlers","href":"/kapacitor/v1preview/alerts/topics/system/handlers"},
-    "id": "system",
-    "level":"CRITICAL",
+	"link": {"rel":"self","href":"/kapacitor/v1/alerts/topics/system"},
+	"events-link" : {"rel":"events","href":"/kapacitor/v1/alerts/topics/system/events"},
+	"handlers-link": {"rel":"handlers","href":"/kapacitor/v1/alerts/topics/system/handlers"},
+	"id": "system",
+	"level":"CRITICAL",
 	"collected": 5
 }`)
 		} else {
@@ -2507,9 +2544,9 @@ func Test_Topic(t *testing.T) {
 	}
 	exp := client.Topic{
 		ID:           "system",
-		Link:         client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system"},
-		EventsLink:   client.Link{Relation: "events", Href: "/kapacitor/v1preview/alerts/topics/system/events"},
-		HandlersLink: client.Link{Relation: "handlers", Href: "/kapacitor/v1preview/alerts/topics/system/handlers"},
+		Link:         client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system"},
+		EventsLink:   client.Link{Relation: "events", Href: "/kapacitor/v1/alerts/topics/system/events"},
+		HandlersLink: client.Link{Relation: "handlers", Href: "/kapacitor/v1/alerts/topics/system/handlers"},
 		Level:        "CRITICAL",
 		Collected:    5,
 	}
@@ -2520,27 +2557,27 @@ func Test_Topic(t *testing.T) {
 
 func Test_ListTopics(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/topics?min-level=WARNING&pattern=%2A" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics?min-level=WARNING&pattern=%2A" &&
 			r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link": {"rel":"self","href":"/kapacitor/v1preview/alerts/topics"},
-    "topics": [
-        {
-            "link": {"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system"},
-            "events-link" : {"rel":"events","href":"/kapacitor/v1preview/alerts/topics/system/events"},
-            "handlers-link": {"rel":"handlers","href":"/kapacitor/v1preview/alerts/topics/system/handlers"},
-            "id": "system",
-            "level":"CRITICAL"
-        },
-        {
-            "link": {"rel":"self","href":"/kapacitor/v1preview/alerts/topics/app"},
-            "events-link" : {"rel":"events","href":"/kapacitor/v1preview/alerts/topics/app/events"},
-            "handlers-link": {"rel":"handlers","href":"/kapacitor/v1preview/alerts/topics/app/handlers"},
-            "id": "app",
-            "level":"WARNING"
-        }
-    ]
+	"link": {"rel":"self","href":"/kapacitor/v1/alerts/topics"},
+	"topics": [
+		{
+			"link": {"rel":"self","href":"/kapacitor/v1/alerts/topics/system"},
+			"events-link" : {"rel":"events","href":"/kapacitor/v1/alerts/topics/system/events"},
+			"handlers-link": {"rel":"handlers","href":"/kapacitor/v1/alerts/topics/system/handlers"},
+			"id": "system",
+			"level":"CRITICAL"
+		},
+		{
+			"link": {"rel":"self","href":"/kapacitor/v1/alerts/topics/app"},
+			"events-link" : {"rel":"events","href":"/kapacitor/v1/alerts/topics/app/events"},
+			"handlers-link": {"rel":"handlers","href":"/kapacitor/v1/alerts/topics/app/handlers"},
+			"id": "app",
+			"level":"WARNING"
+		}
+	]
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2560,20 +2597,20 @@ func Test_ListTopics(t *testing.T) {
 		t.Fatal(err)
 	}
 	exp := client.Topics{
-		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics"},
+		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics"},
 		Topics: []client.Topic{
 			{
 				ID:           "system",
-				Link:         client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system"},
-				EventsLink:   client.Link{Relation: "events", Href: "/kapacitor/v1preview/alerts/topics/system/events"},
-				HandlersLink: client.Link{Relation: "handlers", Href: "/kapacitor/v1preview/alerts/topics/system/handlers"},
+				Link:         client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system"},
+				EventsLink:   client.Link{Relation: "events", Href: "/kapacitor/v1/alerts/topics/system/events"},
+				HandlersLink: client.Link{Relation: "handlers", Href: "/kapacitor/v1/alerts/topics/system/handlers"},
 				Level:        "CRITICAL",
 			},
 			{
 				ID:           "app",
-				Link:         client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/app"},
-				EventsLink:   client.Link{Relation: "events", Href: "/kapacitor/v1preview/alerts/topics/app/events"},
-				HandlersLink: client.Link{Relation: "handlers", Href: "/kapacitor/v1preview/alerts/topics/app/handlers"},
+				Link:         client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/app"},
+				EventsLink:   client.Link{Relation: "events", Href: "/kapacitor/v1/alerts/topics/app/events"},
+				HandlersLink: client.Link{Relation: "handlers", Href: "/kapacitor/v1/alerts/topics/app/handlers"},
 				Level:        "WARNING",
 			},
 		},
@@ -2585,7 +2622,7 @@ func Test_ListTopics(t *testing.T) {
 
 func Test_DeleteTopic(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/topics/system" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system" &&
 			r.Method == "DELETE" {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
@@ -2606,18 +2643,18 @@ func Test_DeleteTopic(t *testing.T) {
 
 func Test_TopicEvent(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/topics/system/events/cpu" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/events/cpu" &&
 			r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system/events/cpu"},
-    "id": "cpu",
-    "state": {
-        "level": "WARNING",
-        "message": "cpu is WARNING",
-        "time": "2016-12-01T00:00:00Z",
-        "duration": "5m"
-    }
+	"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/events/cpu"},
+	"id": "cpu",
+	"state": {
+		"level": "WARNING",
+		"message": "cpu is WARNING",
+		"time": "2016-12-01T00:00:00Z",
+		"duration": "5m"
+	}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2635,7 +2672,7 @@ func Test_TopicEvent(t *testing.T) {
 	}
 	exp := client.TopicEvent{
 		ID:   "cpu",
-		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system/events/cpu"},
+		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/events/cpu"},
 		State: client.EventState{
 			Message:  "cpu is WARNING",
 			Time:     time.Date(2016, 12, 1, 0, 0, 0, 0, time.UTC),
@@ -2650,34 +2687,34 @@ func Test_TopicEvent(t *testing.T) {
 
 func Test_ListTopicEvents(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/topics/system/events?min-level=OK" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/events?min-level=OK" &&
 			r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link": {"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system/events?min-level=OK"},
-    "topic": "system",
-    "events": [
-        {
-            "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system/events/cpu"},
-            "id": "cpu",
-            "state": {
-                "level": "WARNING",
-                "message": "cpu is WARNING",
-                "time": "2016-12-01T00:00:00Z",
-                "duration": "5m"
-            }
-        },
-        {
-            "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system/events/mem"},
-            "id": "mem",
-            "state": {
-                "level": "CRITICAL",
-                "message": "mem is CRITICAL",
-                "time": "2016-12-01T00:10:00Z",
-                "duration": "1m"
-            }
-        }
-    ]
+	"link": {"rel":"self","href":"/kapacitor/v1/alerts/topics/system/events?min-level=OK"},
+	"topic": "system",
+	"events": [
+		{
+			"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/events/cpu"},
+			"id": "cpu",
+			"state": {
+				"level": "WARNING",
+				"message": "cpu is WARNING",
+				"time": "2016-12-01T00:00:00Z",
+				"duration": "5m"
+			}
+		},
+		{
+			"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/events/mem"},
+			"id": "mem",
+			"state": {
+				"level": "CRITICAL",
+				"message": "mem is CRITICAL",
+				"time": "2016-12-01T00:10:00Z",
+				"duration": "1m"
+			}
+		}
+	]
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2694,12 +2731,12 @@ func Test_ListTopicEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	exp := client.TopicEvents{
-		Link:  client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system/events?min-level=OK"},
+		Link:  client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/events?min-level=OK"},
 		Topic: "system",
 		Events: []client.TopicEvent{
 			{
 				ID:   "cpu",
-				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system/events/cpu"},
+				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/events/cpu"},
 				State: client.EventState{
 					Message:  "cpu is WARNING",
 					Time:     time.Date(2016, 12, 1, 0, 0, 0, 0, time.UTC),
@@ -2709,7 +2746,7 @@ func Test_ListTopicEvents(t *testing.T) {
 			},
 			{
 				ID:   "mem",
-				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system/events/mem"},
+				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/events/mem"},
 				State: client.EventState{
 					Message:  "mem is CRITICAL",
 					Time:     time.Date(2016, 12, 1, 0, 10, 0, 0, time.UTC),
@@ -2725,33 +2762,27 @@ func Test_ListTopicEvents(t *testing.T) {
 }
 func Test_ListTopicHandlers(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/topics/system/handlers" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/handlers?pattern=" &&
 			r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/topics/system/handlers"},
-    "topic": "system",
-    "handlers": [
-        {
-            "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/slack"},
-            "id":"slack",
-            "topics": ["system", "app"],
-            "actions": [{
-                "kind":"slack",
-                "options":{
-                    "channel":"#alerts"
-                }
-            }]
-        },
-        {
-            "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/smtp"},
-            "id":"smtp",
-            "topics": ["system", "app"],
-            "actions": [{
-                "kind":"smtp"
-            }]
-        }
-    ]
+	"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers?pattern="},
+	"topic": "system",
+	"handlers": [
+		{
+			"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers/slack"},
+			"id":"slack",
+			"kind":"slack",
+			"options":{
+				"channel":"#alerts"
+			}
+		},
+		{
+			"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers/smtp"},
+			"id":"smtp",
+			"kind":"smtp"
+		}
+	]
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2763,54 +2794,46 @@ func Test_ListTopicHandlers(t *testing.T) {
 	}
 	defer s.Close()
 
-	topicHandlers, err := c.ListTopicHandlers(c.TopicHandlersLink("system"))
+	topicHandlers, err := c.ListTopicHandlers(c.TopicHandlersLink("system"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exp := client.TopicHandlers{
-		Link:  client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/topics/system/handlers"},
+		Link:  client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers?pattern="},
 		Topic: "system",
-		Handlers: []client.Handler{
+		Handlers: []client.TopicHandler{
 			{
-				ID:     "slack",
-				Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/slack"},
-				Topics: []string{"system", "app"},
-				Actions: []client.HandlerAction{{
-					Kind: "slack",
-					Options: map[string]interface{}{
-						"channel": "#alerts",
-					},
-				}},
+				ID:   "slack",
+				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers/slack"},
+				Kind: "slack",
+				Options: map[string]interface{}{
+					"channel": "#alerts",
+				},
 			},
 			{
-				ID:     "smtp",
-				Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/smtp"},
-				Topics: []string{"system", "app"},
-				Actions: []client.HandlerAction{{
-					Kind: "smtp",
-				}},
+				ID:   "smtp",
+				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers/smtp"},
+				Kind: "smtp",
 			},
 		},
 	}
 	if !reflect.DeepEqual(exp, topicHandlers) {
-		t.Errorf("unexpected  topic handlers result:\ngot:\n%v\nexp:\n%v", topicHandlers, exp)
+		t.Errorf("unexpected topic handlers result:\ngot:\n%v\nexp:\n%v", topicHandlers, exp)
 	}
 }
-func Test_Handler(t *testing.T) {
+func Test_TopicHandler(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/handlers/slack" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/handlers/slack" &&
 			r.Method == "GET" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/slack"},
-    "id":"slack",
-    "topics": ["system", "app"],
-    "actions": [{
-        "kind":"slack",
-        "options": {
-            "channel":"#alerts"
-        }
-    }]
+	"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers/slack"},
+	"id":"slack",
+	"topic": "system",
+	"kind":"slack",
+	"options": {
+		"channel":"#alerts"
+	}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2822,53 +2845,44 @@ func Test_Handler(t *testing.T) {
 	}
 	defer s.Close()
 
-	h, err := c.Handler(c.HandlerLink("slack"))
+	h, err := c.TopicHandler(c.TopicHandlerLink("system", "slack"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := client.Handler{
-		ID:     "slack",
-		Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/slack"},
-		Topics: []string{"system", "app"},
-		Actions: []client.HandlerAction{{
-			Kind: "slack",
-			Options: map[string]interface{}{
-				"channel": "#alerts",
-			},
-		}},
+	exp := client.TopicHandler{
+		ID:   "slack",
+		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers/slack"},
+		Kind: "slack",
+		Options: map[string]interface{}{
+			"channel": "#alerts",
+		},
 	}
 	if !reflect.DeepEqual(exp, h) {
 		t.Errorf("unexpected handler result:\ngot:\n%v\nexp:\n%v", h, exp)
 	}
 }
-func Test_CreateHandler(t *testing.T) {
+func Test_CreateTopicHandler(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		options := client.HandlerOptions{}
+		options := client.TopicHandlerOptions{}
 		json.NewDecoder(r.Body).Decode(&options)
-		expOptions := client.HandlerOptions{
-			ID:     "slack",
-			Topics: []string{"system", "app"},
-			Actions: []client.HandlerAction{{
-				Kind: "slack",
-				Options: map[string]interface{}{
-					"channel": "#alerts",
-				},
-			}},
+		expOptions := client.TopicHandlerOptions{
+			ID:   "slack",
+			Kind: "slack",
+			Options: map[string]interface{}{
+				"channel": "#alerts",
+			},
 		}
-		if r.URL.String() == "/kapacitor/v1preview/alerts/handlers" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/handlers" &&
 			r.Method == "POST" &&
 			reflect.DeepEqual(expOptions, options) {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/slack"},
-    "id": "slack",
-    "topics": ["system", "app"],
-    "actions": [{
-        "kind":"slack",
-        "options": {
-            "channel":"#alerts"
-        }
-    }]
+	"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers/slack"},
+	"id": "slack",
+	"kind":"slack",
+	"options": {
+		"channel":"#alerts"
+	}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2880,35 +2894,29 @@ func Test_CreateHandler(t *testing.T) {
 	}
 	defer s.Close()
 
-	h, err := c.CreateHandler(client.HandlerOptions{
-		ID:     "slack",
-		Topics: []string{"system", "app"},
-		Actions: []client.HandlerAction{{
-			Kind: "slack",
-			Options: map[string]interface{}{
-				"channel": "#alerts",
-			},
-		}},
+	h, err := c.CreateTopicHandler(c.TopicHandlersLink("system"), client.TopicHandlerOptions{
+		ID:   "slack",
+		Kind: "slack",
+		Options: map[string]interface{}{
+			"channel": "#alerts",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := client.Handler{
-		ID:     "slack",
-		Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/slack"},
-		Topics: []string{"system", "app"},
-		Actions: []client.HandlerAction{{
-			Kind: "slack",
-			Options: map[string]interface{}{
-				"channel": "#alerts",
-			},
-		}},
+	exp := client.TopicHandler{
+		ID:   "slack",
+		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers/slack"},
+		Kind: "slack",
+		Options: map[string]interface{}{
+			"channel": "#alerts",
+		},
 	}
 	if !reflect.DeepEqual(exp, h) {
 		t.Errorf("unexpected create handler result:\ngot:\n%v\nexp:\n%v", h, exp)
 	}
 }
-func Test_PatchHandler(t *testing.T) {
+func Test_PatchTopicHandler(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var patch client.JSONPatch
 		json.NewDecoder(r.Body).Decode(&patch)
@@ -2920,24 +2928,21 @@ func Test_PatchHandler(t *testing.T) {
 			},
 			client.JSONOperation{
 				Operation: "replace",
-				Path:      "/actions/0/options/channel",
+				Path:      "/options/channel",
 				Value:     "#testing_alerts",
 			},
 		}
-		if r.URL.String() == "/kapacitor/v1preview/alerts/handlers/slack" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/handlers/slack" &&
 			r.Method == "PATCH" &&
 			reflect.DeepEqual(expPatch, patch) {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/slack"},
-    "id": "slack",
-    "topics": ["system", "test"],
-    "actions": [{
-        "kind":"slack",
-        "options": {
-            "channel":"#testing_alerts"
-        }
-    }]
+	"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers/slack"},
+	"id": "slack",
+	"kind":"slack",
+	"options": {
+		"channel":"#testing_alerts"
+	}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2949,7 +2954,7 @@ func Test_PatchHandler(t *testing.T) {
 	}
 	defer s.Close()
 
-	h, err := c.PatchHandler(c.HandlerLink("slack"), client.JSONPatch{
+	h, err := c.PatchTopicHandler(c.TopicHandlerLink("system", "slack"), client.JSONPatch{
 		client.JSONOperation{
 			Operation: "replace",
 			Path:      "/topics",
@@ -2957,56 +2962,47 @@ func Test_PatchHandler(t *testing.T) {
 		},
 		client.JSONOperation{
 			Operation: "replace",
-			Path:      "/actions/0/options/channel",
+			Path:      "/options/channel",
 			Value:     "#testing_alerts",
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := client.Handler{
-		ID:     "slack",
-		Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/slack"},
-		Topics: []string{"system", "test"},
-		Actions: []client.HandlerAction{{
-			Kind: "slack",
-			Options: map[string]interface{}{
-				"channel": "#testing_alerts",
-			},
-		}},
+	exp := client.TopicHandler{
+		ID:   "slack",
+		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers/slack"},
+		Kind: "slack",
+		Options: map[string]interface{}{
+			"channel": "#testing_alerts",
+		},
 	}
 	if !reflect.DeepEqual(exp, h) {
 		t.Errorf("unexpected replace handler result:\ngot:\n%v\nexp:\n%v", h, exp)
 	}
 }
-func Test_ReplaceHandler(t *testing.T) {
+func Test_ReplaceTopicHandler(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		options := client.HandlerOptions{}
+		options := client.TopicHandlerOptions{}
 		json.NewDecoder(r.Body).Decode(&options)
-		expOptions := client.HandlerOptions{
-			ID:     "slack",
-			Topics: []string{"system", "test"},
-			Actions: []client.HandlerAction{{
-				Kind: "slack",
-				Options: map[string]interface{}{
-					"channel": "#testing_alerts",
-				},
-			}},
+		expOptions := client.TopicHandlerOptions{
+			ID:   "slack",
+			Kind: "slack",
+			Options: map[string]interface{}{
+				"channel": "#testing_alerts",
+			},
 		}
-		if r.URL.String() == "/kapacitor/v1preview/alerts/handlers/slack" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/handlers/slack" &&
 			r.Method == "PUT" &&
 			reflect.DeepEqual(expOptions, options) {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/slack"},
-    "id": "slack",
-    "topics": ["system", "test"],
-    "actions": [{
-        "kind":"slack",
-        "options": {
-            "channel":"#testing_alerts"
-        }
-    }]
+	"link":{"rel":"self","href":"/kapacitor/v1/alerts/topics/system/handlers/slack"},
+	"id": "slack",
+	"kind":"slack",
+	"options": {
+		"channel":"#testing_alerts"
+	}
 }`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -3018,37 +3014,31 @@ func Test_ReplaceHandler(t *testing.T) {
 	}
 	defer s.Close()
 
-	h, err := c.ReplaceHandler(c.HandlerLink("slack"), client.HandlerOptions{
-		ID:     "slack",
-		Topics: []string{"system", "test"},
-		Actions: []client.HandlerAction{{
-			Kind: "slack",
-			Options: map[string]interface{}{
-				"channel": "#testing_alerts",
-			},
-		}},
+	h, err := c.ReplaceTopicHandler(c.TopicHandlerLink("system", "slack"), client.TopicHandlerOptions{
+		ID:   "slack",
+		Kind: "slack",
+		Options: map[string]interface{}{
+			"channel": "#testing_alerts",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := client.Handler{
-		ID:     "slack",
-		Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/slack"},
-		Topics: []string{"system", "test"},
-		Actions: []client.HandlerAction{{
-			Kind: "slack",
-			Options: map[string]interface{}{
-				"channel": "#testing_alerts",
-			},
-		}},
+	exp := client.TopicHandler{
+		ID:   "slack",
+		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/alerts/topics/system/handlers/slack"},
+		Kind: "slack",
+		Options: map[string]interface{}{
+			"channel": "#testing_alerts",
+		},
 	}
 	if !reflect.DeepEqual(exp, h) {
 		t.Errorf("unexpected replace handler result:\ngot:\n%v\nexp:\n%v", h, exp)
 	}
 }
-func Test_DeleteHandler(t *testing.T) {
+func Test_DeleteTopicHandler(t *testing.T) {
 	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/handlers/slack" &&
+		if r.URL.String() == "/kapacitor/v1/alerts/topics/system/handlers/slack" &&
 			r.Method == "DELETE" {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
@@ -3061,83 +3051,9 @@ func Test_DeleteHandler(t *testing.T) {
 	}
 	defer s.Close()
 
-	err = c.DeleteHandler(c.HandlerLink("slack"))
+	err = c.DeleteTopicHandler(c.TopicHandlerLink("system", "slack"))
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-func Test_ListHandlers(t *testing.T) {
-	s, c, err := newClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() == "/kapacitor/v1preview/alerts/handlers?pattern=%2A" &&
-			r.Method == "GET" {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{
-    "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers"},
-    "handlers": [
-        {
-            "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/slack"},
-            "id":"slack",
-            "topics": ["system", "app"],
-            "actions": [{
-                "kind":"slack",
-                "options": {
-                    "channel":"#alerts"
-                }
-            }]
-        },
-        {
-            "link":{"rel":"self","href":"/kapacitor/v1preview/alerts/handlers/smtp"},
-            "id":"smtp",
-            "topics": ["system", "app"],
-            "actions": [{
-                "kind":"smtp"
-            }]
-        }
-    ]
-}`)
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "request: %v", r)
-		}
-	}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-
-	handlers, err := c.ListHandlers(&client.ListHandlersOptions{
-		Pattern: "*",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	exp := client.Handlers{
-		Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers"},
-		Handlers: []client.Handler{
-			{
-				ID:     "slack",
-				Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/slack"},
-				Topics: []string{"system", "app"},
-				Actions: []client.HandlerAction{{
-					Kind: "slack",
-					Options: map[string]interface{}{
-						"channel": "#alerts",
-					},
-				}},
-			},
-			{
-				ID:     "smtp",
-				Link:   client.Link{Relation: client.Self, Href: "/kapacitor/v1preview/alerts/handlers/smtp"},
-				Topics: []string{"system", "app"},
-				Actions: []client.HandlerAction{{
-					Kind: "smtp",
-				}},
-			},
-		},
-	}
-	if !reflect.DeepEqual(exp, handlers) {
-		t.Errorf("unexpected list handlers result:\ngot:\n%v\nexp:\n%v", handlers, exp)
 	}
 }
 

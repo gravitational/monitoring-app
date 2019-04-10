@@ -28,11 +28,11 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
@@ -88,7 +88,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 		case update := <-smtpCh:
 			log := log.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
-			client := kubeClient.Secrets(constants.MonitoringNamespace)
+			client := kubeClient.CoreV1().Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := updateSMTPConfig(client, kClient, spec, log); err != nil {
@@ -98,7 +98,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 		case update := <-alertTargetCh:
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
-			client := kubeClient.ConfigMaps(constants.MonitoringNamespace)
+			client := kubeClient.CoreV1().ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := updateAlertTarget(client, kClient, spec, log); err != nil {
