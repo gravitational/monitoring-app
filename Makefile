@@ -25,6 +25,7 @@ IMPORT_OPTIONS := --vendor \
 	--exclude="Makefile" \
 	--exclude=".gitignore" \
 	--exclude="watcher" \
+	--ignore="watcher" \
 	--registry-url=leader.telekube.local:5000 \
 	--ops-url=$(OPS_URL) \
 	--repository=$(REPOSITORY) \
