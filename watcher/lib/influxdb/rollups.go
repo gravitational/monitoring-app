@@ -176,7 +176,7 @@ func (f *Function) buildFunction() (string, error) {
 	return fmt.Sprintf(`%v("%v", %v) as %v`, funcName, f.Field, param, alias), nil
 }
 
-// isComposite checks if the specified function is composite
+// isComposite checks if the function is composite
 func (f *Function) isComposite() bool {
 	for _, name := range constants.CompositeFunctions {
 		if strings.HasPrefix(f.Function, name) {

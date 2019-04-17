@@ -75,17 +75,26 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 				for _, rollup := range rollups {
 					switch update.EventType {
 					case watch.Added:
-						err := client.CreateRollup(rollup)
+						err := retry(ctx, func() error {
+							err := client.CreateRollup(rollup)
+							return err
+						})
 						if err != nil {
 							log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
 						}
 					case watch.Deleted:
-						err := client.DeleteRollup(rollup)
+						err := retry(ctx, func() error {
+							err := client.DeleteRollup(rollup)
+							return err
+						})
 						if err != nil {
 							log.Errorf("failed to delete rollup %v: %v", rollup, trace.DebugReport(err))
 						}
 					case watch.Modified:
-						err := client.UpdateRollup(rollup)
+						err := retry(ctx, func() error {
+							err := client.UpdateRollup(rollup)
+							return err
+						})
 						if err != nil {
 							log.Errorf("failed to alter rollup %v: %v", rollup, trace.DebugReport(err))
 						}
@@ -96,4 +105,17 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 			return
 		}
 	}
+}
+
+func retry(ctx context.Context, fn func() error) error {
+	err := fn()
+	for err != nil {
+		select {
+		case <-ctx.Done():
+			log.Info("Context is closing, return")
+			return err
+		}
+		err = fn()
+	}
+	return err
 }

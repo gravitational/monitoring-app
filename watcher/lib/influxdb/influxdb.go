@@ -56,7 +56,8 @@ func (c *Client) Health() error {
 	return nil
 }
 
-// Setup sets up InfluxDB database
+// Setup populates empty InfluxDB database with default users and retention policies.
+// If retention policy exists than creation will be skipped.
 func (c *Client) Setup() error {
 	queries := []string{
 		fmt.Sprintf(createAdminQuery, constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword),
@@ -65,7 +66,7 @@ func (c *Client) Setup() error {
 		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser),
 	}
 	for _, query := range queries {
-		log.Infof("%v", query)
+		log.WithField("query", query).Info("Setup users query.")
 
 		if err := c.execQuery(query); err != nil {
 			return trace.Wrap(err)
@@ -81,7 +82,7 @@ func (c *Client) Setup() error {
 			constants.DurationLong),
 	}
 	for _, query := range queries {
-		log.Infof("%v", query)
+		log.WithField("query", query).Info("Setup retention policies query.")
 
 		err := c.execQuery(query)
 		if err != nil {
@@ -95,7 +96,7 @@ func (c *Client) Setup() error {
 	return nil
 }
 
-// CreateRollup creates a rollup query in the database
+// CreateRollup creates a new rollup query in the database
 func (c *Client) CreateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
@@ -106,7 +107,7 @@ func (c *Client) CreateRollup(r Rollup) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	log.Infof("%v", query)
+	log.WithField("query", query).Info("New rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
@@ -125,7 +126,7 @@ func (c *Client) DeleteRollup(r Rollup) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	log.Infof("%v", query)
+	log.WithField("query", query).Info("Remove rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
@@ -133,7 +134,9 @@ func (c *Client) DeleteRollup(r Rollup) error {
 	return nil
 }
 
-// UpdateRollup updates a rollup query in the database
+// UpdateRollup updates a rollup query in the database.
+// InfluxDB does not support updating queries and this is implemented with
+// deleting and creating query again.
 func (c *Client) UpdateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
@@ -149,7 +152,7 @@ func (c *Client) UpdateRollup(r Rollup) error {
 		return trace.Wrap(err)
 	}
 	query := strings.Join([]string{deleteQuery, createQuery}, "; ")
-	log.Infof("%v", query)
+	log.WithField("query", query).Info("Update rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
@@ -172,7 +175,7 @@ func (c *Client) execQuery(query string) error {
 // ConvertInfluxDBError converts error from InfluxDB query results
 func ConvertInfluxDBError(err error) error {
 	if strings.Contains(err.Error(), "retention policy already exists") {
-		return trace.AlreadyExists("retention policy already exists")
+		return trace.AlreadyExists(err.Error())
 	}
 	return err
 }
