@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/influxdb"
@@ -51,15 +52,16 @@ func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
 		return trace.Wrap(err)
 	}
 
-	ch := make(chan kubernetes.ConfigMapUpdate)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
-	receiveAndManageRollups(context.TODO(), influxDBClient, ch)
+	chK := make(chan kubernetes.ConfigMapUpdate)
+	chR := make(chan func() error)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, chK})
+	receiveAndManageRollups(context.TODO(), influxDBClient, chK, chR)
 	return nil
 }
 
 // receiveAndManageRollups listens on the provided channel that receives new rollups data and creates,
 // updates or deletes them in/from InfluxDB using the provided client
-func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate) {
+func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate, retryC chan<- func() error) {
 	for {
 		select {
 		case update := <-ch:
@@ -75,12 +77,25 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 				for _, rollup := range rollups {
 					switch update.EventType {
 					case watch.Added:
-						err := retry(ctx, func() error {
+						if err := rollup.Check(); err != nil {
+							// Fail immediately on precondition violation
+							log.WithError(err).Warn("Failed to create rollup.")
+							continue
+						}
+						handler := func() error {
 							err := client.CreateRollup(rollup)
 							return err
-						})
-						if err != nil {
-							log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
+						}
+						if err := handler(); err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to create rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
+							return
 						}
 					case watch.Deleted:
 						err := retry(ctx, func() error {
@@ -107,15 +122,25 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 	}
 }
 
-func retry(ctx context.Context, fn func() error) error {
-	err := fn()
-	for err != nil {
+func retryLoop(ctx context.Context, retryC <-chan func() error) {
+	var handlers []func() error
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	for {
 		select {
+		case handler := <-retryC:
+			handlers = append(handlers)
+		case <-timer.C:
+			for i, handler := range handlers {
+				if err := handler(); err != nil {
+					log.WithError(err).Warn("Failed to complete handler.")
+					continue
+				}
+				// Remove handler
+				handlers = append(handlers[:i], handlers[i+1:]...)
+			}
 		case <-ctx.Done():
-			log.Info("Context is closing, return")
-			return err
+			return
 		}
-		err = fn()
 	}
-	return err
 }

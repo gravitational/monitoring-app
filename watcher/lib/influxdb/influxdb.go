@@ -57,7 +57,7 @@ func (c *Client) Health() error {
 }
 
 // Setup populates empty InfluxDB database with default users and retention policies.
-// If retention policy exists than creation will be skipped.
+// If retention policy exists then creation will be skipped.
 func (c *Client) Setup() error {
 	queries := []string{
 		fmt.Sprintf(createAdminQuery, constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword),
@@ -134,9 +134,7 @@ func (c *Client) DeleteRollup(r Rollup) error {
 	return nil
 }
 
-// UpdateRollup updates a rollup query in the database.
-// InfluxDB does not support updating queries and this is implemented with
-// deleting and creating query again.
+// UpdateRollup updates an existing rollup query or creates a new one in the database.
 func (c *Client) UpdateRollup(r Rollup) error {
 	err := r.Check()
 	if err != nil {
