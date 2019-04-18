@@ -130,7 +130,7 @@ spec:
                 name: grafana
                 key: password
       volumes:
-        - name: config
+        - name: grafana-cfg
           configMap:
             name: grafana-cfg
         - name: grafana-storage
