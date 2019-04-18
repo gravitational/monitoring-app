@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/influxdb"
@@ -31,13 +30,13 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
+func runRollupsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
 	influxDBClient, err := influxdb.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = utils.WaitForAPI(context.TODO(), influxDBClient)
+	err = utils.WaitForAPI(ctx, influxDBClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -52,10 +51,9 @@ func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
 		return trace.Wrap(err)
 	}
 
-	chK := make(chan kubernetes.ConfigMapUpdate)
-	chR := make(chan func() error)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, chK})
-	receiveAndManageRollups(context.TODO(), influxDBClient, chK, chR)
+	ch := make(chan kubernetes.ConfigMapUpdate)
+	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
+	receiveAndManageRollups(ctx, influxDBClient, ch, retryC)
 	return nil
 }
 
@@ -75,18 +73,20 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 				}
 
 				for _, rollup := range rollups {
+					if err := rollup.Check(); err != nil {
+						// Fail immediately on precondition violation
+						log.WithError(err).Warn("Failed to validate rollup.")
+						continue
+					}
+
 					switch update.EventType {
 					case watch.Added:
-						if err := rollup.Check(); err != nil {
-							// Fail immediately on precondition violation
-							log.WithError(err).Warn("Failed to create rollup.")
-							continue
-						}
 						handler := func() error {
 							err := client.CreateRollup(rollup)
 							return err
 						}
-						if err := handler(); err == nil {
+						err := handler()
+						if err == nil {
 							// Success - no need to retry
 							break
 						}
@@ -95,49 +95,41 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						case retryC <- handler:
 						// Queue handler on retry list
 						case <-ctx.Done():
-							return
 						}
 					case watch.Deleted:
-						err := retry(ctx, func() error {
+						handler := func() error {
 							err := client.DeleteRollup(rollup)
 							return err
-						})
-						if err != nil {
-							log.Errorf("failed to delete rollup %v: %v", rollup, trace.DebugReport(err))
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to delete rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
 						}
 					case watch.Modified:
-						err := retry(ctx, func() error {
+						handler := func() error {
 							err := client.UpdateRollup(rollup)
 							return err
-						})
-						if err != nil {
-							log.Errorf("failed to alter rollup %v: %v", rollup, trace.DebugReport(err))
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to update rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
 						}
 					}
 				}
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func retryLoop(ctx context.Context, retryC <-chan func() error) {
-	var handlers []func() error
-	timer := time.NewTimer(5 * time.Second)
-	defer timer.Stop()
-	for {
-		select {
-		case handler := <-retryC:
-			handlers = append(handlers)
-		case <-timer.C:
-			for i, handler := range handlers {
-				if err := handler(); err != nil {
-					log.WithError(err).Warn("Failed to complete handler.")
-					continue
-				}
-				// Remove handler
-				handlers = append(handlers[:i], handlers[i+1:]...)
 			}
 		case <-ctx.Done():
 			return

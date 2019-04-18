@@ -98,11 +98,6 @@ func (c *Client) Setup() error {
 
 // CreateRollup creates a new rollup query in the database
 func (c *Client) CreateRollup(r Rollup) error {
-	err := r.Check()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	query, err := r.buildCreateQuery()
 	if err != nil {
 		return trace.Wrap(err)
@@ -117,11 +112,6 @@ func (c *Client) CreateRollup(r Rollup) error {
 
 // DeleteRollup deletes a rollup query from the database
 func (c *Client) DeleteRollup(r Rollup) error {
-	err := r.Check()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	query, err := r.buildDeleteQuery()
 	if err != nil {
 		return trace.Wrap(err)
@@ -136,11 +126,6 @@ func (c *Client) DeleteRollup(r Rollup) error {
 
 // UpdateRollup updates an existing rollup query or creates a new one in the database.
 func (c *Client) UpdateRollup(r Rollup) error {
-	err := r.Check()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	deleteQuery, err := r.buildDeleteQuery()
 	if err != nil {
 		return trace.Wrap(err)

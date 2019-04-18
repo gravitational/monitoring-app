@@ -35,7 +35,7 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
+func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
 	kapacitorClient, err := kapacitor.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
@@ -64,49 +64,111 @@ func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 	}
 	smtpCh := make(chan kubernetes.SecretUpdate)
 
-	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
-	go kubernetesClient.WatchSecrets(context.TODO(), kubernetes.Secret{smtpLabel, smtpCh})
-	receiverLoop(context.TODO(), kubernetesClient.Clientset, kapacitorClient,
-		alertCh, alertTargetCh, smtpCh)
+	go kubernetesClient.WatchConfigMaps(ctx, configmaps...)
+	go kubernetesClient.WatchSecrets(ctx, kubernetes.Secret{smtpLabel, smtpCh})
+	receiverLoop(ctx, kubernetesClient.Clientset, kapacitorClient,
+		alertCh, alertTargetCh, smtpCh, retryC)
 
 	return nil
 }
 
 func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *kapacitor.Client,
-	alertCh, alertTargetCh <-chan kubernetes.ConfigMapUpdate, smtpCh <-chan kubernetes.SecretUpdate) {
+	alertCh, alertTargetCh <-chan kubernetes.ConfigMapUpdate,
+	smtpCh <-chan kubernetes.SecretUpdate, retryC chan<- func() error) {
 	for {
 		select {
 		case update := <-alertCh:
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
+			if isSpecEmpty(spec) {
+				log.Error(trace.NotFound("empty configuration"))
+				continue
+			}
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := createAlert(kClient, spec, log); err != nil {
-					log.Warnf("failed to create alert from spec %s: %v", spec, trace.DebugReport(err))
+				handler := func() error {
+					err := createAlert(kClient, spec, log)
+					return err
+				}
+				err := handler()
+				if err == nil {
+					// Success - no need to retry
+					break
+				}
+				log.WithError(err).Warnf("failed to create alert from spec %s.", spec)
+				select {
+				case retryC <- handler:
+				// Queue handler on retry list
+				case <-ctx.Done():
 				}
 			}
 		case update := <-smtpCh:
 			log := log.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
+			if isSpecEmpty(spec) {
+				log.Error(trace.NotFound("empty configuration"))
+				continue
+			}
 			client := kubeClient.CoreV1().Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateSMTPConfig(client, kClient, spec, log); err != nil {
-					log.Warnf("failed to update SMTP configuration from spec %s: %v", spec, trace.DebugReport(err))
+				handler := func() error {
+					err := updateSMTPConfig(client, kClient, spec, log)
+					return err
+				}
+				err := handler()
+				if err == nil {
+					// Success - no need to retry
+					break
+				}
+				log.WithError(err).Warnf("failed to update SMTP configuration from spec %s", spec)
+				select {
+				case retryC <- handler:
+				// Queue handler on retry list
+				case <-ctx.Done():
 				}
 			}
 		case update := <-alertTargetCh:
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
+			if isSpecEmpty(spec) {
+				log.Error(trace.NotFound("empty configuration"))
+				continue
+			}
+
 			client := kubeClient.CoreV1().ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateAlertTarget(client, kClient, spec, log); err != nil {
-					log.Warnf("failed to update alert target from spec %s: %v", spec, trace.DebugReport(err))
+				handler := func() error {
+					err := updateAlertTarget(client, kClient, spec, log)
+					return err
+				}
+				err := handler()
+				if err == nil {
+					// Success - no need to retry
+					break
+				}
+				log.WithError(err).Warnf("failed to update alert target from spec %s", spec)
+				select {
+				case retryC <- handler:
+				// Queue handler on retry list
+				case <-ctx.Done():
 				}
 			case watch.Deleted:
-				if err := deleteAlertTarget(kClient, log); err != nil {
-					log.Warnf("failed to delete alert target: %v", trace.DebugReport(err))
+				handler := func() error {
+					err := deleteAlertTarget(kClient, log)
+					return err
+				}
+				err := handler()
+				if err == nil {
+					// Success - no need to retry
+					break
+				}
+				log.WithError(err).Warn("failed to delete alert target")
+				select {
+				case retryC <- handler:
+				// Queue handler on retry list
+				case <-ctx.Done():
 				}
 			}
 		case <-ctx.Done():
@@ -115,11 +177,11 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 	}
 }
 
-func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
-	if len(bytes.TrimSpace(spec)) == 0 {
-		return trace.NotFound("empty configuration")
-	}
+func isSpecEmpty(spec []byte) bool {
+	return len(bytes.TrimSpace(spec)) == 0
+}
 
+func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
 	var alert alert
 	err := yaml.Unmarshal(spec, &alert)
 	if err != nil {
@@ -135,10 +197,6 @@ func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
 
 func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
 	log.Debugf("update SMTP config from spec %s", spec)
-	if len(bytes.TrimSpace(spec)) == 0 {
-		return trace.NotFound("empty configuration")
-	}
-
 	var config smtpConfig
 	err := yaml.Unmarshal(spec, &config)
 	if err != nil {
@@ -175,10 +233,6 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 
 func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
 	log.Debugf("update alert target from spec %s", spec)
-	if len(bytes.TrimSpace(spec)) == 0 {
-		return trace.NotFound("empty configuration")
-	}
-
 	var target alertTarget
 	err := yaml.Unmarshal(spec, &target)
 	if err != nil {
