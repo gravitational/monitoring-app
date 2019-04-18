@@ -77,7 +77,7 @@ func runRetryLoop(ctx context.Context) chan<- func() error {
 	retryC := make(chan func() error)
 	go func() {
 		var handlers []func() error
-		timer := time.NewTimer(5 * time.Second)
+		timer := time.NewTimer(60 * time.Second)
 		defer timer.Stop()
 		for {
 			select {
