@@ -73,7 +73,11 @@ if [ $1 = "update" ]; then
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
-    /opt/bin/kubectl apply -f /var/lib/gravity/resources/crds/
+    for file in /var/lib/gravity/resources/crds/*
+    do
+        head -n -6 $file | /opt/bin/kubectl apply -f -
+    done
+
     for file in /var/lib/gravity/resources/prometheus/*.yaml
     do
         rig upsert -f $file --debug

@@ -1,7 +1,11 @@
 #!/bin/sh
 
 /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/crds/
+
+for file in /var/lib/gravity/resources/crds/*
+do
+    head -n -6 $file | /opt/bin/kubectl apply -f -
+done
 
 for name in security smtp grafana metrics-server alerts kube-state-metrics
 do
