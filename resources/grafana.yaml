@@ -173,7 +173,8 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: grafana
+    app: monitoring
+    component: grafana
   name: grafana
   namespace: monitoring
 spec:
@@ -182,7 +183,8 @@ spec:
     port: 3000
     targetPort: http
   selector:
-    app: grafana
+    app: monitoring
+    component: grafana
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -195,7 +197,8 @@ spec:
     port: http
   selector:
     matchLabels:
-      app: grafana
+      app: monitoring
+      component: grafana
 ---
 apiVersion: v1
 items:
