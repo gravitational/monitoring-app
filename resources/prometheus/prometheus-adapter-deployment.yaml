@@ -20,8 +20,7 @@ spec:
         component: prometheus-adapter
     spec:
       containers:
-      - name: prometheus-adapter
-        args:
+      - args:
         - --cert-dir=/var/run/serving-cert
         - --config=/etc/adapter/config.yaml
         - --logtostderr=true
@@ -29,6 +28,7 @@ spec:
         - --prometheus-url=http://prometheus-k8s.monitoring.svc:9090/
         - --secure-port=6443
         image: quay.io/coreos/k8s-prometheus-adapter-amd64:v0.4.1
+        name: prometheus-adapter
         ports:
         - containerPort: 6443
         volumeMounts:

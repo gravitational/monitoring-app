@@ -11,9 +11,9 @@ spec:
   - name: https-main
     port: 8443
     targetPort: https-main
-  - name: https-telemetry
+  - name: https-self
     port: 9443
-    targetPort: https-telemetry
+    targetPort: https-self
   selector:
     app: monitoring
     component: kube-state-metrics

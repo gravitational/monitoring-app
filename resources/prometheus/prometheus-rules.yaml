@@ -37,18 +37,51 @@ spec:
       record: namespace_name:container_memory_usage_bytes:sum
     - expr: |
         sum by (namespace, label_name) (
-          sum(kube_pod_container_resource_requests_memory_bytes{job="kube-state-metrics"}) by (namespace, pod)
+          sum(kube_pod_container_resource_requests_memory_bytes{job="kube-state-metrics"} * on (endpoint, instance, job, namespace, pod, service) group_left(phase) (kube_pod_status_phase{phase=~"^(Pending|Running)$"} == 1)) by (namespace, pod)
         * on (namespace, pod) group_left(label_name)
           label_replace(kube_pod_labels{job="kube-state-metrics"}, "pod_name", "$1", "pod", "(.*)")
         )
       record: namespace_name:kube_pod_container_resource_requests_memory_bytes:sum
     - expr: |
         sum by (namespace, label_name) (
-          sum(kube_pod_container_resource_requests_cpu_cores{job="kube-state-metrics"} and on(pod) kube_pod_status_scheduled{condition="true"}) by (namespace, pod)
+          sum(kube_pod_container_resource_requests_cpu_cores{job="kube-state-metrics"} * on (endpoint, instance, job, namespace, pod, service) group_left(phase) (kube_pod_status_phase{phase=~"^(Pending|Running)$"} == 1)) by (namespace, pod)
         * on (namespace, pod) group_left(label_name)
           label_replace(kube_pod_labels{job="kube-state-metrics"}, "pod_name", "$1", "pod", "(.*)")
         )
       record: namespace_name:kube_pod_container_resource_requests_cpu_cores:sum
+    - expr: |
+        sum(
+          label_replace(
+            label_replace(
+              kube_pod_owner{job="kube-state-metrics", owner_kind="ReplicaSet"},
+              "replicaset", "$1", "owner_name", "(.*)"
+            ) * on(replicaset, namespace) group_left(owner_name) kube_replicaset_owner{job="kube-state-metrics"},
+            "workload", "$1", "owner_name", "(.*)"
+          )
+        ) by (namespace, workload, pod)
+      labels:
+        workload_type: deployment
+      record: mixin_pod_workload
+    - expr: |
+        sum(
+          label_replace(
+            kube_pod_owner{job="kube-state-metrics", owner_kind="DaemonSet"},
+            "workload", "$1", "owner_name", "(.*)"
+          )
+        ) by (namespace, workload, pod)
+      labels:
+        workload_type: daemonset
+      record: mixin_pod_workload
+    - expr: |
+        sum(
+          label_replace(
+            kube_pod_owner{job="kube-state-metrics", owner_kind="StatefulSet"},
+            "workload", "$1", "owner_name", "(.*)"
+          )
+        ) by (namespace, workload, pod)
+      labels:
+        workload_type: statefulset
+      record: mixin_pod_workload
   - name: kube-scheduler.rules
     rules:
     - expr: |
@@ -225,21 +258,21 @@ spec:
         )
       record: node:node_memory_swap_io_bytes:sum_rate
     - expr: |
-        avg(irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+"}[1m]))
+        avg(irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m]))
       record: :node_disk_utilisation:avg_irate
     - expr: |
         avg by (node) (
-          irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+"}[1m])
+          irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m])
         * on (namespace, pod) group_left(node)
           node_namespace_pod:kube_pod_info:
         )
       record: node:node_disk_utilisation:avg_irate
     - expr: |
-        avg(irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+"}[1m]) / 1e3)
+        avg(irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m]))
       record: :node_disk_saturation:avg_irate
     - expr: |
         avg by (node) (
-          irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+"}[1m]) / 1e3
+          irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m])
         * on (namespace, pod) group_left(node)
           node_namespace_pod:kube_pod_info:
         )
@@ -603,7 +636,7 @@ spec:
         message: Cluster has overcommitted CPU resource requests for Namespaces.
         runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubecpuovercommit
       expr: |
-        sum(kube_resourcequota{job="kube-state-metrics", type="hard", resource="requests.cpu"})
+        sum(kube_resourcequota{job="kube-state-metrics", type="hard", resource="cpu"})
           /
         sum(node:node_num_cpu:sum)
           > 1.5
@@ -615,7 +648,7 @@ spec:
         message: Cluster has overcommitted memory resource requests for Namespaces.
         runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubememovercommit
       expr: |
-        sum(kube_resourcequota{job="kube-state-metrics", type="hard", resource="requests.memory"})
+        sum(kube_resourcequota{job="kube-state-metrics", type="hard", resource="memory"})
           /
         sum(node_memory_MemTotal_bytes{job="node-exporter"})
           > 1.5
@@ -769,9 +802,9 @@ spec:
         message: API server is returning errors for {{ $value }}% of requests.
         runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeapierrorshigh
       expr: |
-        sum(rate(apiserver_request_count{job="apiserver",code=~"^(?:5..)$"}[5m])) without(instance, pod)
+        sum(rate(apiserver_request_count{job="apiserver",code=~"^(?:5..)$"}[5m]))
           /
-        sum(rate(apiserver_request_count{job="apiserver"}[5m])) without(instance, pod) * 100 > 10
+        sum(rate(apiserver_request_count{job="apiserver"}[5m])) * 100 > 3
       for: 10m
       labels:
         severity: critical
@@ -780,28 +813,52 @@ spec:
         message: API server is returning errors for {{ $value }}% of requests.
         runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeapierrorshigh
       expr: |
-        sum(rate(apiserver_request_count{job="apiserver",code=~"^(?:5..)$"}[5m])) without(instance, pod)
+        sum(rate(apiserver_request_count{job="apiserver",code=~"^(?:5..)$"}[5m]))
           /
-        sum(rate(apiserver_request_count{job="apiserver"}[5m])) without(instance, pod) * 100 > 5
+        sum(rate(apiserver_request_count{job="apiserver"}[5m])) * 100 > 1
+      for: 10m
+      labels:
+        severity: warning
+    - alert: KubeAPIErrorsHigh
+      annotations:
+        message: API server is returning errors for {{ $value }}% of requests for
+          {{ $labels.verb }} {{ $labels.resource }} {{ $labels.subresource }}.
+        runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeapierrorshigh
+      expr: |
+        sum(rate(apiserver_request_count{job="apiserver",code=~"^(?:5..)$"}[5m])) by (resource,subresource,verb)
+          /
+        sum(rate(apiserver_request_count{job="apiserver"}[5m])) by (resource,subresource,verb) * 100 > 10
+      for: 10m
+      labels:
+        severity: critical
+    - alert: KubeAPIErrorsHigh
+      annotations:
+        message: API server is returning errors for {{ $value }}% of requests for
+          {{ $labels.verb }} {{ $labels.resource }} {{ $labels.subresource }}.
+        runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeapierrorshigh
+      expr: |
+        sum(rate(apiserver_request_count{job="apiserver",code=~"^(?:5..)$"}[5m])) by (resource,subresource,verb)
+          /
+        sum(rate(apiserver_request_count{job="apiserver"}[5m])) by (resource,subresource,verb) * 100 > 5
       for: 10m
       labels:
         severity: warning
     - alert: KubeClientCertificateExpiration
       annotations:
         message: A client certificate used to authenticate to the apiserver is expiring
-          in less than 7 days.
+          in less than 7.0 days.
         runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeclientcertificateexpiration
       expr: |
-        histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[5m]))) < 604800
+        apiserver_client_certificate_expiration_seconds_count{job="apiserver"} > 0 and histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[5m]))) < 604800
       labels:
         severity: warning
     - alert: KubeClientCertificateExpiration
       annotations:
         message: A client certificate used to authenticate to the apiserver is expiring
-          in less than 24 hours.
+          in less than 24.0 hours.
         runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeclientcertificateexpiration
       expr: |
-        histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[5m]))) < 86400
+        apiserver_client_certificate_expiration_seconds_count{job="apiserver"} > 0 and histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[5m]))) < 86400
       labels:
         severity: critical
   - name: alertmanager.rules
@@ -874,6 +931,46 @@ spec:
       for: 10m
       labels:
         severity: critical
+  - name: node-time
+    rules:
+    - alert: ClockSkewDetected
+      annotations:
+        message: Clock skew detected on node-exporter {{ $labels.namespace }}/{{ $labels.pod
+          }}. Ensure NTP is configured correctly on this host.
+      expr: |
+        node_ntp_offset_seconds{job="node-exporter"} < -0.03 or node_ntp_offset_seconds{job="node-exporter"} > 0.03
+      for: 2m
+      labels:
+        severity: warning
+  - name: node-network
+    rules:
+    - alert: NetworkReceiveErrors
+      annotations:
+        message: Network interface "{{ $labels.device }}" showing receive errors on
+          node-exporter {{ $labels.namespace }}/{{ $labels.pod }}"
+      expr: |
+        rate(node_network_receive_errs_total{job="node-exporter",device!~"veth.+"}[2m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+    - alert: NetworkTransmitErrors
+      annotations:
+        message: Network interface "{{ $labels.device }}" showing transmit errors
+          on node-exporter {{ $labels.namespace }}/{{ $labels.pod }}"
+      expr: |
+        rate(node_network_transmit_errs_total{job="node-exporter",device!~"veth.+"}[2m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+    - alert: NodeNetworkInterfaceFlapping
+      annotations:
+        message: Network interface "{{ $labels.device }}" changing it's up status
+          often on node-exporter {{ $labels.namespace }}/{{ $labels.pod }}"
+      expr: |
+        changes(node_network_up{job="node-exporter",device!~"veth.+"}[2m]) > 2
+      for: 2m
+      labels:
+        severity: warning
   - name: prometheus.rules
     rules:
     - alert: PrometheusConfigReloadFailed
@@ -951,7 +1048,7 @@ spec:
           log (WAL).'
         summary: Prometheus write-ahead log is corrupted
       expr: |
-        tsdb_wal_corruptions_total{job="prometheus-k8s",namespace="monitoring"} > 0
+        prometheus_tsdb_wal_corruptions_total{job="prometheus-k8s",namespace="monitoring"} > 0
       for: 4h
       labels:
         severity: warning

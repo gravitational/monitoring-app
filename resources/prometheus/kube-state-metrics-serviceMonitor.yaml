@@ -17,7 +17,7 @@ spec:
       insecureSkipVerify: true
   - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
     interval: 30s
-    port: https-telemetry
+    port: https-self
     scheme: https
     tlsConfig:
       insecureSkipVerify: true

@@ -19,13 +19,13 @@ spec:
         component: kube-state-metrics
     spec:
       containers:
-      - name: kube-rbac-proxy-main
-        args:
+      - args:
         - --logtostderr
         - --secure-listen-address=:8443
         - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-        - --upstream=http://127.0.0.1:8080/
+        - --upstream=http://127.0.0.1:8081/
         image: quay.io/coreos/kube-rbac-proxy:v0.4.1
+        name: kube-rbac-proxy-main
         ports:
         - containerPort: 8443
           name: https-main
@@ -36,16 +36,16 @@ spec:
           requests:
             cpu: 10m
             memory: 20Mi
-      - name: kube-rbac-proxy-telemetry
-        args:
+      - args:
         - --logtostderr
         - --secure-listen-address=:9443
         - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-        - --upstream=http://127.0.0.1:8081/
+        - --upstream=http://127.0.0.1:8082/
         image: quay.io/coreos/kube-rbac-proxy:v0.4.1
+        name: kube-rbac-proxy-self
         ports:
         - containerPort: 9443
-          name: https-telemetry
+          name: https-self
         resources:
           limits:
             cpu: 20m
@@ -53,13 +53,13 @@ spec:
           requests:
             cpu: 10m
             memory: 20Mi
-      - name: kube-state-metrics
-        args:
+      - args:
         - --host=127.0.0.1
-        - --port=8080
+        - --port=8081
         - --telemetry-host=127.0.0.1
-        - --telemetry-port=8081
-        image: monitoring-kube-state-metrics:latest
+        - --telemetry-port=8082
+        image: quay.io/coreos/kube-state-metrics:v1.5.0
+        name: kube-state-metrics
         resources:
           limits:
             cpu: 100m

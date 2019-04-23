@@ -2,12 +2,12 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: alertmanagers.monitoring.coreos.com
+  name: prometheuses.monitoring.coreos.com
 spec:
   group: monitoring.coreos.com
   names:
-    kind: Alertmanager
-    plural: alertmanagers
+    kind: Prometheus
+    plural: prometheuses
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -23,15 +23,54 @@ spec:
             submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
           type: string
         spec:
-          description: 'AlertmanagerSpec is a specification of the desired behavior
-            of the Alertmanager cluster. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#spec-and-status'
+          description: 'PrometheusSpec is a specification of the desired behavior
+            of the Prometheus cluster. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#spec-and-status'
           properties:
-            additionalPeers:
-              description: AdditionalPeers allows injecting a set of additional Alertmanagers
-                to peer with to form a highly available cluster.
-              items:
-                type: string
-              type: array
+            additionalAlertManagerConfigs:
+              description: SecretKeySelector selects a key of a Secret.
+              properties:
+                key:
+                  description: The key of the secret to select from.  Must be a valid
+                    secret key.
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                optional:
+                  description: Specify whether the Secret or it's key must be defined
+                  type: boolean
+              required:
+              - key
+            additionalAlertRelabelConfigs:
+              description: SecretKeySelector selects a key of a Secret.
+              properties:
+                key:
+                  description: The key of the secret to select from.  Must be a valid
+                    secret key.
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                optional:
+                  description: Specify whether the Secret or it's key must be defined
+                  type: boolean
+              required:
+              - key
+            additionalScrapeConfigs:
+              description: SecretKeySelector selects a key of a Secret.
+              properties:
+                key:
+                  description: The key of the secret to select from.  Must be a valid
+                    secret key.
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                optional:
+                  description: Specify whether the Secret or it's key must be defined
+                  type: boolean
+              required:
+              - key
             affinity:
               description: Affinity is a group of affinity scheduling rules.
               properties:
@@ -590,20 +629,146 @@ spec:
                         required:
                         - topologyKey
                       type: array
+            alerting:
+              description: AlertingSpec defines parameters for alerting configuration
+                of Prometheus servers.
+              properties:
+                alertmanagers:
+                  description: AlertmanagerEndpoints Prometheus should fire alerts
+                    against.
+                  items:
+                    description: AlertmanagerEndpoints defines a selection of a single
+                      Endpoints object containing alertmanager IPs to fire alerts
+                      against.
+                    properties:
+                      bearerTokenFile:
+                        description: BearerTokenFile to read from filesystem to use
+                          when authenticating to Alertmanager.
+                        type: string
+                      name:
+                        description: Name of Endpoints object in Namespace.
+                        type: string
+                      namespace:
+                        description: Namespace of Endpoints object.
+                        type: string
+                      pathPrefix:
+                        description: Prefix for the HTTP path alerts are pushed to.
+                        type: string
+                      port:
+                        anyOf:
+                        - type: string
+                        - type: integer
+                      scheme:
+                        description: Scheme to use when firing alerts.
+                        type: string
+                      tlsConfig:
+                        description: TLSConfig specifies TLS configuration parameters.
+                        properties:
+                          caFile:
+                            description: The CA cert to use for the targets.
+                            type: string
+                          certFile:
+                            description: The client cert file for the targets.
+                            type: string
+                          insecureSkipVerify:
+                            description: Disable target certificate validation.
+                            type: boolean
+                          keyFile:
+                            description: The client key file for the targets.
+                            type: string
+                          serverName:
+                            description: Used to verify the hostname for the targets.
+                            type: string
+                    required:
+                    - namespace
+                    - name
+                    - port
+                  type: array
+              required:
+              - alertmanagers
+            apiserverConfig:
+              description: 'APIServerConfig defines a host and auth methods to access
+                apiserver. More info: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config'
+              properties:
+                basicAuth:
+                  description: 'BasicAuth allow an endpoint to authenticate over basic
+                    authentication More info: https://prometheus.io/docs/operating/configuration/#endpoints'
+                  properties:
+                    password:
+                      description: SecretKeySelector selects a key of a Secret.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or it's key must
+                            be defined
+                          type: boolean
+                      required:
+                      - key
+                    username:
+                      description: SecretKeySelector selects a key of a Secret.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or it's key must
+                            be defined
+                          type: boolean
+                      required:
+                      - key
+                bearerToken:
+                  description: Bearer token for accessing apiserver.
+                  type: string
+                bearerTokenFile:
+                  description: File to read bearer token for accessing apiserver.
+                  type: string
+                host:
+                  description: Host of apiserver. A valid string consisting of a hostname
+                    or IP followed by an optional port number
+                  type: string
+                tlsConfig:
+                  description: TLSConfig specifies TLS configuration parameters.
+                  properties:
+                    caFile:
+                      description: The CA cert to use for the targets.
+                      type: string
+                    certFile:
+                      description: The client cert file for the targets.
+                      type: string
+                    insecureSkipVerify:
+                      description: Disable target certificate validation.
+                      type: boolean
+                    keyFile:
+                      description: The client key file for the targets.
+                      type: string
+                    serverName:
+                      description: Used to verify the hostname for the targets.
+                      type: string
+              required:
+              - host
             baseImage:
-              description: Base image that is used to deploy pods, without tag.
+              description: Base image to use for a Prometheus deployment.
               type: string
             configMaps:
               description: ConfigMaps is a list of ConfigMaps in the same namespace
-                as the Alertmanager object, which shall be mounted into the Alertmanager
-                Pods. The ConfigMaps are mounted into /etc/alertmanager/configmaps/<configmap-name>.
+                as the Prometheus object, which shall be mounted into the Prometheus
+                Pods. The ConfigMaps are mounted into /etc/prometheus/configmaps/<configmap-name>.
               items:
                 type: string
               type: array
             containers:
               description: Containers allows injecting additional containers. This
-                is meant to allow adding an authentication proxy to an Alertmanager
-                pod.
+                is meant to allow adding an authentication proxy to a Prometheus pod.
               items:
                 description: A single application container that you want to run within
                   a pod.
@@ -1372,15 +1537,30 @@ spec:
                 required:
                 - name
               type: array
+            enableAdminAPI:
+              description: 'Enable access to prometheus web admin API. Defaults to
+                the value of `false`. WARNING: Enabling the admin APIs enables mutating
+                endpoints, to delete data, shutdown Prometheus, and more. Enabling
+                this should be done with care and the user is advised to add additional
+                authentication authorization via a proxy to ensure only clients authorized
+                to perform these actions can do so. For more information see https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-admin-apis'
+              type: boolean
+            evaluationInterval:
+              description: Interval between consecutive evaluations.
+              type: string
+            externalLabels:
+              description: The labels to add to any time series or alerts when communicating
+                with external systems (federation, remote storage, Alertmanager).
+              type: object
             externalUrl:
-              description: The external URL the Alertmanager instances will be available
+              description: The external URL the Prometheus instances will be available
                 under. This is necessary to generate correct URLs. This is necessary
-                if Alertmanager is not served from root of a DNS name.
+                if Prometheus is not served from root of a DNS name.
               type: string
             image:
               description: Image if specified has precedence over baseImage, tag and
                 sha combinations. Specifying the version is still necessary to ensure
-                the Prometheus Operator knows what version of Alertmanager is being
+                the Prometheus Operator knows what version of Prometheus is being
                 configured.
               type: string
             imagePullSecrets:
@@ -1396,19 +1576,21 @@ spec:
                     type: string
               type: array
             listenLocal:
-              description: ListenLocal makes the Alertmanager server listen on loopback,
-                so that it does not bind against the Pod IP. Note this is only for
-                the Alertmanager UI, not the gossip communication.
+              description: ListenLocal makes the Prometheus server listen on loopback,
+                so that it does not bind against the Pod IP.
               type: boolean
+            logFormat:
+              description: Log format for Prometheus to be configured with.
+              type: string
             logLevel:
-              description: Log level for Alertmanager to be configured with.
+              description: Log level for Prometheus to be configured with.
               type: string
             nodeSelector:
               description: Define which Nodes the Pods are scheduled on.
               type: object
             paused:
-              description: If set to true all actions on the underlaying managed objects
-                are not goint to be performed, except for delete actions.
+              description: When a Prometheus deployment is paused, no actions except
+                for deletion will be performed on the underlying objects.
               type: boolean
             podMetadata:
               description: ObjectMeta is metadata that all persisted resources must
@@ -1698,10 +1880,278 @@ spec:
             priorityClassName:
               description: Priority class assigned to the Pods
               type: string
+            query:
+              description: QuerySpec defines the query command line flags when starting
+                Prometheus.
+              properties:
+                lookbackDelta:
+                  description: The delta difference allowed for retrieving metrics
+                    during expression evaluations.
+                  type: string
+                maxConcurrency:
+                  description: Number of concurrent queries that can be run at once.
+                  format: int32
+                  type: integer
+                timeout:
+                  description: Maximum time a query may take before being aborted.
+                  type: string
+            remoteRead:
+              description: If specified, the remote_read spec. This is an experimental
+                feature, it may change in any upcoming release in a breaking way.
+              items:
+                description: RemoteReadSpec defines the remote_read configuration
+                  for prometheus.
+                properties:
+                  basicAuth:
+                    description: 'BasicAuth allow an endpoint to authenticate over
+                      basic authentication More info: https://prometheus.io/docs/operating/configuration/#endpoints'
+                    properties:
+                      password:
+                        description: SecretKeySelector selects a key of a Secret.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or it's key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                      username:
+                        description: SecretKeySelector selects a key of a Secret.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or it's key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                  bearerToken:
+                    description: bearer token for remote read.
+                    type: string
+                  bearerTokenFile:
+                    description: File to read bearer token for remote read.
+                    type: string
+                  proxyUrl:
+                    description: Optional ProxyURL
+                    type: string
+                  readRecent:
+                    description: Whether reads should be made for queries for time
+                      ranges that the local storage should have complete data for.
+                    type: boolean
+                  remoteTimeout:
+                    description: Timeout for requests to the remote read endpoint.
+                    type: string
+                  requiredMatchers:
+                    description: An optional list of equality matchers which have
+                      to be present in a selector to query the remote read endpoint.
+                    type: object
+                  tlsConfig:
+                    description: TLSConfig specifies TLS configuration parameters.
+                    properties:
+                      caFile:
+                        description: The CA cert to use for the targets.
+                        type: string
+                      certFile:
+                        description: The client cert file for the targets.
+                        type: string
+                      insecureSkipVerify:
+                        description: Disable target certificate validation.
+                        type: boolean
+                      keyFile:
+                        description: The client key file for the targets.
+                        type: string
+                      serverName:
+                        description: Used to verify the hostname for the targets.
+                        type: string
+                  url:
+                    description: The URL of the endpoint to send samples to.
+                    type: string
+                required:
+                - url
+              type: array
+            remoteWrite:
+              description: If specified, the remote_write spec. This is an experimental
+                feature, it may change in any upcoming release in a breaking way.
+              items:
+                description: RemoteWriteSpec defines the remote_write configuration
+                  for prometheus.
+                properties:
+                  basicAuth:
+                    description: 'BasicAuth allow an endpoint to authenticate over
+                      basic authentication More info: https://prometheus.io/docs/operating/configuration/#endpoints'
+                    properties:
+                      password:
+                        description: SecretKeySelector selects a key of a Secret.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or it's key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                      username:
+                        description: SecretKeySelector selects a key of a Secret.
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or it's key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
+                  bearerToken:
+                    description: File to read bearer token for remote write.
+                    type: string
+                  bearerTokenFile:
+                    description: File to read bearer token for remote write.
+                    type: string
+                  proxyUrl:
+                    description: Optional ProxyURL
+                    type: string
+                  queueConfig:
+                    description: QueueConfig allows the tuning of remote_write queue_config
+                      parameters. This object is referenced in the RemoteWriteSpec
+                      object.
+                    properties:
+                      batchSendDeadline:
+                        description: BatchSendDeadline is the maximum time a sample
+                          will wait in buffer.
+                        type: string
+                      capacity:
+                        description: Capacity is the number of samples to buffer per
+                          shard before we start dropping them.
+                        format: int32
+                        type: integer
+                      maxBackoff:
+                        description: MaxBackoff is the maximum retry delay.
+                        type: string
+                      maxRetries:
+                        description: MaxRetries is the maximum number of times to
+                          retry a batch on recoverable errors.
+                        format: int32
+                        type: integer
+                      maxSamplesPerSend:
+                        description: MaxSamplesPerSend is the maximum number of samples
+                          per send.
+                        format: int32
+                        type: integer
+                      maxShards:
+                        description: MaxShards is the maximum number of shards, i.e.
+                          amount of concurrency.
+                        format: int32
+                        type: integer
+                      minBackoff:
+                        description: MinBackoff is the initial retry delay. Gets doubled
+                          for every retry.
+                        type: string
+                      minShards:
+                        description: MinShards is the minimum number of shards, i.e.
+                          amount of concurrency.
+                        format: int32
+                        type: integer
+                  remoteTimeout:
+                    description: Timeout for requests to the remote write endpoint.
+                    type: string
+                  tlsConfig:
+                    description: TLSConfig specifies TLS configuration parameters.
+                    properties:
+                      caFile:
+                        description: The CA cert to use for the targets.
+                        type: string
+                      certFile:
+                        description: The client cert file for the targets.
+                        type: string
+                      insecureSkipVerify:
+                        description: Disable target certificate validation.
+                        type: boolean
+                      keyFile:
+                        description: The client key file for the targets.
+                        type: string
+                      serverName:
+                        description: Used to verify the hostname for the targets.
+                        type: string
+                  url:
+                    description: The URL of the endpoint to send samples to.
+                    type: string
+                  writeRelabelConfigs:
+                    description: The list of remote write relabel configurations.
+                    items:
+                      description: 'RelabelConfig allows dynamic rewriting of the
+                        label set, being applied to samples before ingestion. It defines
+                        `<metric_relabel_configs>`-section of Prometheus configuration.
+                        More info: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs'
+                      properties:
+                        action:
+                          description: Action to perform based on regex matching.
+                            Default is 'replace'
+                          type: string
+                        modulus:
+                          description: Modulus to take of the hash of the source label
+                            values.
+                          format: int64
+                          type: integer
+                        regex:
+                          description: Regular expression against which the extracted
+                            value is matched. defailt is '(.*)'
+                          type: string
+                        replacement:
+                          description: Replacement value against which a regex replace
+                            is performed if the regular expression matches. Regex
+                            capture groups are available. Default is '$1'
+                          type: string
+                        separator:
+                          description: Separator placed between concatenated source
+                            label values. default is ';'.
+                          type: string
+                        sourceLabels:
+                          description: The source labels select values from existing
+                            labels. Their content is concatenated using the configured
+                            separator and matched against the configured regular expression
+                            for the replace, keep, and drop actions.
+                          items:
+                            type: string
+                          type: array
+                        targetLabel:
+                          description: Label to which the resulting value is written
+                            in a replace action. It is mandatory for replace actions.
+                            Regex capture groups are available.
+                          type: string
+                    type: array
+                required:
+                - url
+              type: array
+            replicaExternalLabelName:
+              description: Name of Prometheus external label used to denote replica
+                name. Defaults to the value of `prometheus_replica`.
+              type: string
             replicas:
-              description: Size is the expected size of the alertmanager cluster.
-                The controller will eventually make the size of the running cluster
-                equal to the expected size.
+              description: Number of instances to deploy for a Prometheus deployment.
               format: int32
               type: integer
             resources:
@@ -1718,21 +2168,127 @@ spec:
                     value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                   type: object
             retention:
-              description: Time duration Alertmanager shall retain data for. Default
-                is '120h', and must match the regular expression `[0-9]+(ms|s|m|h)`
-                (milliseconds seconds minutes hours).
+              description: Time duration Prometheus shall retain data for. Default
+                is '24h', and must match the regular expression `[0-9]+(ms|s|m|h|d|w|y)`
+                (milliseconds seconds minutes hours days weeks years).
               type: string
             routePrefix:
-              description: The route prefix Alertmanager registers HTTP handlers for.
+              description: The route prefix Prometheus registers HTTP handlers for.
                 This is useful, if using ExternalURL and a proxy is rewriting HTTP
                 routes of a request, and the actual ExternalURL is still true, but
                 the server serves requests under a different route prefix. For example
                 for use with `kubectl proxy`.
               type: string
+            ruleNamespaceSelector:
+              description: A label selector is a label query over a set of resources.
+                The result of matchLabels and matchExpressions are ANDed. An empty
+                label selector matches all objects. A null label selector matches
+                no objects.
+              properties:
+                matchExpressions:
+                  description: matchExpressions is a list of label selector requirements.
+                    The requirements are ANDed.
+                  items:
+                    description: A label selector requirement is a selector that contains
+                      values, a key, and an operator that relates the key and values.
+                    properties:
+                      key:
+                        description: key is the label key that the selector applies
+                          to.
+                        type: string
+                      operator:
+                        description: operator represents a key's relationship to a
+                          set of values. Valid operators are In, NotIn, Exists and
+                          DoesNotExist.
+                        type: string
+                      values:
+                        description: values is an array of string values. If the operator
+                          is In or NotIn, the values array must be non-empty. If the
+                          operator is Exists or DoesNotExist, the values array must
+                          be empty. This array is replaced during a strategic merge
+                          patch.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - key
+                    - operator
+                  type: array
+                matchLabels:
+                  description: matchLabels is a map of {key,value} pairs. A single
+                    {key,value} in the matchLabels map is equivalent to an element
+                    of matchExpressions, whose key field is "key", the operator is
+                    "In", and the values array contains only "value". The requirements
+                    are ANDed.
+                  type: object
+            ruleSelector:
+              description: A label selector is a label query over a set of resources.
+                The result of matchLabels and matchExpressions are ANDed. An empty
+                label selector matches all objects. A null label selector matches
+                no objects.
+              properties:
+                matchExpressions:
+                  description: matchExpressions is a list of label selector requirements.
+                    The requirements are ANDed.
+                  items:
+                    description: A label selector requirement is a selector that contains
+                      values, a key, and an operator that relates the key and values.
+                    properties:
+                      key:
+                        description: key is the label key that the selector applies
+                          to.
+                        type: string
+                      operator:
+                        description: operator represents a key's relationship to a
+                          set of values. Valid operators are In, NotIn, Exists and
+                          DoesNotExist.
+                        type: string
+                      values:
+                        description: values is an array of string values. If the operator
+                          is In or NotIn, the values array must be non-empty. If the
+                          operator is Exists or DoesNotExist, the values array must
+                          be empty. This array is replaced during a strategic merge
+                          patch.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - key
+                    - operator
+                  type: array
+                matchLabels:
+                  description: matchLabels is a map of {key,value} pairs. A single
+                    {key,value} in the matchLabels map is equivalent to an element
+                    of matchExpressions, whose key field is "key", the operator is
+                    "In", and the values array contains only "value". The requirements
+                    are ANDed.
+                  type: object
+            rules:
+              description: /--rules.*/ command-line arguments
+              properties:
+                alert:
+                  description: /--rules.alert.*/ command-line arguments
+                  properties:
+                    forGracePeriod:
+                      description: Minimum duration between alert and restored 'for'
+                        state. This is maintained only for alerts with configured
+                        'for' time greater than grace period.
+                      type: string
+                    forOutageTolerance:
+                      description: Max time to tolerate prometheus outage for restoring
+                        'for' state of alert.
+                      type: string
+                    resendDelay:
+                      description: Minimum amount of time to wait before resending
+                        an alert to Alertmanager.
+                      type: string
+            scrapeInterval:
+              description: Interval between consecutive scrapes.
+              type: string
             secrets:
               description: Secrets is a list of Secrets in the same namespace as the
-                Alertmanager object, which shall be mounted into the Alertmanager
-                Pods. The Secrets are mounted into /etc/alertmanager/secrets/<secret-name>.
+                Prometheus object, which shall be mounted into the Prometheus Pods.
+                The Secrets are mounted into /etc/prometheus/secrets/<secret-name>.
               items:
                 type: string
               type: array
@@ -1824,8 +2380,92 @@ spec:
               description: ServiceAccountName is the name of the ServiceAccount to
                 use to run the Prometheus Pods.
               type: string
+            serviceMonitorNamespaceSelector:
+              description: A label selector is a label query over a set of resources.
+                The result of matchLabels and matchExpressions are ANDed. An empty
+                label selector matches all objects. A null label selector matches
+                no objects.
+              properties:
+                matchExpressions:
+                  description: matchExpressions is a list of label selector requirements.
+                    The requirements are ANDed.
+                  items:
+                    description: A label selector requirement is a selector that contains
+                      values, a key, and an operator that relates the key and values.
+                    properties:
+                      key:
+                        description: key is the label key that the selector applies
+                          to.
+                        type: string
+                      operator:
+                        description: operator represents a key's relationship to a
+                          set of values. Valid operators are In, NotIn, Exists and
+                          DoesNotExist.
+                        type: string
+                      values:
+                        description: values is an array of string values. If the operator
+                          is In or NotIn, the values array must be non-empty. If the
+                          operator is Exists or DoesNotExist, the values array must
+                          be empty. This array is replaced during a strategic merge
+                          patch.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - key
+                    - operator
+                  type: array
+                matchLabels:
+                  description: matchLabels is a map of {key,value} pairs. A single
+                    {key,value} in the matchLabels map is equivalent to an element
+                    of matchExpressions, whose key field is "key", the operator is
+                    "In", and the values array contains only "value". The requirements
+                    are ANDed.
+                  type: object
+            serviceMonitorSelector:
+              description: A label selector is a label query over a set of resources.
+                The result of matchLabels and matchExpressions are ANDed. An empty
+                label selector matches all objects. A null label selector matches
+                no objects.
+              properties:
+                matchExpressions:
+                  description: matchExpressions is a list of label selector requirements.
+                    The requirements are ANDed.
+                  items:
+                    description: A label selector requirement is a selector that contains
+                      values, a key, and an operator that relates the key and values.
+                    properties:
+                      key:
+                        description: key is the label key that the selector applies
+                          to.
+                        type: string
+                      operator:
+                        description: operator represents a key's relationship to a
+                          set of values. Valid operators are In, NotIn, Exists and
+                          DoesNotExist.
+                        type: string
+                      values:
+                        description: values is an array of string values. If the operator
+                          is In or NotIn, the values array must be non-empty. If the
+                          operator is Exists or DoesNotExist, the values array must
+                          be empty. This array is replaced during a strategic merge
+                          patch.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - key
+                    - operator
+                  type: array
+                matchLabels:
+                  description: matchLabels is a map of {key,value} pairs. A single
+                    {key,value} in the matchLabels map is equivalent to an element
+                    of matchExpressions, whose key field is "key", the operator is
+                    "In", and the values array contains only "value". The requirements
+                    are ANDed.
+                  type: object
             sha:
-              description: SHA of Alertmanager container image to be deployed. Defaults
+              description: SHA of Prometheus container image to be deployed. Defaults
                 to the value of `version`. Similar to a tag, but the SHA explicitly
                 deploys an immutable container image. Version and Tag are ignored
                 if SHA is set.
@@ -2328,9 +2968,157 @@ spec:
                           description: Phase represents the current phase of PersistentVolumeClaim.
                           type: string
             tag:
-              description: Tag of Alertmanager container image to be deployed. Defaults
+              description: Tag of Prometheus container image to be deployed. Defaults
                 to the value of `version`. Version is ignored if Tag is set.
               type: string
+            thanos:
+              description: ThanosSpec defines parameters for a Prometheus server within
+                a Thanos deployment.
+              properties:
+                baseImage:
+                  description: Thanos base image if other than default.
+                  type: string
+                clusterAdvertiseAddress:
+                  description: Explicit (external) ip:port address to advertise for
+                    gossip in gossip cluster. Used internally for membership only.
+                  type: string
+                gcs:
+                  description: 'Deprecated: ThanosGCSSpec should be configured with
+                    an ObjectStorageConfig secret starting with Thanos v0.2.0. ThanosGCSSpec
+                    will be removed.'
+                  properties:
+                    bucket:
+                      description: Google Cloud Storage bucket name for stored blocks.
+                        If empty it won't store any block inside Google Cloud Storage.
+                      type: string
+                    credentials:
+                      description: SecretKeySelector selects a key of a Secret.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or it's key must
+                            be defined
+                          type: boolean
+                      required:
+                      - key
+                grpcAdvertiseAddress:
+                  description: Explicit (external) host:port address to advertise
+                    for gRPC StoreAPI in gossip cluster. If empty, 'grpc-address'
+                    will be used.
+                  type: string
+                image:
+                  description: Image if specified has precedence over baseImage, tag
+                    and sha combinations. Specifying the version is still necessary
+                    to ensure the Prometheus Operator knows what version of Thanos
+                    is being configured.
+                  type: string
+                objectStorageConfig:
+                  description: SecretKeySelector selects a key of a Secret.
+                  properties:
+                    key:
+                      description: The key of the secret to select from.  Must be
+                        a valid secret key.
+                      type: string
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                      type: string
+                    optional:
+                      description: Specify whether the Secret or it's key must be
+                        defined
+                      type: boolean
+                  required:
+                  - key
+                peers:
+                  description: Peers is a DNS name for Thanos to discover peers through.
+                  type: string
+                resources:
+                  description: ResourceRequirements describes the compute resource
+                    requirements.
+                  properties:
+                    limits:
+                      description: 'Limits describes the maximum amount of compute
+                        resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      type: object
+                    requests:
+                      description: 'Requests describes the minimum amount of compute
+                        resources required. If Requests is omitted for a container,
+                        it defaults to Limits if that is explicitly specified, otherwise
+                        to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      type: object
+                s3:
+                  description: 'Deprecated: ThanosS3Spec should be configured with
+                    an ObjectStorageConfig secret starting with Thanos v0.2.0. ThanosS3Spec
+                    will be removed.'
+                  properties:
+                    accessKey:
+                      description: SecretKeySelector selects a key of a Secret.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or it's key must
+                            be defined
+                          type: boolean
+                      required:
+                      - key
+                    bucket:
+                      description: S3-Compatible API bucket name for stored blocks.
+                      type: string
+                    encryptsse:
+                      description: Whether to use Server Side Encryption
+                      type: boolean
+                    endpoint:
+                      description: S3-Compatible API endpoint for stored blocks.
+                      type: string
+                    insecure:
+                      description: Whether to use an insecure connection with an S3-Compatible
+                        API.
+                      type: boolean
+                    secretKey:
+                      description: SecretKeySelector selects a key of a Secret.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or it's key must
+                            be defined
+                          type: boolean
+                      required:
+                      - key
+                    signatureVersion2:
+                      description: Whether to use S3 Signature Version 2; otherwise
+                        Signature Version 4 will be used.
+                      type: boolean
+                sha:
+                  description: SHA of Thanos container image to be deployed. Defaults
+                    to the value of `version`. Similar to a tag, but the SHA explicitly
+                    deploys an immutable container image. Version and Tag are ignored
+                    if SHA is set.
+                  type: string
+                tag:
+                  description: Tag of Thanos sidecar container image to be deployed.
+                    Defaults to the value of `version`. Version is ignored if Tag
+                    is set.
+                  type: string
+                version:
+                  description: Version describes the version of Thanos to use.
+                  type: string
             tolerations:
               description: If specified, the pod's tolerations.
               items:
@@ -2371,16 +3159,16 @@ spec:
                     type: string
               type: array
             version:
-              description: Version the cluster should be on.
+              description: Version of Prometheus to be deployed.
               type: string
         status:
-          description: 'AlertmanagerStatus is the most recent observed status of the
-            Alertmanager cluster. Read-only. Not included when requesting from the
-            apiserver, only from the Prometheus Operator API itself. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#spec-and-status'
+          description: 'PrometheusStatus is the most recent observed status of the
+            Prometheus cluster. Read-only. Not included when requesting from the apiserver,
+            only from the Prometheus Operator API itself. More info: https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#spec-and-status'
           properties:
             availableReplicas:
               description: Total number of available pods (ready for at least minReadySeconds)
-                targeted by this Alertmanager cluster.
+                targeted by this Prometheus deployment.
               format: int32
               type: integer
             paused:
@@ -2388,18 +3176,18 @@ spec:
                 objects are being performed. Only delete actions will be performed.
               type: boolean
             replicas:
-              description: Total number of non-terminated pods targeted by this Alertmanager
-                cluster (their labels match the selector).
+              description: Total number of non-terminated pods targeted by this Prometheus
+                deployment (their labels match the selector).
               format: int32
               type: integer
             unavailableReplicas:
-              description: Total number of unavailable pods targeted by this Alertmanager
-                cluster.
+              description: Total number of unavailable pods targeted by this Prometheus
+                deployment.
               format: int32
               type: integer
             updatedReplicas:
-              description: Total number of non-terminated pods targeted by this Alertmanager
-                cluster that have the desired version spec.
+              description: Total number of non-terminated pods targeted by this Prometheus
+                deployment that have the desired version spec.
               format: int32
               type: integer
           required:
