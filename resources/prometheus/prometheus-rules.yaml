@@ -331,6 +331,28 @@ spec:
           )
         ) by (node)
       record: 'node:node_inodes_free:'
+  - name: cluster.rules
+    rules:
+      # Total number of CPU cores in the cluster.
+      - expr: |
+          sum(node:node_num_cpu:sum)
+        record: cluster:cpu_total
+      # Cluster-wide CPU usage rate in percent.
+      - expr: |
+          sum(node:cluster_cpu_utilization:ratio * 100)
+        record: cluster:cpu_usage_rate
+      # Cluster-wide total RAM in bytes.
+      - expr: |
+          sum(node:node_memory_bytes_total:sum)
+        record: cluster:memory_total_bytes
+      # Cluster-wide RAM usage in bytes.
+      - expr: |
+          sum(node:node_memory_bytes_total:sum) - sum(node:node_memory_bytes_available:sum)
+        record: cluster:memory_usage_bytes
+      # Cluster-wide RAM usage rate in percent.
+      - expr: |
+          (sum(node:node_memory_bytes_total:sum) - sum(node:node_memory_bytes_available:sum)) / scalar(sum(node:node_memory_bytes_total:sum)) * 100
+        record: cluster:memory_usage_rate
   - name: kube-prometheus-node-recording.rules
     rules:
     - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait"}[3m])) BY
