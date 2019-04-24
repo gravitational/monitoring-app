@@ -30,4 +30,26 @@ spec:
   serviceAccountName: prometheus-k8s
   serviceMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}
+  retention: 30d
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app: prometheus
+              prometheus: k8s
+  tolerations:
+  - key: "gravitational.io/runlevel"
+    value: system
+    operator: Equal
+  # allows to run on master nodes
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+  additionalScrapeConfigs:
+    name: prometheus-additional-scrape-configs
+    key: additional-scrape-configs.yaml
   version: v2.7.2

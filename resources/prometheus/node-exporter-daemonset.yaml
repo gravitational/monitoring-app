@@ -74,10 +74,13 @@ spec:
         runAsUser: 65534
       serviceAccountName: node-exporter
       tolerations:
-      - effect: NoExecute
-        operator: Exists
-      - effect: NoSchedule
-        operator: Exists
+      - key: "gravitational.io/runlevel"
+        value: system
+        operator: Equal
+      # allows to run on master nodes
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       volumes:
       - hostPath:
           path: /proc
