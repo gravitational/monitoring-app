@@ -278,7 +278,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:cluster_cpu_utilisation:ratio{cluster=\"$cluster\"}",
+                                  "expr": "node:cluster_cpu_utilization:ratio{cluster=\"$cluster\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "{{node}}",
@@ -462,7 +462,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:cluster_memory_utilisation:ratio{cluster=\"$cluster\"}",
+                                  "expr": "node:cluster_memory_utilization:ratio{cluster=\"$cluster\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "{{node}}",
@@ -646,7 +646,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:node_disk_utilisation:avg_irate{cluster=\"$cluster\"} / scalar(:kube_pod_info_node_count:{cluster=\"$cluster\"})",
+                                  "expr": "node:node_disk_utilization:avg_irate{cluster=\"$cluster\"} / scalar(:kube_pod_info_node_count:{cluster=\"$cluster\"})",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "{{node}}",
@@ -830,7 +830,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:node_net_utilisation:sum_irate{cluster=\"$cluster\"}",
+                                  "expr": "node:node_net_utilization:sum_irate{cluster=\"$cluster\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "{{node}}",
@@ -1221,7 +1221,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:node_cpu_utilisation:avg1m{cluster=\"$cluster\", node=\"$node\"}",
+                                  "expr": "node:node_cpu_utilization:avg1m{cluster=\"$cluster\", node=\"$node\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "Utilisation",
@@ -1405,7 +1405,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:node_memory_utilisation:{cluster=\"$cluster\", node=\"$node\"}",
+                                  "expr": "node:node_memory_utilization:{cluster=\"$cluster\", node=\"$node\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "Memory",
@@ -1589,7 +1589,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:node_disk_utilisation:avg_irate{cluster=\"$cluster\", node=\"$node\"}",
+                                  "expr": "node:node_disk_utilization:avg_irate{cluster=\"$cluster\", node=\"$node\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "Utilisation",
@@ -1773,7 +1773,7 @@ items:
                           "steppedLine": false,
                           "targets": [
                               {
-                                  "expr": "node:node_net_utilisation:sum_irate{cluster=\"$cluster\", node=\"$node\"}",
+                                  "expr": "node:node_net_utilization:sum_irate{cluster=\"$cluster\", node=\"$node\"}",
                                   "format": "time_series",
                                   "intervalFactor": 2,
                                   "legendFormat": "Utilisation",

@@ -162,20 +162,20 @@ spec:
       record: node:node_num_cpu:sum
     - expr: |
         1 - avg(rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m]))
-      record: :node_cpu_utilisation:avg1m
+      record: :node_cpu_utilization:avg1m
     - expr: |
         1 - avg by (node) (
           rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m])
         * on (namespace, pod) group_left(node)
           node_namespace_pod:kube_pod_info:)
-      record: node:node_cpu_utilisation:avg1m
+      record: node:node_cpu_utilization:avg1m
     - expr: |
-        node:node_cpu_utilisation:avg1m
+        node:node_cpu_utilization:avg1m
           *
         node:node_num_cpu:sum
           /
         scalar(sum(node:node_num_cpu:sum))
-      record: node:cluster_cpu_utilisation:ratio
+      record: node:cluster_cpu_utilization:ratio
     - expr: |
         sum(node_load1{job="node-exporter"})
         /
@@ -195,7 +195,7 @@ spec:
         sum(node_memory_MemFree_bytes{job="node-exporter"} + node_memory_Cached_bytes{job="node-exporter"} + node_memory_Buffers_bytes{job="node-exporter"})
         /
         sum(node_memory_MemTotal_bytes{job="node-exporter"})
-      record: ':node_memory_utilisation:'
+      record: ':node_memory_utilization:'
     - expr: |
         sum(node_memory_MemFree_bytes{job="node-exporter"} + node_memory_Cached_bytes{job="node-exporter"} + node_memory_Buffers_bytes{job="node-exporter"})
       record: :node_memory_MemFreeCachedBuffers_bytes:sum
@@ -220,12 +220,12 @@ spec:
         (node:node_memory_bytes_total:sum - node:node_memory_bytes_available:sum)
         /
         node:node_memory_bytes_total:sum
-      record: node:node_memory_utilisation:ratio
+      record: node:node_memory_utilization:ratio
     - expr: |
         (node:node_memory_bytes_total:sum - node:node_memory_bytes_available:sum)
         /
         scalar(sum(node:node_memory_bytes_total:sum))
-      record: node:cluster_memory_utilisation:ratio
+      record: node:cluster_memory_utilization:ratio
     - expr: |
         1e3 * sum(
           (rate(node_vmstat_pgpgin{job="node-exporter"}[1m])
@@ -245,10 +245,10 @@ spec:
         * on (namespace, pod) group_left(node)
           node_namespace_pod:kube_pod_info:
         )
-      record: 'node:node_memory_utilisation:'
+      record: 'node:node_memory_utilization:'
     - expr: |
         1 - (node:node_memory_bytes_available:sum / node:node_memory_bytes_total:sum)
-      record: 'node:node_memory_utilisation_2:'
+      record: 'node:node_memory_utilization_2:'
     - expr: |
         1e3 * sum by (node) (
           (rate(node_vmstat_pgpgin{job="node-exporter"}[1m])
@@ -259,14 +259,14 @@ spec:
       record: node:node_memory_swap_io_bytes:sum_rate
     - expr: |
         avg(irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m]))
-      record: :node_disk_utilisation:avg_irate
+      record: :node_disk_utilization:avg_irate
     - expr: |
         avg by (node) (
           irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m])
         * on (namespace, pod) group_left(node)
           node_namespace_pod:kube_pod_info:
         )
-      record: node:node_disk_utilisation:avg_irate
+      record: node:node_disk_utilization:avg_irate
     - expr: |
         avg(irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+"}[1m]))
       record: :node_disk_saturation:avg_irate
@@ -288,7 +288,7 @@ spec:
     - expr: |
         sum(irate(node_network_receive_bytes_total{job="node-exporter",device!~"veth.+"}[1m])) +
         sum(irate(node_network_transmit_bytes_total{job="node-exporter",device!~"veth.+"}[1m]))
-      record: :node_net_utilisation:sum_irate
+      record: :node_net_utilization:sum_irate
     - expr: |
         sum by (node) (
           (irate(node_network_receive_bytes_total{job="node-exporter",device!~"veth.+"}[1m]) +
@@ -296,7 +296,7 @@ spec:
         * on (namespace, pod) group_left(node)
           node_namespace_pod:kube_pod_info:
         )
-      record: node:node_net_utilisation:sum_irate
+      record: node:node_net_utilization:sum_irate
     - expr: |
         sum(irate(node_network_receive_drop_total{job="node-exporter",device!~"veth.+"}[1m])) +
         sum(irate(node_network_transmit_drop_total{job="node-exporter",device!~"veth.+"}[1m]))
