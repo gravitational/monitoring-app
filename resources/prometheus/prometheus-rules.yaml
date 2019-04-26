@@ -278,12 +278,12 @@ spec:
         )
       record: node:node_disk_saturation:avg_irate
     - expr: |
-        max by (namespace, pod, device) ((node_filesystem_size_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"}
+        max by (namespace, nodename, device) ((node_filesystem_size_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"}
         - node_filesystem_avail_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"})
         / node_filesystem_size_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"})
       record: 'node:node_filesystem_usage:'
     - expr: |
-        max by (namespace, pod, device) (node_filesystem_avail_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"} / node_filesystem_size_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"})
+        max by (namespace, nodename, device) (node_filesystem_avail_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"} / node_filesystem_size_bytes{fstype=~"ext[234]|btrfs|xfs|zfs"})
       record: 'node:node_filesystem_avail:'
     - expr: |
         sum(irate(node_network_receive_bytes_total{job="node-exporter",device!~"veth.+"}[1m])) +
@@ -621,6 +621,40 @@ spec:
       for: 1h
       labels:
         severity: warning
+  - name: node-resources
+    rules:
+    - alert: NodeCPUHighUsage
+      annotations:
+        message: Node {{ $labels.node }} has high cpu usage.
+      expr: |
+        node:cluster_cpu_utilization:ratio * 100 > 75 and node:cluster_cpu_utilization:ratio * 100 <= 90
+      for: 30m
+      labels:
+        severity: warning
+    - alert: NodeCPUHighUsage
+      annotations:
+        message: Node {{ $labels.node }} has high cpu usage.
+      expr: |
+        node:cluster_cpu_utilization:ratio * 100 > 90
+      for: 5m
+      labels:
+        severity: critical
+    - alert: NodeMemoryHighUsage
+      annotations:
+        message: Node {{ $labels.node }} has high memory usage.
+      expr: |
+        node:cluster_cpu_utilization:ratio * 100 > 80 and node:cluster_cpu_utilization:ratio * 100 <= 90
+      for: 30m
+      labels:
+        severity: warning
+    - alert: NodeMemoryHighUsage
+      annotations:
+        message: Node {{ $labels.node }} has high memory usage.
+      expr: |
+        node:cluster_cpu_utilization:ratio * 100 > 90
+      for: 5m
+      labels:
+        severity: critical
   - name: kubernetes-resources
     rules:
     - alert: KubeCPUOvercommit
@@ -913,6 +947,63 @@ spec:
       for: 5m
       labels:
         severity: critical
+  - name: etcd.rules
+    rules:
+    - alert: EtcdDown
+      annotations:
+        message: Etcd instance is down on node {{ $labels.node }}.
+      expr: satellite_etcd_up == 0
+      for: 5m
+      labels:
+        severity: critical
+    - alert: EtcdUnhealthy
+      annotations:
+        message: Etcd cluster is unhealthy.
+      expr: satellite_etcd_health == 0
+      for: 1m
+      labels:
+        severity: critical
+  - name: sysctl.rules
+    rules:
+    - alert: BrNetfilterMissing
+      annotations:
+        message: Bridge netfilter is disabled on node {{ $labels.node }}
+      expr: max_over_time(satellite_sysctl_br_netfilter[1h]) unless satellite_sysctl_br_netfilter or satellite_sysctl_br_netfilter == 0
+      for: 5m
+      labels:
+        severity: critical
+    - alert: IPv4ForwardingMissing
+      annotations:
+        message: IPv4 forwarding is disabled on node {{ $labels.node }}
+      expr: max_over_time(satellite_sysctl_ipv4_forwarding[1h]) unless satellite_sysctl_ipv4_forwarding or satellite_sysctl_ipv4_forwarding == 0
+      for: 5m
+      labels:
+        severity: critical
+  - name: docker.rules
+    rules:
+    - alert: DockerDown
+      annotations:
+        message: Docker daemon is down on host {{ $labels.node }}
+      expr: satellite_docker_health == 0
+      for: 5m
+      labels:
+        severity: critical
+  - name: systemd.rules
+    rules:
+    - alert: SystemdDegraded
+      annotations:
+        message: Systemd on host {{ $labels.node }}
+      expr: satellite_systemd_health == 0
+      for: 5m
+      labels:
+        severity: critical
+    - alert: SystemdUnitDegraded
+      annotations:
+        message: Systemd unit {{ $labels.unit_name }} is degraded on host {{ $labels.node }}
+      expr: satellite_systemd_unit_health == 0
+      for: 5m
+      labels:
+        severity: critical
   - name: general.rules
     rules:
     - alert: TargetDown
@@ -953,17 +1044,6 @@ spec:
       for: 10m
       labels:
         severity: critical
-  - name: node-time
-    rules:
-    - alert: ClockSkewDetected
-      annotations:
-        message: Clock skew detected on node-exporter {{ $labels.namespace }}/{{ $labels.pod
-          }}. Ensure NTP is configured correctly on this host.
-      expr: |
-        node_ntp_offset_seconds{job="node-exporter"} < -0.03 or node_ntp_offset_seconds{job="node-exporter"} > 0.03
-      for: 2m
-      labels:
-        severity: warning
   - name: node-network
     rules:
     - alert: NetworkReceiveErrors

@@ -13,6 +13,12 @@ spec:
     scheme: https
     tlsConfig:
       insecureSkipVerify: true
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      regex: (.*)
+      targetLabel: nodename
+      replacement: $1
+      action: replace
   jobLabel: k8s-app
   selector:
     matchLabels:
