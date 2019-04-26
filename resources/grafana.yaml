@@ -209,7 +209,7 @@ items:
 
               ]
           },
-          "editable": true,
+          "editable": false,
           "gnetId": null,
           "graphTooltip": 0,
           "hideControls": false,
@@ -1149,7 +1149,7 @@ items:
 
               ]
           },
-          "editable": true,
+          "editable": false,
           "gnetId": null,
           "graphTooltip": 0,
           "hideControls": false,
@@ -1829,7 +1829,7 @@ items:
                                   "decimals": 0,
                                   "link": true,
                                   "linkTooltip": "Drill down to pods",
-                                  "linkUrl": "/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
+                                  "linkUrl": "/web/grafana/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
                                   "pattern": "Value #A",
                                   "thresholds": [
 
@@ -1847,7 +1847,7 @@ items:
                                   "decimals": 0,
                                   "link": true,
                                   "linkTooltip": "Drill down to workloads",
-                                  "linkUrl": "/d/a87fb0d919ec0ea5f6543124e16c42a5/k8s-resources-workloads-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
+                                  "linkUrl": "/web/grafana/d/a87fb0d919ec0ea5f6543124e16c42a5/k8s-resources-workloads-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
                                   "pattern": "Value #B",
                                   "thresholds": [
 
@@ -1955,7 +1955,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down to pods",
-                                  "linkUrl": "/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell",
+                                  "linkUrl": "/web/grafana/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell",
                                   "pattern": "namespace",
                                   "thresholds": [
 
@@ -2248,7 +2248,7 @@ items:
                                   "decimals": 0,
                                   "link": true,
                                   "linkTooltip": "Drill down to pods",
-                                  "linkUrl": "/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
+                                  "linkUrl": "/web/grafana/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
                                   "pattern": "Value #A",
                                   "thresholds": [
 
@@ -2266,7 +2266,7 @@ items:
                                   "decimals": 0,
                                   "link": true,
                                   "linkTooltip": "Drill down to workloads",
-                                  "linkUrl": "/d/a87fb0d919ec0ea5f6543124e16c42a5/k8s-resources-workloads-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
+                                  "linkUrl": "/web/grafana/d/a87fb0d919ec0ea5f6543124e16c42a5/k8s-resources-workloads-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell_1",
                                   "pattern": "Value #B",
                                   "thresholds": [
 
@@ -2392,7 +2392,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down to pods",
-                                  "linkUrl": "/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell",
+                                  "linkUrl": "/web/grafana/d/85a562078cdf77779eaa1add43ccec1e/k8s-resources-namespace?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$__cell",
                                   "pattern": "namespace",
                                   "thresholds": [
 
@@ -2627,7 +2627,7 @@ items:
 
               ]
           },
-          "editable": true,
+          "editable": false,
           "gnetId": null,
           "graphTooltip": 0,
           "hideControls": false,
@@ -2881,7 +2881,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down",
-                                  "linkUrl": "/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
+                                  "linkUrl": "/web/grafana/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
                                   "pattern": "pod",
                                   "thresholds": [
 
@@ -3300,7 +3300,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down",
-                                  "linkUrl": "/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
+                                  "linkUrl": "/web/grafana/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
                                   "pattern": "pod",
                                   "thresholds": [
 
@@ -3571,7 +3571,7 @@ items:
 
               ]
           },
-          "editable": true,
+          "editable": false,
           "gnetId": null,
           "graphTooltip": 0,
           "hideControls": false,
@@ -4558,7 +4558,7 @@ items:
 
               ]
           },
-          "editable": true,
+          "editable": false,
           "gnetId": null,
           "graphTooltip": 0,
           "hideControls": false,
@@ -4812,7 +4812,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down",
-                                  "linkUrl": "/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
+                                  "linkUrl": "/web/grafana/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
                                   "pattern": "pod",
                                   "thresholds": [
 
@@ -5177,7 +5177,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down",
-                                  "linkUrl": "/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
+                                  "linkUrl": "/web/grafana/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-pod=$__cell",
                                   "pattern": "pod",
                                   "thresholds": [
 
@@ -5475,7 +5475,7 @@ items:
 
               ]
           },
-          "editable": true,
+          "editable": false,
           "gnetId": null,
           "graphTooltip": 0,
           "hideControls": false,
@@ -5747,7 +5747,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down",
-                                  "linkUrl": "/d/a164a7f0339f99e89cea5cb47e9be617/k8s-resources-workload?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-workload=$__cell&var-type=$__cell_2",
+                                  "linkUrl": "/web/grafana/d/a164a7f0339f99e89cea5cb47e9be617/k8s-resources-workload?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-workload=$__cell&var-type=$__cell_2",
                                   "pattern": "workload",
                                   "thresholds": [
 
@@ -6157,7 +6157,7 @@ items:
                                   "decimals": 2,
                                   "link": true,
                                   "linkTooltip": "Drill down",
-                                  "linkUrl": "/d/a164a7f0339f99e89cea5cb47e9be617/k8s-resources-workload?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-workload=$__cell&var-type=$__cell_2",
+                                  "linkUrl": "/web/grafana/d/a164a7f0339f99e89cea5cb47e9be617/k8s-resources-workload?var-datasource=$datasource&var-cluster=$cluster&var-namespace=$namespace&var-workload=$__cell&var-type=$__cell_2",
                                   "pattern": "workload",
                                   "thresholds": [
 
