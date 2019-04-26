@@ -19,8 +19,8 @@ spec:
       - args:
         - --kubelet-service=kube-system/kubelet
         - --logtostderr=true
-        - --config-reloader-image=quay.io/coreos/configmap-reload:v0.0.1
-        - --prometheus-config-reloader=quay.io/coreos/prometheus-config-reloader:v0.29.0
+        - --config-reloader-image=leader.telekube.local:5000/coreos/configmap-reload:v0.0.1
+        - --prometheus-config-reloader=leader.telekube.local:5000/coreos/prometheus-config-reloader:v0.29.0
         image: quay.io/coreos/prometheus-operator:v0.29.0
         name: prometheus-operator
         ports:

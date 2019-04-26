@@ -8,9 +8,7 @@ export
 
 EXTRA_GRAVITY_OPTIONS ?=
 
-IMPORT_IMAGE_FLAGS := --set-image=monitoring-metrics-server:$(VERSION) \
-	--set-image=monitoring-kube-state-metrics:$(VERSION) \
-	--set-image=monitoring-grafana:$(VERSION) \
+IMPORT_IMAGE_FLAGS := --set-image=monitoring-grafana:$(VERSION) \
 	--set-image=monitoring-hook:$(VERSION) \
 	--set-image=watcher:$(VERSION)
 

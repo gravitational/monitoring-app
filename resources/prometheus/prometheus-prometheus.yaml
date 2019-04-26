@@ -11,7 +11,7 @@ spec:
     - name: alertmanager-main
       namespace: monitoring
       port: web
-  baseImage: quay.io/prometheus/prometheus
+  baseImage: leader.telekube.local:5000/prometheus/prometheus
   nodeSelector:
     beta.kubernetes.io/os: linux
     gravitational.io/k8s-role: master

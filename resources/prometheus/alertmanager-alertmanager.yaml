@@ -6,7 +6,7 @@ metadata:
   name: main
   namespace: monitoring
 spec:
-  baseImage: quay.io/prometheus/alertmanager
+  baseImage: leader.telekube.local:5000/prometheus/alertmanager
   nodeSelector:
     beta.kubernetes.io/os: linux
     gravitational.io/k8s-role: master

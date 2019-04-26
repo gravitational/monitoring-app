@@ -1,15 +1,11 @@
 .PHONY: all metrics-server grafana deploy kube-state-metrics
 
 GRAFANA_VERSION := 6.0.2
-METRICS_SERVER_VERSION := 0.3.1
-KUBE_STATE_METRICS_VERSION := 1.5.0
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
 
-METRICS_SERVER_TAG := monitoring-metrics-server:$(VERSION)
 GRAFANA_TAG := monitoring-grafana:$(VERSION)
-KUBE_STATE_METRICS_TAG := monitoring-kube-state-metrics:$(VERSION)
 HOOK_TAG := monitoring-hook:$(VERSION)
 
 REPO_URL := quay.io/gravitational
@@ -25,13 +21,7 @@ hook:
 grafana:
 	$(MAKE) -e BUILDIMAGE=$(GRAFANA_TAG) EXTRA_ARGS="--build-arg GRAFANA_VERSION=$(GRAFANA_VERSION)" TARGETDIR=$@ make-docker-image
 
-metrics-server:
-	$(MAKE) -e BUILDIMAGE=$(METRICS_SERVER_TAG) TARGETDIR=$@ make-docker-image
-
-kube-state-metrics:
-	$(MAKE) -e BUILDIMAGE=$(KUBE_STATE_METRICS_TAG) EXTRA_ARGS="--build-arg KUBE_STATE_METRICS_VERSION=$(KUBE_STATE_METRICS_VERSION)" TARGETDIR=$@ make-docker-image
-
-all: metrics-server grafana hook kube-state-metrics
+all: grafana hook
 
 .PHONY: deploy
 deploy:
