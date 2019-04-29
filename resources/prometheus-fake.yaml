@@ -93,3 +93,27 @@ spec:
       containers:
       - name: prometheus-config-reloader
         image: quay.io/coreos/prometheus-config-reloader:v0.29.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-mta
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: monitoring-mta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring
+      component: monitoring-mta
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: monitoring-mta
+    spec:
+      containers:
+      - name: monitoring-mta
+        image: quay.io/gravitational/monitoring-mta:1.0.0
