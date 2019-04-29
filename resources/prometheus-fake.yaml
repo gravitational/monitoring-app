@@ -116,4 +116,4 @@ spec:
     spec:
       containers:
       - name: monitoring-mta
-        image: quay.io/gravitational/monitoring-mta:1.0.0
+        image: monitoring-mta:1.0.0
