@@ -63,6 +63,9 @@ type Node interface {
 	// The type of output the node provides.
 	Provides() EdgeType
 
+	// IsQuiet reports whether the node should suppress all errors during evaluation.
+	IsQuiet() bool
+
 	// Check that the definition of the node is consistent
 	validate() error
 
@@ -89,6 +92,20 @@ type node struct {
 	provides EdgeType
 	tm       bool
 	pm       bool
+
+	// tick:ignore
+	QuietFlag bool `tick:"Quiet" json:"quiet,omitempty"`
+}
+
+// tick:ignore
+func (n *node) IsQuiet() bool {
+	return n.QuietFlag
+}
+
+// Quiet suppresses all error logging events from this node.
+// tick:property
+func (n *node) Quiet() {
+	n.QuietFlag = true
 }
 
 // tick:ignore
@@ -326,11 +343,27 @@ func (n *chainnode) HttpOut(endpoint string) *HTTPOutNode {
 	return h
 }
 
+// Creates an HTTP Post node that POSTS received data to the provided HTTP endpoint.
+// HttpPost expects 0 or 1 arguments. If 0 arguments are provided, you must specify an
+// endpoint property method.
+func (n *chainnode) HttpPost(url ...string) *HTTPPostNode {
+	h := newHTTPPostNode(n.provides, url...)
+	n.linkChild(h)
+	return h
+}
+
 // Create an influxdb output node that will store the incoming data into InfluxDB.
 func (n *chainnode) InfluxDBOut() *InfluxDBOutNode {
 	i := newInfluxDBOutNode(n.provides)
 	n.linkChild(i)
 	return i
+}
+
+// Create an kapacitor loopback node that will send data back into Kapacitor as a stream.
+func (n *chainnode) KapacitorLoopback() *KapacitorLoopbackNode {
+	k := newKapacitorLoopbackNode(n.provides)
+	n.linkChild(k)
+	return k
 }
 
 // Create an alert node, which can trigger alerts.
@@ -401,6 +434,15 @@ func (n *chainnode) Window() *WindowNode {
 	return w
 }
 
+// Create a new Barrier node that emits a BarrierMessage periodically
+//
+// One BarrierMessage will be emitted every period duration
+func (n *chainnode) Barrier() *BarrierNode {
+	b := newBarrierNode(n.provides)
+	n.linkChild(b)
+	return b
+}
+
 // Create a new node that samples the incoming points or batches.
 //
 // One point will be emitted every count or duration specified.
@@ -413,6 +455,13 @@ func (n *chainnode) Sample(rate interface{}) *SampleNode {
 // Create a new node that computes the derivative of adjacent points.
 func (n *chainnode) Derivative(field string) *DerivativeNode {
 	s := newDerivativeNode(n.Provides(), field)
+	n.linkChild(s)
+	return s
+}
+
+// Create a new node that only emits new points if different from the previous point
+func (n *chainnode) ChangeDetect(fields ...string) *ChangeDetectNode {
+	s := newChangeDetectNode(n.Provides(), fields)
 	n.linkChild(s)
 	return s
 }
@@ -450,4 +499,39 @@ func (n *chainnode) K8sAutoscale() *K8sAutoscaleNode {
 	k := newK8sAutoscaleNode(n.Provides())
 	n.linkChild(k)
 	return k
+}
+
+// Create a node that can trigger autoscale events for a docker swarm cluster.
+func (n *chainnode) SwarmAutoscale() *SwarmAutoscaleNode {
+	k := newSwarmAutoscaleNode(n.Provides())
+	n.linkChild(k)
+	return k
+}
+
+// Create a node that can trigger autoscale events for a ec2 autoscalegroup.
+func (n *chainnode) Ec2Autoscale() *Ec2AutoscaleNode {
+	k := newEc2AutoscaleNode(n.Provides())
+	n.linkChild(k)
+	return k
+}
+
+// Create a node that tracks duration in a given state.
+func (n *chainnode) StateDuration(expression *ast.LambdaNode) *StateDurationNode {
+	sd := newStateDurationNode(n.provides, expression)
+	n.linkChild(sd)
+	return sd
+}
+
+// Create a node that tracks number of consecutive points in a given state.
+func (n *chainnode) StateCount(expression *ast.LambdaNode) *StateCountNode {
+	sc := newStateCountNode(n.provides, expression)
+	n.linkChild(sc)
+	return sc
+}
+
+// Create a node that can load data from external sources
+func (n *chainnode) Sideload() *SideloadNode {
+	s := newSideloadNode(n.provides)
+	n.linkChild(s)
+	return s
 }

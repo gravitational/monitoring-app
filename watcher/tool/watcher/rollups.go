@@ -30,13 +30,13 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
+func runRollupsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
 	influxDBClient, err := influxdb.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = utils.WaitForAPI(context.TODO(), influxDBClient)
+	err = utils.WaitForAPI(ctx, influxDBClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -53,19 +53,16 @@ func runRollupsWatcher(kubernetesClient *kubernetes.Client) error {
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
 	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
-	receiveAndCreateRollups(context.TODO(), influxDBClient, ch)
+	receiveAndManageRollups(ctx, influxDBClient, ch, retryC)
 	return nil
 }
 
-// receiveAndCreateRollups listens on the provided channel that receives new rollups data and creates
-// them in InfluxDB using the provided client
-func receiveAndCreateRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate) {
+// receiveAndManageRollups listens on the provided channel that receives new rollups data and creates,
+// updates or deletes them in/from InfluxDB using the provided client
+func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate, retryC chan<- func() error) {
 	for {
 		select {
 		case update := <-ch:
-			if update.EventType != watch.Added {
-				continue
-			}
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			for _, v := range update.Data {
 				var rollups []influxdb.Rollup
@@ -76,9 +73,58 @@ func receiveAndCreateRollups(ctx context.Context, client *influxdb.Client, ch <-
 				}
 
 				for _, rollup := range rollups {
-					err := client.CreateRollup(rollup)
-					if err != nil {
-						log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
+					if err := rollup.Check(); err != nil {
+						// Fail immediately on precondition violation
+						log.WithError(err).Warn("Failed to validate rollup.")
+						continue
+					}
+
+					switch update.EventType {
+					case watch.Added:
+						handler := func() error {
+							return client.CreateRollup(rollup)
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to create rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
+						}
+					case watch.Deleted:
+						handler := func() error {
+							return client.DeleteRollup(rollup)
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to delete rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
+						}
+					case watch.Modified:
+						handler := func() error {
+							return client.UpdateRollup(rollup)
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to update rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
+						}
 					}
 				}
 			}

@@ -2,11 +2,11 @@ package kapacitor
 
 import (
 	"bytes"
-	"log"
-	"sort"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/influxdata/kapacitor/edge"
 	"github.com/influxdata/kapacitor/models"
 	"github.com/influxdata/kapacitor/pipeline"
 )
@@ -19,10 +19,10 @@ type FlattenNode struct {
 }
 
 // Create a new FlattenNode, which takes pairs from parent streams combines them into a single point.
-func newFlattenNode(et *ExecutingTask, n *pipeline.FlattenNode, l *log.Logger) (*FlattenNode, error) {
+func newFlattenNode(et *ExecutingTask, n *pipeline.FlattenNode, d NodeDiagnostic) (*FlattenNode, error) {
 	fn := &FlattenNode{
 		f:    n,
-		node: node{Node: n, et: et, logger: l},
+		node: node{Node: n, et: et, diag: d},
 		bufPool: sync.Pool{
 			New: func() interface{} { return &bytes.Buffer{} },
 		},
@@ -31,146 +31,161 @@ func newFlattenNode(et *ExecutingTask, n *pipeline.FlattenNode, l *log.Logger) (
 	return fn, nil
 }
 
-type flattenStreamBuffer struct {
-	Time       time.Time
-	Name       string
-	Group      models.GroupID
-	Dimensions models.Dimensions
-	Tags       models.Tags
-	Points     []models.RawPoint
-}
-
-type flattenBatchBuffer struct {
-	Time   time.Time
-	Name   string
-	Group  models.GroupID
-	Tags   models.Tags
-	Points map[time.Time][]models.RawPoint
-}
-
 func (n *FlattenNode) runFlatten([]byte) error {
-	switch n.Wants() {
-	case pipeline.StreamEdge:
-		flattenBuffers := make(map[models.GroupID]*flattenStreamBuffer)
-		for p, ok := n.ins[0].NextPoint(); ok; p, ok = n.ins[0].NextPoint() {
-			n.timer.Start()
-			t := p.Time.Round(n.f.Tolerance)
-			currentBuf, ok := flattenBuffers[p.Group]
-			if !ok {
-				currentBuf = &flattenStreamBuffer{
-					Time:       t,
-					Name:       p.Name,
-					Group:      p.Group,
-					Dimensions: p.Dimensions,
-					Tags:       p.PointTags(),
-				}
-				flattenBuffers[p.Group] = currentBuf
-			}
-			rp := models.RawPoint{
-				Time:   t,
-				Fields: p.Fields,
-				Tags:   p.Tags,
-			}
-			if t.Equal(currentBuf.Time) {
-				currentBuf.Points = append(currentBuf.Points, rp)
-			} else {
-				if fields, err := n.flatten(currentBuf.Points); err != nil {
-					return err
-				} else {
-					// Emit point
-					flatP := models.Point{
-						Time:       currentBuf.Time,
-						Name:       currentBuf.Name,
-						Group:      currentBuf.Group,
-						Dimensions: currentBuf.Dimensions,
-						Tags:       currentBuf.Tags,
-						Fields:     fields,
-					}
-					n.timer.Pause()
-					for _, out := range n.outs {
-						err := out.CollectPoint(flatP)
-						if err != nil {
-							return err
-						}
-					}
-					n.timer.Resume()
-				}
-				// Update currentBuf with new time and initial point
-				currentBuf.Time = t
-				currentBuf.Points = currentBuf.Points[0:1]
-				currentBuf.Points[0] = rp
-			}
-			n.timer.Stop()
-		}
-	case pipeline.BatchEdge:
-		allBuffers := make(map[models.GroupID]*flattenBatchBuffer)
-		for b, ok := n.ins[0].NextBatch(); ok; b, ok = n.ins[0].NextBatch() {
-			n.timer.Start()
-			t := b.TMax.Round(n.f.Tolerance)
-			currentBuf, ok := allBuffers[b.Group]
-			if !ok {
-				currentBuf = &flattenBatchBuffer{
-					Time:   t,
-					Name:   b.Name,
-					Group:  b.Group,
-					Tags:   b.Tags,
-					Points: make(map[time.Time][]models.RawPoint),
-				}
-				allBuffers[b.Group] = currentBuf
-			}
-			if !t.Equal(currentBuf.Time) {
-				// Flatten/Emit old buffer
-				times := make(timeList, 0, len(currentBuf.Points))
-				for t := range currentBuf.Points {
-					times = append(times, t)
-				}
-				sort.Sort(times)
-				flatBatch := models.Batch{
-					TMax:   currentBuf.Time,
-					Name:   currentBuf.Name,
-					Group:  currentBuf.Group,
-					ByName: b.ByName,
-					Tags:   currentBuf.Tags,
-				}
-				for _, t := range times {
-					if fields, err := n.flatten(currentBuf.Points[t]); err != nil {
-						return err
-					} else {
-						flatBatch.Points = append(flatBatch.Points, models.BatchPoint{
-							Time:   t,
-							Tags:   currentBuf.Tags,
-							Fields: fields,
-						})
-					}
-					delete(currentBuf.Points, t)
-				}
-				n.timer.Pause()
-				for _, out := range n.outs {
-					err := out.CollectBatch(flatBatch)
-					if err != nil {
-						return err
-					}
-				}
-				n.timer.Resume()
-				// Update currentBuf with new time
-				currentBuf.Time = t
-			}
-			for _, p := range b.Points {
-				t := p.Time.Round(n.f.Tolerance)
-				currentBuf.Points[t] = append(currentBuf.Points[t], models.RawPoint{
-					Time:   t,
-					Fields: p.Fields,
-					Tags:   p.Tags,
-				})
-			}
-			n.timer.Stop()
-		}
-	}
-	return nil
-
+	consumer := edge.NewGroupedConsumer(
+		n.ins[0],
+		n,
+	)
+	n.statMap.Set(statCardinalityGauge, consumer.CardinalityVar())
+	return consumer.Consume()
 }
 
-func (n *FlattenNode) flatten(points []models.RawPoint) (models.Fields, error) {
+func (n *FlattenNode) NewGroup(group edge.GroupInfo, first edge.PointMeta) (edge.Receiver, error) {
+	t := first.Time().Round(n.f.Tolerance)
+	return &flattenBuffer{
+		n:         n,
+		time:      t,
+		name:      first.Name(),
+		groupInfo: group,
+	}, nil
+}
+
+type flattenBuffer struct {
+	n         *FlattenNode
+	time      time.Time
+	name      string
+	groupInfo edge.GroupInfo
+	points    []edge.FieldsTagsTimeGetter
+}
+
+func (b *flattenBuffer) BeginBatch(begin edge.BeginBatchMessage) error {
+	b.n.timer.Start()
+	defer b.n.timer.Stop()
+
+	b.name = begin.Name()
+	b.time = time.Time{}
+	if s := begin.SizeHint(); s > cap(b.points) {
+		b.points = make([]edge.FieldsTagsTimeGetter, 0, s)
+	}
+
+	begin = begin.ShallowCopy()
+	begin.SetSizeHint(0)
+	b.n.timer.Pause()
+	err := edge.Forward(b.n.outs, begin)
+	b.n.timer.Resume()
+	return err
+}
+
+func (b *flattenBuffer) BatchPoint(bp edge.BatchPointMessage) error {
+	b.n.timer.Start()
+	defer b.n.timer.Stop()
+
+	t := bp.Time().Round(b.n.f.Tolerance)
+	bp = bp.ShallowCopy()
+	bp.SetTime(t)
+
+	t, fields, err := b.addPoint(bp)
+	if err != nil {
+		return err
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+
+	return b.emitBatchPoint(t, fields)
+}
+
+func (b *flattenBuffer) emitBatchPoint(t time.Time, fields models.Fields) error {
+	// Emit batch point
+	flatP := edge.NewBatchPointMessage(
+		fields,
+		b.groupInfo.Tags,
+		t,
+	)
+	b.n.timer.Pause()
+	err := edge.Forward(b.n.outs, flatP)
+	b.n.timer.Resume()
+	return err
+}
+
+func (b *flattenBuffer) EndBatch(end edge.EndBatchMessage) error {
+	b.n.timer.Start()
+	defer b.n.timer.Stop()
+
+	if len(b.points) > 0 {
+		fields, err := b.n.flatten(b.points)
+		if err != nil {
+			return err
+		}
+		if err := b.emitBatchPoint(b.time, fields); err != nil {
+			return err
+		}
+		b.points = b.points[0:0]
+	}
+
+	b.n.timer.Pause()
+	err := edge.Forward(b.n.outs, end)
+	b.n.timer.Resume()
+	return err
+}
+
+func (b *flattenBuffer) Point(p edge.PointMessage) error {
+	b.n.timer.Start()
+	defer b.n.timer.Stop()
+
+	t := p.Time().Round(b.n.f.Tolerance)
+	p = p.ShallowCopy()
+	p.SetTime(t)
+
+	t, fields, err := b.addPoint(p)
+	if err != nil {
+		return err
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+
+	// Emit point
+	flatP := edge.NewPointMessage(
+		b.name, "", "",
+		b.groupInfo.Dimensions,
+		fields,
+		b.groupInfo.Tags,
+		t,
+	)
+	b.n.timer.Pause()
+	err = edge.Forward(b.n.outs, flatP)
+	b.n.timer.Resume()
+	return err
+}
+
+func (b *flattenBuffer) addPoint(p edge.FieldsTagsTimeGetter) (next time.Time, fields models.Fields, err error) {
+	t := p.Time()
+	if !t.Equal(b.time) {
+		if len(b.points) > 0 {
+			fields, err = b.n.flatten(b.points)
+			if err != nil {
+				return
+			}
+			next = b.time
+			b.points = b.points[0:0]
+		}
+		// Update buffer with new time
+		b.time = t
+	}
+	b.points = append(b.points, p)
+	return
+}
+
+func (b *flattenBuffer) Barrier(barrier edge.BarrierMessage) error {
+	return edge.Forward(b.n.outs, barrier)
+}
+func (b *flattenBuffer) DeleteGroup(d edge.DeleteGroupMessage) error {
+	return edge.Forward(b.n.outs, d)
+}
+func (b *flattenBuffer) Done() {}
+
+func (n *FlattenNode) flatten(points []edge.FieldsTagsTimeGetter) (models.Fields, error) {
 	fields := make(models.Fields)
 	if len(points) == 0 {
 		return fields, nil
@@ -179,18 +194,26 @@ func (n *FlattenNode) flatten(points []models.RawPoint) (models.Fields, error) {
 	defer n.bufPool.Put(fieldPrefix)
 POINTS:
 	for _, p := range points {
-		for _, tag := range n.f.Dimensions {
-			if v, ok := p.Tags[tag]; ok {
+		tags := p.Tags()
+		for i, tag := range n.f.Dimensions {
+			if v, ok := tags[tag]; ok {
+				if i > 0 {
+					fieldPrefix.WriteString(n.f.Delimiter)
+				}
 				fieldPrefix.WriteString(v)
-				fieldPrefix.WriteString(n.f.Delimiter)
 			} else {
-				n.logger.Printf("E! point missing tag %q for flatten operation", tag)
+				n.diag.Error("point missing tag for flatten operation", fmt.Errorf("tag %s is missing from point", tag))
 				continue POINTS
 			}
 		}
 		l := fieldPrefix.Len()
-		for fname, value := range p.Fields {
-			fieldPrefix.WriteString(fname)
+		for fname, value := range p.Fields() {
+			if !n.f.DropOriginalFieldNameFlag {
+				if l > 0 {
+					fieldPrefix.WriteString(n.f.Delimiter)
+				}
+				fieldPrefix.WriteString(fname)
+			}
 			fields[fieldPrefix.String()] = value
 			fieldPrefix.Truncate(l)
 		}

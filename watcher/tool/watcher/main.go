@@ -17,34 +17,46 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 
 	"github.com/gravitational/trace"
+	"github.com/gravitational/version"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	var mode string
 	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
+	ver := flag.Bool("version", false, "print version")
 	flag.Parse()
+
+	if *ver {
+		version.Print()
+		return
+	}
 
 	client, err := kubernetes.NewClient()
 	if err != nil {
 		exitWithError(err)
 	}
 
+	ctx := context.TODO()
+	retryC := runRetryLoop(ctx)
+
 	switch mode {
 	case constants.ModeDashboards:
-		err = runDashboardsWatcher(client)
+		err = runDashboardsWatcher(ctx, client, retryC)
 	case constants.ModeRollups:
-		err = runRollupsWatcher(client)
+		err = runRollupsWatcher(ctx, client, retryC)
 	case constants.ModeAlerts:
-		err = runAlertsWatcher(client)
+		err = runAlertsWatcher(ctx, client, retryC)
 	default:
 		fmt.Printf("ERROR: unknown mode %q\n", mode)
 		os.Exit(255)
@@ -59,4 +71,31 @@ func exitWithError(err error) {
 	log.Error(trace.DebugReport(err))
 	fmt.Printf("ERROR: %v\n", err.Error())
 	os.Exit(255)
+}
+
+func runRetryLoop(ctx context.Context) chan<- func() error {
+	retryC := make(chan func() error)
+	go func() {
+		var handlers []func() error
+		timer := time.NewTimer(60 * time.Second)
+		defer timer.Stop()
+		for {
+			select {
+			case handler := <-retryC:
+				handlers = append(handlers, handler)
+			case <-timer.C:
+				for i, handler := range handlers {
+					if err := handler(); err != nil {
+						log.WithError(err).Warn("Failed to complete handler.")
+						continue
+					}
+					// Remove handler
+					handlers = append(handlers[:i], handlers[i+1:]...)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return retryC
 }

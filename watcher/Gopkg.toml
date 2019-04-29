@@ -26,38 +26,25 @@
   version = "1.0.3"
 
 [[constraint]]
-  name = "github.com/gravitational/roundtrip"
-  branch = "master"
-
-[[constraint]]
   name = "github.com/gravitational/trace"
   branch = "master"
 
 [[constraint]]
-  branch = "release-1.7"
+  branch = "release-1.11"
   name = "k8s.io/apimachinery"
 
 [[constraint]]
-  version = "v4.0.0"
+  version = "v8.0.0"
   name = "k8s.io/client-go"
 
 [[override]]
-  name = "github.com/ugorji/go"
-  revision = "9c7f9b7a2bc3a520f7c7b30b34b7f85f47fe27b6"
+  name = "k8s.io/api"
+  version = "kubernetes-1.11.0"
 
 [[constraint]]
   name = "github.com/influxdata/kapacitor"
-  branch = "v1.2"
-
-[[constraint]]
-  name = "github.com/cenkalti/backoff"
-  revision = "309aa717adbf351e92864cbedf9cca0b769a4b5a"
+  version = "1.5.0"
 
 [[override]]
   name = "github.com/influxdata/influxdb"
-  branch = "1.2"
-
-[[override]]
-  # influxdb@1.2 dependency
-  name = "github.com/uber-go/zap"
-  revision = "fbae0281ffd546fa6d1959fec6075ac5da7fb577"
+  version = "~1.1.0"

@@ -2,21 +2,34 @@ package udf_test
 
 import (
 	"errors"
-	"log"
-	"os"
+	"io/ioutil"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/influxdata/kapacitor"
+	"github.com/influxdata/kapacitor/edge"
 	"github.com/influxdata/kapacitor/models"
+	"github.com/influxdata/kapacitor/services/diagnostic"
 	"github.com/influxdata/kapacitor/udf"
+	"github.com/influxdata/kapacitor/udf/agent"
 	udf_test "github.com/influxdata/kapacitor/udf/test"
 )
 
+var diagService *diagnostic.Service
+
+var kapacitorDiag kapacitor.Diagnostic
+
+func init() {
+	diagService = diagnostic.NewService(diagnostic.NewConfig(), ioutil.Discard, ioutil.Discard)
+	diagService.Open()
+	kapacitorDiag = diagService.NewKapacitorHandler()
+}
+
 func TestUDF_StartStop(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartStop] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartStop")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 
 	s.Start()
 
@@ -32,17 +45,17 @@ func TestUDF_StartStop(t *testing.T) {
 
 func TestUDF_StartInitStop(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartStop] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartStop")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	go func() {
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Init)
+		_, ok := req.Message.(*agent.Request_Init)
 		if !ok {
 			t.Errorf("expected init message got %T", req.Message)
 		}
-		res := &udf.Response{
-			Message: &udf.Response_Init{
-				Init: &udf.InitResponse{
+		res := &agent.Response{
+			Message: &agent.Response_Init{
+				Init: &agent.InitResponse{
 					Success: true,
 				},
 			},
@@ -68,13 +81,13 @@ func TestUDF_StartInitStop(t *testing.T) {
 
 func TestUDF_StartInitAbort(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartInfoAbort] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartInfoAbort")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	s.Start()
 	expErr := errors.New("explicit abort")
 	go func() {
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Init)
+		_, ok := req.Message.(*agent.Request_Init)
 		if !ok {
 			t.Error("expected init message")
 		}
@@ -89,19 +102,19 @@ func TestUDF_StartInitAbort(t *testing.T) {
 
 func TestUDF_StartInfoStop(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartInfoStop] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartInfoStop")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	go func() {
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Info)
+		_, ok := req.Message.(*agent.Request_Info)
 		if !ok {
 			t.Errorf("expected info message got %T", req.Message)
 		}
-		res := &udf.Response{
-			Message: &udf.Response_Info{
-				Info: &udf.InfoResponse{
-					Wants:    udf.EdgeType_STREAM,
-					Provides: udf.EdgeType_BATCH,
+		res := &agent.Response{
+			Message: &agent.Response_Info{
+				Info: &agent.InfoResponse{
+					Wants:    agent.EdgeType_STREAM,
+					Provides: agent.EdgeType_BATCH,
 				},
 			},
 		}
@@ -113,10 +126,10 @@ func TestUDF_StartInfoStop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if exp, got := udf.EdgeType_STREAM, info.Wants; got != exp {
+	if exp, got := agent.EdgeType_STREAM, info.Wants; got != exp {
 		t.Errorf("unexpected info.Wants got %v exp %v", got, exp)
 	}
-	if exp, got := udf.EdgeType_BATCH, info.Provides; got != exp {
+	if exp, got := agent.EdgeType_BATCH, info.Provides; got != exp {
 		t.Errorf("unexpected info.Provides got %v exp %v", got, exp)
 	}
 
@@ -131,13 +144,13 @@ func TestUDF_StartInfoStop(t *testing.T) {
 
 func TestUDF_StartInfoAbort(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartInfoAbort] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartInfoAbort")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	s.Start()
 	expErr := errors.New("explicit abort")
 	go func() {
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Info)
+		_, ok := req.Message.(*agent.Request_Info)
 		if !ok {
 			t.Error("expected info message")
 		}
@@ -153,12 +166,12 @@ func TestUDF_StartInfoAbort(t *testing.T) {
 func TestUDF_Keepalive(t *testing.T) {
 	t.Parallel()
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_Keepalive] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, time.Millisecond*100, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_Keepalive")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, time.Millisecond*100, nil, nil)
 	s.Start()
 	s.Init(nil)
 	req := <-u.Requests
-	_, ok := req.Message.(*udf.Request_Init)
+	_, ok := req.Message.(*agent.Request_Init)
 	if !ok {
 		t.Error("expected init message")
 	}
@@ -170,7 +183,7 @@ func TestUDF_Keepalive(t *testing.T) {
 	if req == nil {
 		t.Fatal("expected keepalive message got nil, u was killed.")
 	}
-	_, ok = req.Message.(*udf.Request_Keepalive)
+	_, ok = req.Message.(*agent.Request_Keepalive)
 	if !ok {
 		t.Errorf("expected keepalive message got %T", req.Message)
 	}
@@ -193,8 +206,8 @@ func TestUDF_MissedKeepalive(t *testing.T) {
 	}
 
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_MissedKeepalive] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, time.Millisecond*100, aborted, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_MissedKeepalive")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, time.Millisecond*100, aborted, nil)
 	s.Start()
 
 	// Since the keepalive is missed, the process should abort on its own.
@@ -227,8 +240,8 @@ func TestUDF_KillCallBack(t *testing.T) {
 	}
 
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_MissedKeepalive] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, timeout, aborted, kill)
+	d := kapacitorDiag.WithNodeContext("TestUDF_MissedKeepalive")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, timeout, aborted, kill)
 	s.Start()
 
 	// Since the keepalive is missed, the process should abort on its own.
@@ -256,8 +269,8 @@ func TestUDF_MissedKeepaliveInit(t *testing.T) {
 	}
 
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_MissedKeepaliveInit] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, time.Millisecond*100, aborted, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_MissedKeepaliveInit")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, time.Millisecond*100, aborted, nil)
 	s.Start()
 	s.Init(nil)
 
@@ -284,8 +297,8 @@ func TestUDF_MissedKeepaliveInfo(t *testing.T) {
 	}
 
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_MissedKeepaliveInfo] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, time.Millisecond*100, aborted, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_MissedKeepaliveInfo")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, time.Millisecond*100, aborted, nil)
 	s.Start()
 	s.Info()
 
@@ -306,18 +319,18 @@ func TestUDF_MissedKeepaliveInfo(t *testing.T) {
 
 func TestUDF_SnapshotRestore(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_SnapshotRestore] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_SnapshotRestore")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	go func() {
 		// Init
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Init)
+		_, ok := req.Message.(*agent.Request_Init)
 		if !ok {
 			t.Error("expected init message")
 		}
-		u.Responses <- &udf.Response{
-			Message: &udf.Response_Init{
-				Init: &udf.InitResponse{Success: true},
+		u.Responses <- &agent.Response{
+			Message: &agent.Response_Init{
+				Init: &agent.InitResponse{Success: true},
 			},
 		}
 		// Snapshot
@@ -325,14 +338,14 @@ func TestUDF_SnapshotRestore(t *testing.T) {
 		if req == nil {
 			t.Fatal("expected snapshot message got nil")
 		}
-		_, ok = req.Message.(*udf.Request_Snapshot)
+		_, ok = req.Message.(*agent.Request_Snapshot)
 		if !ok {
 			t.Errorf("expected snapshot message got %T", req.Message)
 		}
 		data := []byte{42}
-		u.Responses <- &udf.Response{
-			Message: &udf.Response_Snapshot{
-				Snapshot: &udf.SnapshotResponse{Snapshot: data},
+		u.Responses <- &agent.Response{
+			Message: &agent.Response_Snapshot{
+				Snapshot: &agent.SnapshotResponse{Snapshot: data},
 			},
 		}
 		// Restore
@@ -340,16 +353,16 @@ func TestUDF_SnapshotRestore(t *testing.T) {
 		if req == nil {
 			t.Fatal("expected restore message got nil")
 		}
-		restore, ok := req.Message.(*udf.Request_Restore)
+		restore, ok := req.Message.(*agent.Request_Restore)
 		if !ok {
 			t.Errorf("expected restore message got %T", req.Message)
 		}
 		if !reflect.DeepEqual(data, restore.Restore.Snapshot) {
 			t.Errorf("unexpected restore snapshot got %v exp %v", restore.Restore.Snapshot, data)
 		}
-		u.Responses <- &udf.Response{
-			Message: &udf.Response_Restore{
-				Restore: &udf.RestoreResponse{Success: true},
+		u.Responses <- &agent.Response{
+			Message: &agent.Response_Restore{
+				Restore: &agent.RestoreResponse{Success: true},
 			},
 		}
 		close(u.Responses)
@@ -375,29 +388,29 @@ func TestUDF_SnapshotRestore(t *testing.T) {
 }
 func TestUDF_StartInitPointStop(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartPointStop] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartPointStop")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	go func() {
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Init)
+		_, ok := req.Message.(*agent.Request_Init)
 		if !ok {
 			t.Errorf("expected init message got %T", req.Message)
 		}
-		res := &udf.Response{
-			Message: &udf.Response_Init{
-				Init: &udf.InitResponse{
+		res := &agent.Response{
+			Message: &agent.Response_Init{
+				Init: &agent.InitResponse{
 					Success: true,
 				},
 			},
 		}
 		u.Responses <- res
 		req = <-u.Requests
-		pt, ok := req.Message.(*udf.Request_Point)
+		pt, ok := req.Message.(*agent.Request_Point)
 		if !ok {
 			t.Errorf("expected point message got %T", req.Message)
 		}
-		res = &udf.Response{
-			Message: &udf.Response_Point{
+		res = &agent.Response{
+			Message: &agent.Response_Point{
 				Point: pt.Point,
 			},
 		}
@@ -412,18 +425,19 @@ func TestUDF_StartInitPointStop(t *testing.T) {
 	}
 
 	// Write point to server
-	pt := models.Point{
-		Name:            "test",
-		Database:        "db",
-		RetentionPolicy: "rp",
-		Tags:            models.Tags{"t1": "v1", "t2": "v2"},
-		Fields:          models.Fields{"f1": 1.0, "f2": 2.0},
-		Time:            time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-	s.PointIn() <- pt
-	rpt := <-s.PointOut()
-	if !reflect.DeepEqual(rpt, pt) {
-		t.Errorf("unexpected returned point got: %v exp %v", rpt, pt)
+	p := edge.NewPointMessage(
+		"test",
+		"db",
+		"rp",
+		models.Dimensions{},
+		models.Fields{"f1": 1.0, "f2": 2.0},
+		models.Tags{"t1": "v1", "t2": "v2"},
+		time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	s.In() <- p
+	rp := <-s.Out()
+	if !reflect.DeepEqual(rp, p) {
+		t.Errorf("unexpected returned point got: %v exp %v", rp, p)
 	}
 
 	s.Stop()
@@ -436,17 +450,17 @@ func TestUDF_StartInitPointStop(t *testing.T) {
 }
 func TestUDF_StartInitBatchStop(t *testing.T) {
 	u := udf_test.NewIO()
-	l := log.New(os.Stderr, "[TestUDF_StartPointStop] ", log.LstdFlags)
-	s := udf.NewServer(u.Out(), u.In(), l, 0, nil, nil)
+	d := kapacitorDiag.WithNodeContext("TestUDF_StartPointStop")
+	s := udf.NewServer("testTask", "testNode", u.Out(), u.In(), d, 0, nil, nil)
 	go func() {
 		req := <-u.Requests
-		_, ok := req.Message.(*udf.Request_Init)
+		_, ok := req.Message.(*agent.Request_Init)
 		if !ok {
 			t.Errorf("expected init message got %T", req.Message)
 		}
-		res := &udf.Response{
-			Message: &udf.Response_Init{
-				Init: &udf.InitResponse{
+		res := &agent.Response{
+			Message: &agent.Response_Init{
+				Init: &agent.InitResponse{
 					Success: true,
 				},
 			},
@@ -454,12 +468,12 @@ func TestUDF_StartInitBatchStop(t *testing.T) {
 		u.Responses <- res
 		// Begin batch
 		req = <-u.Requests
-		bb, ok := req.Message.(*udf.Request_Begin)
+		bb, ok := req.Message.(*agent.Request_Begin)
 		if !ok {
 			t.Errorf("expected begin message got %T", req.Message)
 		}
-		res = &udf.Response{
-			Message: &udf.Response_Begin{
+		res = &agent.Response{
+			Message: &agent.Response_Begin{
 				Begin: bb.Begin,
 			},
 		}
@@ -467,12 +481,12 @@ func TestUDF_StartInitBatchStop(t *testing.T) {
 
 		// Point
 		req = <-u.Requests
-		pt, ok := req.Message.(*udf.Request_Point)
+		pt, ok := req.Message.(*agent.Request_Point)
 		if !ok {
 			t.Errorf("expected point message got %T", req.Message)
 		}
-		res = &udf.Response{
-			Message: &udf.Response_Point{
+		res = &agent.Response{
+			Message: &agent.Response_Point{
 				Point: pt.Point,
 			},
 		}
@@ -480,12 +494,12 @@ func TestUDF_StartInitBatchStop(t *testing.T) {
 
 		// End batch
 		req = <-u.Requests
-		eb, ok := req.Message.(*udf.Request_End)
+		eb, ok := req.Message.(*agent.Request_End)
 		if !ok {
 			t.Errorf("expected end message got %T", req.Message)
 		}
-		res = &udf.Response{
-			Message: &udf.Response_End{
+		res = &agent.Response{
+			Message: &agent.Response_End{
 				End: eb.End,
 			},
 		}
@@ -500,18 +514,25 @@ func TestUDF_StartInitBatchStop(t *testing.T) {
 	}
 
 	// Write point to server
-	b := models.Batch{
-		Name: "test",
-		Tags: models.Tags{"t1": "v1"},
-		TMax: time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC),
-		Points: []models.BatchPoint{{
-			Fields: models.Fields{"f1": 1.0, "f2": 2.0, "f3": int64(1), "f4": "str"},
-			Time:   time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC),
-			Tags:   models.Tags{"t1": "v1", "t2": "v2"},
-		}},
-	}
-	s.BatchIn() <- b
-	rb := <-s.BatchOut()
+	b := edge.NewBufferedBatchMessage(
+		edge.NewBeginBatchMessage(
+			"test",
+			models.Tags{"t1": "v1"},
+			false,
+			time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC),
+			1,
+		),
+		[]edge.BatchPointMessage{
+			edge.NewBatchPointMessage(
+				models.Fields{"f1": 1.0, "f2": 2.0, "f3": int64(1), "f4": "str"},
+				models.Tags{"t1": "v1", "t2": "v2"},
+				time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC),
+			),
+		},
+		edge.NewEndBatchMessage(),
+	)
+	s.In() <- b
+	rb := <-s.Out()
 	if !reflect.DeepEqual(b, rb) {
 		t.Errorf("unexpected returned batch got: %v exp %v", rb, b)
 	}

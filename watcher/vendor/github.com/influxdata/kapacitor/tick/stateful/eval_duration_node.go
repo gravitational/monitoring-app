@@ -1,6 +1,7 @@
 package stateful
 
 import (
+	"fmt"
 	"regexp"
 	"time"
 
@@ -11,7 +12,11 @@ type EvalDurationNode struct {
 	Duration time.Duration
 }
 
-func (n *EvalDurationNode) Type(scope ReadOnlyScope, executionState ExecutionState) (ast.ValueType, error) {
+func (n *EvalDurationNode) String() string {
+	return fmt.Sprintf("%v", n.Duration)
+}
+
+func (n *EvalDurationNode) Type(scope ReadOnlyScope) (ast.ValueType, error) {
 	return ast.TDuration, nil
 }
 
@@ -30,9 +35,11 @@ func (n *EvalDurationNode) EvalString(scope *Scope, executionState ExecutionStat
 func (n *EvalDurationNode) EvalBool(scope *Scope, executionState ExecutionState) (bool, error) {
 	return false, ErrTypeGuardFailed{RequestedType: ast.TBool, ActualType: ast.TDuration}
 }
+
 func (n *EvalDurationNode) EvalRegex(scope *Scope, executionState ExecutionState) (*regexp.Regexp, error) {
 	return nil, ErrTypeGuardFailed{RequestedType: ast.TRegex, ActualType: ast.TDuration}
 }
+
 func (n *EvalDurationNode) EvalTime(scope *Scope, executionState ExecutionState) (time.Time, error) {
 	return time.Time{}, ErrTypeGuardFailed{RequestedType: ast.TTime, ActualType: ast.TDuration}
 }
@@ -40,6 +47,11 @@ func (n *EvalDurationNode) EvalTime(scope *Scope, executionState ExecutionState)
 func (n *EvalDurationNode) EvalDuration(scope *Scope, executionState ExecutionState) (time.Duration, error) {
 	return n.Duration, nil
 }
+
+func (n *EvalDurationNode) EvalMissing(scope *Scope, executionState ExecutionState) (*ast.Missing, error) {
+	return nil, ErrTypeGuardFailed{RequestedType: ast.TMissing, ActualType: ast.TDuration}
+}
+
 func (n *EvalDurationNode) IsDynamic() bool {
 	return false
 }

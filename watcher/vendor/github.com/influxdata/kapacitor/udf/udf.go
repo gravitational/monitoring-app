@@ -1,20 +1,21 @@
 package udf
 
-import "github.com/influxdata/kapacitor/models"
+import (
+	"github.com/influxdata/kapacitor/edge"
+	"github.com/influxdata/kapacitor/udf/agent"
+)
 
 // Interface for communicating with a UDF
 type Interface interface {
 	Open() error
 	Info() (Info, error)
-	Init(options []*Option) error
+	Init(options []*agent.Option) error
 	Abort(err error)
 	Close() error
 
 	Snapshot() ([]byte, error)
 	Restore(snapshot []byte) error
 
-	PointIn() chan<- models.Point
-	BatchIn() chan<- models.Batch
-	PointOut() <-chan models.Point
-	BatchOut() <-chan models.Batch
+	In() chan<- edge.Message
+	Out() <-chan edge.Message
 }
