@@ -19,6 +19,9 @@ spec:
   containers:
     - name: mta
       image: leader.telekube.local:5000/monitoring-mta:1.0.0
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
