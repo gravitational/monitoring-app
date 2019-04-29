@@ -16,7 +16,7 @@ spec:
     runAsNonRoot: true
     runAsUser: 1000
   serviceAccountName: alertmanager-main
-  conatainers:
+  containers:
     - name: mta
       image: leader.telekube.local:5000/monitoring-mta:1.0.0
   affinity:
