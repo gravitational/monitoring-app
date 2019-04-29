@@ -82,8 +82,7 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 					switch update.EventType {
 					case watch.Added:
 						handler := func() error {
-							err := client.CreateRollup(rollup)
-							return err
+							return client.CreateRollup(rollup)
 						}
 						err := handler()
 						if err == nil {
@@ -98,8 +97,7 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						}
 					case watch.Deleted:
 						handler := func() error {
-							err := client.DeleteRollup(rollup)
-							return err
+							return client.DeleteRollup(rollup)
 						}
 						err := handler()
 						if err == nil {
@@ -114,8 +112,7 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						}
 					case watch.Modified:
 						handler := func() error {
-							err := client.UpdateRollup(rollup)
-							return err
+							return client.UpdateRollup(rollup)
 						}
 						err := handler()
 						if err == nil {

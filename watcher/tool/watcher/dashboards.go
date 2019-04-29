@@ -63,8 +63,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client,
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
 					handler := func() error {
-						err := client.CreateDashboard(dashboard)
-						return err
+						return client.CreateDashboard(dashboard)
 					}
 					err := handler()
 					if err == nil {
@@ -82,8 +81,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client,
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
 					handler := func() error {
-						err := client.DeleteDashboard(dashboard)
-						return err
+						return client.DeleteDashboard(dashboard)
 					}
 					err := handler()
 					if err == nil {

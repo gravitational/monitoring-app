@@ -81,14 +81,13 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			if isSpecEmpty(spec) {
-				log.Error(trace.NotFound("empty configuration"))
+				log.Error("empty configuration")
 				continue
 			}
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				handler := func() error {
-					err := createAlert(kClient, spec, log)
-					return err
+					return createAlert(kClient, spec, log)
 				}
 				err := handler()
 				if err == nil {
@@ -106,15 +105,14 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			log := log.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
 			if isSpecEmpty(spec) {
-				log.Error(trace.NotFound("empty configuration"))
+				log.Error("empty configuration")
 				continue
 			}
 			client := kubeClient.CoreV1().Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				handler := func() error {
-					err := updateSMTPConfig(client, kClient, spec, log)
-					return err
+					return updateSMTPConfig(client, kClient, spec, log)
 				}
 				err := handler()
 				if err == nil {
@@ -132,7 +130,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			if isSpecEmpty(spec) {
-				log.Error(trace.NotFound("empty configuration"))
+				log.Error("empty configuration")
 				continue
 			}
 
@@ -140,8 +138,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				handler := func() error {
-					err := updateAlertTarget(client, kClient, spec, log)
-					return err
+					return updateAlertTarget(client, kClient, spec, log)
 				}
 				err := handler()
 				if err == nil {
@@ -156,8 +153,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 				}
 			case watch.Deleted:
 				handler := func() error {
-					err := deleteAlertTarget(kClient, log)
-					return err
+					return deleteAlertTarget(kClient, log)
 				}
 				err := handler()
 				if err == nil {
