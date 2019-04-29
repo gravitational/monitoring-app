@@ -16,4 +16,22 @@ spec:
     runAsNonRoot: true
     runAsUser: 1000
   serviceAccountName: alertmanager-main
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app: alertmanager
+              alertmanager: main
+  tolerations:
+  - key: "gravitational.io/runlevel"
+    value: system
+    operator: Equal
+  # allows to run on master nodes
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
   version: v0.16.2
