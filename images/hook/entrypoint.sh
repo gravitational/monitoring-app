@@ -67,32 +67,21 @@ if [ $1 = "update" ]; then
         fi
     fi
 
-    echo "---> Creating new 'grafana' password"
-    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
-    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
-
     echo "---> Creating or updating resources"
-    for filename in security smtp influxdb grafana heapster kapacitor telegraf alerts
+    for name in security smtp grafana metrics-server alerts kube-state-metrics
     do
-        rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
+        rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
-    read -r -d '' INFLUXDB_PATCH <<EOF
-spec:
-  template:
-    spec:
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - $NODE_NAME
-EOF
-    kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
+    for file in /var/lib/gravity/resources/crds/*
+    do
+        head -n -6 $file | /opt/bin/kubectl apply -f -
+    done
+
+    for file in /var/lib/gravity/resources/prometheus/*.yaml
+    do
+        rig upsert -f $file --debug
+    done
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug

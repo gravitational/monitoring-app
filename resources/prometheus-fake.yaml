@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring
+      component: alertmanager
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: alertmanager
+    spec:
+      containers:
+      - name: alertmanager
+        image: quay.io/prometheus/alertmanager:v0.16.2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring
+      component: prometheus
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: quay.io/prometheus/prometheus:v2.7.2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: configmap-reload
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: configmap-reload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring
+      component: configmap-reload
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: configmap-reload
+    spec:
+      containers:
+      - name: configmap-reload
+        image: quay.io/coreos/configmap-reload:v0.0.1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-config-reloader
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: prometheus-config-reloader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring
+      component: prometheus-config-reloader
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: prometheus-config-reloader
+    spec:
+      containers:
+      - name: prometheus-config-reloader
+        image: quay.io/coreos/prometheus-config-reloader:v0.29.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-mta
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: monitoring-mta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring
+      component: monitoring-mta
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: monitoring-mta
+    spec:
+      containers:
+      - name: monitoring-mta
+        image: monitoring-mta:1.0.0
