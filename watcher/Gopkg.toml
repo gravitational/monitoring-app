@@ -39,11 +39,11 @@
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  branch = "release-1.13"
+  version = "kubernetes-1.13.0"
 
 [[constraint]]
   name = "k8s.io/api"
-  branch = "release-1.13"
+  version = "kubernetes-1.13.0"
 
 [[constraint]]
   name = "k8s.io/client-go"
@@ -56,6 +56,10 @@
 [[constraint]]
   name = "github.com/prometheus/alertmanager"
   version = "=v0.17.0"
+
+[[constraint]]
+  name = "github.com/coreos/prometheus-operator"
+  version = "=v0.29.0"
 
 [[override]]
   name = "github.com/golang/protobuf"

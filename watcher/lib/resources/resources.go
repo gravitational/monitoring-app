@@ -19,11 +19,15 @@ package resources
 import (
 	"fmt"
 
+	v1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 	"github.com/gravitational/trace"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 type Resources interface {
@@ -35,7 +39,25 @@ type Resources interface {
 }
 
 type Client struct {
-	Config
+	Secrets   corev1.SecretInterface
+	Rules     monitoringv1.PrometheusRuleInterface
+	Namespace string
+	logrus.FieldLogger
+}
+
+type Config struct {
+	Client    kubernetes.Interface
+	Namespace string
+}
+
+func (c *Config) CheckAndSetDefaults() error {
+	if c.Client == nil {
+		return trace.BadParameter("missing kubernetes client")
+	}
+	if c.Namespace == "" {
+		return trace.BadParameter("missing namespace")
+	}
+	return nil
 }
 
 // New returns a new resources manager client.
@@ -44,22 +66,13 @@ func New(conf Config) (*Client, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return &Client{Config: conf}, nil
-}
-
-type Config struct {
-	Kubernetes *kubernetes.Clientset
-	logrus.FieldLogger
-}
-
-func (c *Config) CheckAndSetDefaults() error {
-	if c.Kubernetes == nil {
-		return trace.BadParameter("kubernetes client is not set")
-	}
-	if c.FieldLogger == nil {
-		c.FieldLogger = logrus.WithField(trace.Component, "resources")
-	}
-	return nil
+	restClient := conf.Client.Discovery().RESTClient()
+	return &Client{
+		Secrets:     conf.Client.CoreV1().Secrets(conf.Namespace),
+		Rules:       monitoringv1.New(restClient).PrometheusRules(conf.Namespace),
+		Namespace:   conf.Namespace,
+		FieldLogger: logrus.WithField(trace.Component, "resources"),
+	}, nil
 }
 
 type SMTPConfig struct {
@@ -136,16 +149,45 @@ func (c *Client) DeleteAlertTarget() error {
 	return nil
 }
 
-func (c *Client) CreateAlert(Alert) error {
+func (c *Client) CreateAlert(alert Alert) error {
+	c.Infof("Creating alert: %#v.", alert)
+	rule := &v1.PrometheusRule{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       v1.PrometheusRuleKind,
+			APIVersion: v1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      alert.Name,
+			Namespace: c.Namespace,
+		},
+		Spec: v1.PrometheusRuleSpec{
+			Groups: []v1.RuleGroup{{
+				Name: fmt.Sprintf("%v.rules", alert.Name),
+				Rules: []v1.Rule{{
+					Alert: alert.Name,
+					Expr:  intstr.FromString(alert.Formula),
+				}}},
+			},
+		},
+	}
+	_, err := c.Rules.Create(rule)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 	return nil
 }
 
 func (c *Client) DeleteAlert(name string) error {
+	c.Infof("Deleting alert: %v.", name)
+	err := c.Rules.Delete(name, nil)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 	return nil
 }
 
 func (c *Client) getAlertmanagerConfig() (*config.Config, error) {
-	secret, err := c.Kubernetes.CoreV1().Secrets("monitoring").Get("alertmanager-main", metav1.GetOptions{})
+	secret, err := c.Secrets.Get("alertmanager-main", metav1.GetOptions{})
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -162,12 +204,12 @@ func (c *Client) getAlertmanagerConfig() (*config.Config, error) {
 
 func (c *Client) updateAlertmanagerConfig(conf *config.Config) error {
 	c.Debugf("Updating alertmanager configuration file: %#v.", conf)
-	secret, err := c.Kubernetes.CoreV1().Secrets("monitoring").Get("alertmanager-main", metav1.GetOptions{})
+	secret, err := c.Secrets.Get("alertmanager-main", metav1.GetOptions{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	secret.StringData["alertmanager.yaml"] = conf.String()
-	_, err = c.Kubernetes.CoreV1().Secrets("monitoring").Update(secret)
+	_, err = c.Secrets.Update(secret)
 	if err != nil {
 		return trace.Wrap(err)
 	}

@@ -33,7 +33,8 @@ import (
 
 func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 	rClient, err := resources.New(resources.Config{
-		Kubernetes: kubernetesClient.Clientset,
+		Client:    kubernetesClient.Clientset,
+		Namespace: constants.MonitoringNamespace,
 	})
 	if err != nil {
 		return trace.Wrap(err)
