@@ -41,8 +41,6 @@ func main() {
 	switch mode {
 	case constants.ModeDashboards:
 		err = runDashboardsWatcher(client)
-	case constants.ModeRollups:
-		err = runRollupsWatcher(client)
 	case constants.ModeAlerts:
 		err = runAlertsWatcher(client)
 	default:

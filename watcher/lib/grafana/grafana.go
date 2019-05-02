@@ -17,6 +17,7 @@ limitations under the License.
 package grafana
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 	"os"
@@ -56,9 +57,9 @@ func NewClient() (*Client, error) {
 }
 
 // Health checks the status of Grafana HTTP API
-func (c *Client) Health() error {
+func (c *Client) Health(ctx context.Context) error {
 	// use "home dashboard" API as a health check
-	_, err := c.Get(c.Endpoint("api", "dashboards", "home"), url.Values{})
+	_, err := c.Get(ctx, c.Endpoint("api", "dashboards", "home"), url.Values{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -66,14 +67,14 @@ func (c *Client) Health() error {
 }
 
 // CreateDashboard creates a new dashboard from the provided dashboard data
-func (c *Client) CreateDashboard(data string) error {
+func (c *Client) CreateDashboard(ctx context.Context, data string) error {
 	// dashboard data should be a valid JSON
 	var dashboardJSON map[string]interface{}
 	if err := json.Unmarshal([]byte(data), &dashboardJSON); err != nil {
 		return trace.Wrap(err)
 	}
 
-	response, err := c.PostJSON(c.Endpoint("api", "dashboards", "db"), CreateDashboardRequest{
+	response, err := c.PostJSON(ctx, c.Endpoint("api", "dashboards", "db"), CreateDashboardRequest{
 		Dashboard: dashboardJSON,
 		Overwrite: true,
 	})
@@ -95,7 +96,7 @@ type CreateDashboardRequest struct {
 
 // DeleteDashboard deletes a dashboard specified with data.
 // data is expected to be JSON-encoded and contain a field named `title` which names the dashboard to delete.
-func (c *Client) DeleteDashboard(data string) error {
+func (c *Client) DeleteDashboard(ctx context.Context, data string) error {
 	var dashboardJSON struct {
 		Title string `json:"title"`
 	}
@@ -103,7 +104,7 @@ func (c *Client) DeleteDashboard(data string) error {
 		return trace.Wrap(err)
 	}
 
-	response, err := c.Delete(c.Endpoint("api", "dashboards", "db", slug.Make(strings.ToLower(dashboardJSON.Title))))
+	response, err := c.Delete(ctx, c.Endpoint("api", "dashboards", "db", slug.Make(strings.ToLower(dashboardJSON.Title))))
 	if err != nil {
 		return trace.Wrap(err)
 	}

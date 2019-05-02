@@ -61,7 +61,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 			case watch.Added, watch.Modified:
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
-					err := client.CreateDashboard(dashboard)
+					err := client.CreateDashboard(ctx, dashboard)
 
 					if err != nil {
 						log.Errorf("failed to create dashboard %v: %v", dashboard, trace.DebugReport(err))
@@ -70,7 +70,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 			case watch.Deleted:
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
-					err := client.DeleteDashboard(dashboard)
+					err := client.DeleteDashboard(ctx, dashboard)
 
 					if err != nil {
 						log.Errorf("failed to delete dashboard %v: %v", dashboard, trace.DebugReport(err))

@@ -145,7 +145,7 @@ func (c *Client) DeleteAlert(name string) error {
 }
 
 func (c *Client) getAlertmanagerConfig() (*config.Config, error) {
-	secret, err := c.Kubernetes.Secrets("monitoring").Get("alertmanager-main", metav1.GetOptions{})
+	secret, err := c.Kubernetes.CoreV1().Secrets("monitoring").Get("alertmanager-main", metav1.GetOptions{})
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -162,12 +162,12 @@ func (c *Client) getAlertmanagerConfig() (*config.Config, error) {
 
 func (c *Client) updateAlertmanagerConfig(conf *config.Config) error {
 	c.Debugf("Updating alertmanager configuration file: %#v.", conf)
-	secret, err := c.Kubernetes.Secrets("monitoring").Get("alertmanager-main", metav1.GetOptions{})
+	secret, err := c.Kubernetes.CoreV1().Secrets("monitoring").Get("alertmanager-main", metav1.GetOptions{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	secret.StringData["alertmanager.yaml"] = conf.String()
-	_, err = c.Kubernetes.Secrets("monitoring").Update(secret)
+	_, err = c.Kubernetes.CoreV1().Secrets("monitoring").Update(secret)
 	if err != nil {
 		return trace.Wrap(err)
 	}

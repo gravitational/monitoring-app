@@ -19,7 +19,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"strconv"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
@@ -28,11 +27,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	v1 "k8s.io/client-go/pkg/api/v1"
 )
 
 func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
@@ -90,20 +86,18 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 		case update := <-smtpCh:
 			log := log.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
-			client := kubeClient.Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateSMTPConfig(client, rClient, spec, log); err != nil {
+				if err := updateSMTPConfig(rClient, spec, log); err != nil {
 					log.Warnf("failed to update SMTP configuration from spec %s: %v", spec, trace.DebugReport(err))
 				}
 			}
 		case update := <-alertTargetCh:
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
-			client := kubeClient.ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateAlertTarget(client, rClient, spec, log); err != nil {
+				if err := updateAlertTarget(rClient, spec, log); err != nil {
 					log.Warnf("failed to update alert target from spec %s: %v", spec, trace.DebugReport(err))
 				}
 			case watch.Deleted:
@@ -138,7 +132,7 @@ func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error
 	return nil
 }
 
-func updateSMTPConfig(client corev1.SecretInterface, rClient resources.Resources, spec []byte, log *log.Entry) error {
+func updateSMTPConfig(rClient resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("update SMTP config from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -148,25 +142,6 @@ func updateSMTPConfig(client corev1.SecretInterface, rClient resources.Resources
 	err := yaml.Unmarshal(spec, &config)
 	if err != nil {
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
-	}
-
-	portS := strconv.FormatInt(int64(config.Spec.Port), 10)
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.KapacitorSMTPSecret,
-			Namespace: constants.MonitoringNamespace,
-		},
-		Data: map[string][]byte{
-			"host": []byte(config.Spec.Host),
-			"port": []byte(portS),
-			"user": []byte(config.Spec.Username),
-			"pass": []byte(config.Spec.Password),
-		},
-	}
-
-	_, err = client.Update(secret)
-	if err != nil {
-		return trace.Wrap(err)
 	}
 
 	err = rClient.UpdateSMTPConfig(resources.SMTPConfig{
@@ -182,7 +157,7 @@ func updateSMTPConfig(client corev1.SecretInterface, rClient resources.Resources
 	return nil
 }
 
-func updateAlertTarget(client corev1.ConfigMapInterface, rClient resources.Resources, spec []byte, log *log.Entry) error {
+func updateAlertTarget(rClient resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("update alert target from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -192,22 +167,6 @@ func updateAlertTarget(client corev1.ConfigMapInterface, rClient resources.Resou
 	err := yaml.Unmarshal(spec, &target)
 	if err != nil {
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
-	}
-
-	config := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.KapacitorAlertTargetConfigMap,
-			Namespace: constants.MonitoringNamespace,
-		},
-		Data: map[string]string{
-			"from": constants.KapacitorAlertFrom,
-			"to":   target.Spec.Email,
-		},
-	}
-
-	_, err = client.Update(config)
-	if err != nil {
-		return trace.Wrap(err)
 	}
 
 	err = rClient.UpdateAlertTarget(resources.AlertTarget{
