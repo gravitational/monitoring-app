@@ -22,8 +22,8 @@ import (
 	"strconv"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
-	"github.com/gravitational/monitoring-app/watcher/lib/kapacitor"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
+	"github.com/gravitational/monitoring-app/watcher/lib/resources"
 
 	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
@@ -32,11 +32,13 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1"
+	v1 "k8s.io/client-go/pkg/api/v1"
 )
 
 func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
-	kapacitorClient, err := kapacitor.NewClient()
+	rClient, err := resources.New(resources.Config{
+		Kubernetes: kubernetesClient.Clientset,
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -66,13 +68,13 @@ func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 
 	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
 	go kubernetesClient.WatchSecrets(context.TODO(), kubernetes.Secret{smtpLabel, smtpCh})
-	receiverLoop(context.TODO(), kubernetesClient.Clientset, kapacitorClient,
+	receiverLoop(context.TODO(), kubernetesClient.Clientset, rClient,
 		alertCh, alertTargetCh, smtpCh)
 
 	return nil
 }
 
-func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *kapacitor.Client,
+func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient resources.Resources,
 	alertCh, alertTargetCh <-chan kubernetes.ConfigMapUpdate, smtpCh <-chan kubernetes.SecretUpdate) {
 	for {
 		select {
@@ -81,7 +83,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := createAlert(kClient, spec, log); err != nil {
+				if err := createAlert(rClient, spec, log); err != nil {
 					log.Warnf("failed to create alert from spec %s: %v", spec, trace.DebugReport(err))
 				}
 			}
@@ -91,7 +93,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			client := kubeClient.Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateSMTPConfig(client, kClient, spec, log); err != nil {
+				if err := updateSMTPConfig(client, rClient, spec, log); err != nil {
 					log.Warnf("failed to update SMTP configuration from spec %s: %v", spec, trace.DebugReport(err))
 				}
 			}
@@ -101,11 +103,11 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			client := kubeClient.ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateAlertTarget(client, kClient, spec, log); err != nil {
+				if err := updateAlertTarget(client, rClient, spec, log); err != nil {
 					log.Warnf("failed to update alert target from spec %s: %v", spec, trace.DebugReport(err))
 				}
 			case watch.Deleted:
-				if err := deleteAlertTarget(kClient, log); err != nil {
+				if err := deleteAlertTarget(rClient, log); err != nil {
 					log.Warnf("failed to delete alert target: %v", trace.DebugReport(err))
 				}
 			}
@@ -115,7 +117,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 	}
 }
 
-func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
+func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error {
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -126,14 +128,17 @@ func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	err = client.CreateAlert(alert.Name, alert.Spec.Formula)
+	err = rClient.CreateAlert(resources.Alert{
+		Name:    alert.Name,
+		Formula: alert.Spec.Formula,
+	})
 	if err != nil {
 		return trace.Wrap(err, "failed to create task")
 	}
 	return nil
 }
 
-func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
+func updateSMTPConfig(client corev1.SecretInterface, rClient resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("update SMTP config from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -164,8 +169,12 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 		return trace.Wrap(err)
 	}
 
-	err = kClient.UpdateSMTPConfig(config.Spec.Host, config.Spec.Port, config.Spec.Username,
-		config.Spec.Password)
+	err = rClient.UpdateSMTPConfig(resources.SMTPConfig{
+		Host:     config.Spec.Host,
+		Port:     config.Spec.Port,
+		Username: config.Spec.Username,
+		Password: config.Spec.Password,
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -173,7 +182,7 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 	return nil
 }
 
-func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
+func updateAlertTarget(client corev1.ConfigMapInterface, rClient resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("update alert target from spec %s", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -201,7 +210,9 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 		return trace.Wrap(err)
 	}
 
-	err = kClient.UpdateAlertTarget(target.Spec.Email)
+	err = rClient.UpdateAlertTarget(resources.AlertTarget{
+		Email: target.Spec.Email,
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -209,9 +220,9 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 	return nil
 }
 
-func deleteAlertTarget(client *kapacitor.Client, log *log.Entry) error {
+func deleteAlertTarget(rClient resources.Resources, log *log.Entry) error {
 	log.Debug("delete alert target")
-	return trace.Wrap(client.DeleteAlertTarget())
+	return trace.Wrap(rClient.DeleteAlertTarget())
 }
 
 // alert defines the monitoring alert resource
