@@ -18,11 +18,13 @@ package resources
 
 import (
 	"fmt"
+	"time"
 
 	v1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
+	"github.com/gravitational/rigging"
 	"github.com/gravitational/trace"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -30,29 +32,53 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
+// Resources provides an interface for managing monitoring resources.
 type Resources interface {
+	// UpdateSMTPConfig updates cluster SMTP configuration.
 	UpdateSMTPConfig(SMTPConfig) error
+	// DeleteSMTPConfig resets cluster SMTP configuration.
+	DeleteSMTPConfig() error
+	// UpdateAlertTarget updates recipient of monitoring alerts.
 	UpdateAlertTarget(AlertTarget) error
+	// DeleteAlertTarget resets monitoring alerts recipient.
 	DeleteAlertTarget() error
+	// CreateAlert creates a new or updates an existing monitoring alert.
 	CreateAlert(Alert) error
+	// DeleteAlert deletes specified monitoring alert.
 	DeleteAlert(name string) error
 }
 
+// Client is Prometheus-based monitoring resource manager.
+//
+// Implements Resources.
 type Client struct {
-	Secrets   corev1.SecretInterface
-	Rules     monitoringv1.PrometheusRuleInterface
+	// Secrets is the Kubernetes Secrets client.
+	Secrets corev1.SecretInterface
+	// Rules is the Kubernetes PrometheusRules CRD client.
+	Rules monitoringv1.PrometheusRuleInterface
+	// Namespace is the monitoring namespace.
 	Namespace string
+	// FieldLogger provides logging facilities.
 	logrus.FieldLogger
 }
 
-type Config struct {
-	Client    kubernetes.Interface
+// ClientConfig is the client configuration.
+type ClientConfig struct {
+	// KubernetesClient is the Kubernetes API client.
+	KubernetesClient *kubernetes.Clientset
+	// MonitoringClient is the Kubernetes Prometheus CRD resources API client.
+	MonitoringClient *monitoring.Clientset
+	// Namespace is the monitoring namespace.
 	Namespace string
 }
 
-func (c *Config) CheckAndSetDefaults() error {
-	if c.Client == nil {
+// CheckAndSetDefaults validates client configuration and sets defaults.
+func (c *ClientConfig) CheckAndSetDefaults() error {
+	if c.KubernetesClient == nil {
 		return trace.BadParameter("missing kubernetes client")
+	}
+	if c.MonitoringClient == nil {
+		return trace.BadParameter("missing monitoring client")
 	}
 	if c.Namespace == "" {
 		return trace.BadParameter("missing namespace")
@@ -61,45 +87,83 @@ func (c *Config) CheckAndSetDefaults() error {
 }
 
 // New returns a new resources manager client.
-func New(conf Config) (*Client, error) {
+func New(conf ClientConfig) (*Client, error) {
 	err := conf.CheckAndSetDefaults()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	restClient := conf.Client.Discovery().RESTClient()
 	return &Client{
-		Secrets:     conf.Client.CoreV1().Secrets(conf.Namespace),
-		Rules:       monitoringv1.New(restClient).PrometheusRules(conf.Namespace),
+		Secrets:     conf.KubernetesClient.CoreV1().Secrets(conf.Namespace),
+		Rules:       conf.MonitoringClient.MonitoringV1().PrometheusRules(conf.Namespace),
 		Namespace:   conf.Namespace,
 		FieldLogger: logrus.WithField(trace.Component, "resources"),
 	}, nil
 }
 
+// SMTPConfig represents cluster SMTP configuration.
 type SMTPConfig struct {
-	Host     string
-	Port     int
+	// Host is the SMTP host.
+	Host string
+	// Port is the SMTP port.
+	Port int
+	// Username is the SMTP user name.
 	Username string
+	// Password is the SMTP user password.
 	Password string
 }
 
+// String returns the config's string representation.
+func (c SMTPConfig) String() string {
+	return fmt.Sprintf("SMTP(Host=%v,Port=%v,Username=%v)", c.Host, c.Port, c.Username)
+}
+
+// AlertTarget represents a recipient of monitoring alerts.
 type AlertTarget struct {
+	// Email is the recipient email address.
 	Email string
 }
 
-type Alert struct {
-	Name    string
-	Formula string
+// String returns the target's string representation.
+func (t AlertTarget) String() string {
+	return fmt.Sprintf("AlertTarget(Email=%v)", t.Email)
 }
 
+// Alert represents a monitoring alert.
+type Alert struct {
+	// CRDName is the name of PrometheusRule custom resource.
+	CRDName string
+	// AlertName is the alerting rule name.
+	AlertName string
+	// GroupName is group name the alert belongs to.
+	GroupName string
+	// Formula is the alert expression.
+	Formula string
+	// Delay is an optional delay before alert should be triggerred.
+	Delay time.Duration
+	// Labels is the labels that get attached to the alert.
+	Labels map[string]string
+	// Annotations are used to attach longer information to the alert.
+	Annotations map[string]string
+}
+
+// String returns the alert's string representation.
+func (a Alert) String() string {
+	return fmt.Sprintf("Alert(CRDName=%v,AlertName=%v,GroupName=%v,Formula=%v,Delay=%v,Labels=%v)",
+		a.CRDName, a.AlertName, a.GroupName, a.Formula, a.Delay, a.Labels)
+}
+
+// UpdateSMTPConfig updates cluster SMTP configuration.
 func (c *Client) UpdateSMTPConfig(smtpConf SMTPConfig) error {
-	c.Infof("Updating SMTP configuration: %#v.", smtpConf)
+	c.Infof("Updating SMTP configuration: %s.", smtpConf)
 	conf, err := c.getAlertmanagerConfig()
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	conf.Global.SMTPSmarthost = fmt.Sprintf("%v:%v", smtpConf.Host, smtpConf.Port)
-	conf.Global.SMTPAuthUsername = smtpConf.Username
-	conf.Global.SMTPAuthPassword = config.Secret(smtpConf.Password)
+	err = updateSMTPConfig(conf, fmt.Sprintf("%v:%v", smtpConf.Host, smtpConf.Port),
+		smtpConf.Username, smtpConf.Password)
+	if err != nil {
+		return trace.Wrap(err)
+	}
 	err = c.updateAlertmanagerConfig(conf)
 	if err != nil {
 		return trace.Wrap(err)
@@ -107,8 +171,27 @@ func (c *Client) UpdateSMTPConfig(smtpConf SMTPConfig) error {
 	return nil
 }
 
+// DeleteSMTPConfig resets cluster SMTP configuration.
+func (c *Client) DeleteSMTPConfig() error {
+	c.Info("Deleting SMTP configuration.")
+	conf, err := c.getAlertmanagerConfig()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = updateSMTPConfig(conf, "", "", "")
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = c.updateAlertmanagerConfig(conf)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// UpdateAlertTarget updates recipient of monitoring alerts.
 func (c *Client) UpdateAlertTarget(alertTarget AlertTarget) error {
-	c.Infof("Updating alert target: %#v.", alertTarget)
+	c.Infof("Updating alert target: %s.", alertTarget)
 	conf, err := c.getAlertmanagerConfig()
 	if err != nil {
 		return trace.Wrap(err)
@@ -119,7 +202,7 @@ func (c *Client) UpdateAlertTarget(alertTarget AlertTarget) error {
 		return trace.Wrap(err)
 	}
 	// Update its email config.
-	defaultReceiver.EmailConfigs = []*config.EmailConfig{
+	defaultReceiver.EmailConfigs = []*EmailConfig{
 		{To: alertTarget.Email},
 	}
 	err = c.updateAlertmanagerConfig(conf)
@@ -129,6 +212,7 @@ func (c *Client) UpdateAlertTarget(alertTarget AlertTarget) error {
 	return nil
 }
 
+// DeleteAlertTarget resets monitoring alerts recipient.
 func (c *Client) DeleteAlertTarget() error {
 	c.Info("Deleting alert target.")
 	conf, err := c.getAlertmanagerConfig()
@@ -141,7 +225,7 @@ func (c *Client) DeleteAlertTarget() error {
 		return trace.Wrap(err)
 	}
 	// Reset its email config.
-	defaultReceiver.EmailConfigs = []*config.EmailConfig{}
+	defaultReceiver.EmailConfigs = nil
 	err = c.updateAlertmanagerConfig(conf)
 	if err != nil {
 		return trace.Wrap(err)
@@ -149,75 +233,75 @@ func (c *Client) DeleteAlertTarget() error {
 	return nil
 }
 
+// CreateAlert creates a new or updates an existing monitoring alert.
 func (c *Client) CreateAlert(alert Alert) error {
-	c.Infof("Creating alert: %#v.", alert)
-	rule := &v1.PrometheusRule{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       v1.PrometheusRuleKind,
-			APIVersion: v1.SchemeGroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      alert.Name,
-			Namespace: c.Namespace,
-		},
-		Spec: v1.PrometheusRuleSpec{
-			Groups: []v1.RuleGroup{{
-				Name: fmt.Sprintf("%v.rules", alert.Name),
-				Rules: []v1.Rule{{
-					Alert: alert.Name,
-					Expr:  intstr.FromString(alert.Formula),
-				}}},
-			},
-		},
+	c.Infof("Creating alert: %s.", alert)
+	prometheusRule := c.newPrometheusRule(alert)
+	_, err := c.Rules.Create(prometheusRule)
+	if err == nil {
+		return nil
 	}
-	_, err := c.Rules.Create(rule)
-	if err != nil {
+	err = rigging.ConvertError(err)
+	if !trace.IsAlreadyExists(err) {
 		return trace.Wrap(err)
+	}
+	_, err = c.Rules.Update(prometheusRule)
+	if err != nil {
+		return trace.Wrap(rigging.ConvertError(err))
 	}
 	return nil
 }
 
+// DeleteAlert deletes specified monitoring alert.
 func (c *Client) DeleteAlert(name string) error {
 	c.Infof("Deleting alert: %v.", name)
 	err := c.Rules.Delete(name, nil)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(rigging.ConvertError(err))
 	}
 	return nil
 }
 
-func (c *Client) getAlertmanagerConfig() (*config.Config, error) {
-	secret, err := c.Secrets.Get("alertmanager-main", metav1.GetOptions{})
+// getAlertmanagerConfig returns Alertmanager configuration.
+func (c *Client) getAlertmanagerConfig() (*Config, error) {
+	secret, err := c.Secrets.Get(alertmanagerSecretName, metav1.GetOptions{})
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return nil, trace.Wrap(rigging.ConvertError(err))
 	}
-	confBytes, ok := secret.Data["alertmanager.yaml"]
+	confBytes, ok := secret.Data[alertmanagerConfigFilename]
 	if !ok {
 		return nil, trace.NotFound("no alert manager config found")
 	}
-	conf, err := config.Load(string(confBytes))
+	conf, err := Load(string(confBytes))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 	return conf, nil
 }
 
-func (c *Client) updateAlertmanagerConfig(conf *config.Config) error {
+// updateAlertmanagerConfig updates Alertmanager configuration.
+func (c *Client) updateAlertmanagerConfig(conf *Config) error {
 	c.Debugf("Updating alertmanager configuration file: %#v.", conf)
-	secret, err := c.Secrets.Get("alertmanager-main", metav1.GetOptions{})
+	secret, err := c.Secrets.Get(alertmanagerSecretName, metav1.GetOptions{})
+	if err != nil {
+		return trace.Wrap(rigging.ConvertError(err))
+	}
+	confString, err := conf.String()
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	secret.StringData["alertmanager.yaml"] = conf.String()
+	secret.StringData = map[string]string{
+		alertmanagerConfigFilename: confString,
+	}
 	_, err = c.Secrets.Update(secret)
 	if err != nil {
-		return trace.Wrap(err)
+		return trace.Wrap(rigging.ConvertError(err))
 	}
 	return nil
 }
 
 // getDefaultReceiver returns receiver with the name "default" from the config.
-func getDefaultReceiver(conf *config.Config) (*config.Receiver, error) {
+func getDefaultReceiver(conf *Config) (*Receiver, error) {
 	for _, r := range conf.Receivers {
 		if r.Name == "default" {
 			return r, nil
@@ -225,3 +309,69 @@ func getDefaultReceiver(conf *config.Config) (*config.Receiver, error) {
 	}
 	return nil, trace.NotFound("no default receiver")
 }
+
+// updateSMTPConfig updates SMTP configuration in the provided config.
+func updateSMTPConfig(conf *Config, addr, user, pass string) error {
+	conf.Global.SMTPSmarthost = addr
+	conf.Global.SMTPAuthUsername = user
+	conf.Global.SMTPAuthPassword = pass
+	// Update SMTP config on the default receiver too.
+	defaultReceiver, err := getDefaultReceiver(conf)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	for _, emailConfig := range defaultReceiver.EmailConfigs {
+		emailConfig.Smarthost = addr
+		emailConfig.AuthUsername = user
+		emailConfig.AuthPassword = pass
+	}
+	return nil
+}
+
+// newPrometheusRule returns PrometheusRule CRD object for the provided alert.
+func (c *Client) newPrometheusRule(alert Alert) *v1.PrometheusRule {
+	groupName := alert.GroupName
+	if groupName == "" {
+		groupName = fmt.Sprintf("%v.rules", alert.CRDName)
+	}
+	alertName := alert.AlertName
+	if alertName == "" {
+		alertName = alert.CRDName
+	}
+	rule := v1.Rule{
+		Alert:       alertName,
+		Expr:        intstr.FromString(alert.Formula),
+		Labels:      alert.Labels,
+		Annotations: alert.Annotations,
+	}
+	return &v1.PrometheusRule{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       v1.PrometheusRuleKind,
+			APIVersion: v1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      alert.CRDName,
+			Namespace: c.Namespace,
+			Labels:    prometheusRuleLabels,
+		},
+		Spec: v1.PrometheusRuleSpec{
+			Groups: []v1.RuleGroup{{
+				Name:  groupName,
+				Rules: []v1.Rule{rule},
+			}},
+		},
+	}
+}
+
+// prometheusRuleLabels is the labels that PrometheusRule CRD should be marked
+// with in order to be recognized by Prometheus operator controller.
+var prometheusRuleLabels = map[string]string{
+	"prometheus": "k8s",
+	"role":       "alert-rules",
+}
+
+// alertmanagerConfigFilename is the name of Alertmanager configuration file.
+var alertmanagerConfigFilename = "alertmanager.yaml"
+
+// alertmanagerSecretName is the name of the secret with Alertmanager configuration.
+var alertmanagerSecretName = "alertmanager-main"

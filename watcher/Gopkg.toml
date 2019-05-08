@@ -33,7 +33,7 @@
   name = "github.com/gravitational/roundtrip"
   version = "=v1.0.0"
 
-[[constraint]]
+[[override]]
   name = "github.com/gravitational/trace"
   version = "=v1.1.6"
 
@@ -48,6 +48,10 @@
 [[constraint]]
   name = "k8s.io/client-go"
   version = "=v10.0.0"
+
+[[constraint]]
+  name = "github.com/gravitational/rigging"
+  version = "=5.5.0"
 
 [[constraint]]
   name = "github.com/cenkalti/backoff"

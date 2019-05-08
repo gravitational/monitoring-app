@@ -19,6 +19,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
@@ -31,10 +32,16 @@ import (
 	kubeapi "k8s.io/client-go/kubernetes"
 )
 
-func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
-	rClient, err := resources.New(resources.Config{
-		Client:    kubernetesClient.Clientset,
-		Namespace: constants.MonitoringNamespace,
+func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client) error {
+	monitoringClient, err := kubernetes.NewMonitoringClient()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	rClient, err := resources.New(resources.ClientConfig{
+		KubernetesClient: kubernetesClient.Clientset,
+		MonitoringClient: monitoringClient,
+		Namespace:        constants.MonitoringNamespace,
 	})
 	if err != nil {
 		return trace.Wrap(err)
@@ -63,9 +70,9 @@ func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 	}
 	smtpCh := make(chan kubernetes.SecretUpdate)
 
-	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
-	go kubernetesClient.WatchSecrets(context.TODO(), kubernetes.Secret{smtpLabel, smtpCh})
-	receiverLoop(context.TODO(), kubernetesClient.Clientset, rClient,
+	go kubernetesClient.WatchConfigMaps(ctx, configmaps...)
+	go kubernetesClient.WatchSecrets(ctx, kubernetes.Secret{smtpLabel, smtpCh})
+	receiverLoop(ctx, kubernetesClient.Clientset, rClient,
 		alertCh, alertTargetCh, smtpCh)
 
 	return nil
@@ -81,7 +88,11 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := createAlert(rClient, spec, log); err != nil {
-					log.Warnf("failed to create alert from spec %s: %v", spec, trace.DebugReport(err))
+					log.Warnf("Failed to create alert from spec %s: %v.", spec, trace.DebugReport(err))
+				}
+			case watch.Deleted:
+				if err := deleteAlert(rClient, spec, log); err != nil {
+					log.Warnf("Failed to delete alert from spec %s: %v.", spec, trace.DebugReport(err))
 				}
 			}
 		case update := <-smtpCh:
@@ -90,7 +101,11 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := updateSMTPConfig(rClient, spec, log); err != nil {
-					log.Warnf("failed to update SMTP configuration from spec %s: %v", spec, trace.DebugReport(err))
+					log.Warnf("Failed to update SMTP configuration from spec %s: %v.", spec, trace.DebugReport(err))
+				}
+			case watch.Deleted:
+				if err := deleteSMTPConfig(rClient, log); err != nil {
+					log.Warnf("Failed to delete SMTP configuration: %v.", trace.DebugReport(err))
 				}
 			}
 		case update := <-alertTargetCh:
@@ -99,11 +114,11 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 			switch update.EventType {
 			case watch.Added, watch.Modified:
 				if err := updateAlertTarget(rClient, spec, log); err != nil {
-					log.Warnf("failed to update alert target from spec %s: %v", spec, trace.DebugReport(err))
+					log.Warnf("Failed to update alert target from spec %s: %v.", spec, trace.DebugReport(err))
 				}
 			case watch.Deleted:
 				if err := deleteAlertTarget(rClient, log); err != nil {
-					log.Warnf("failed to delete alert target: %v", trace.DebugReport(err))
+					log.Warnf("Failed to delete alert target: %v.", trace.DebugReport(err))
 				}
 			}
 		case <-ctx.Done():
@@ -113,6 +128,8 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 }
 
 func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error {
+	log.Debugf("Creating alert from spec %s.", spec)
+
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -124,8 +141,13 @@ func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error
 	}
 
 	err = rClient.CreateAlert(resources.Alert{
-		Name:    alert.Name,
-		Formula: alert.Spec.Formula,
+		CRDName:     alert.Name,
+		AlertName:   alert.Spec.AlertName,
+		GroupName:   alert.Spec.GroupName,
+		Formula:     alert.Spec.Formula,
+		Delay:       alert.Spec.Delay,
+		Labels:      alert.Spec.Labels,
+		Annotations: alert.Spec.Annotations,
 	})
 	if err != nil {
 		return trace.Wrap(err, "failed to create task")
@@ -133,8 +155,19 @@ func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error
 	return nil
 }
 
+func deleteAlert(rClient resources.Resources, spec []byte, log *log.Entry) error {
+	log.Debugf("Deleting alert from spec %s.", spec)
+
+	var alert alert
+	if err := yaml.Unmarshal(spec, &alert); err != nil {
+		return trace.Wrap(err)
+	}
+
+	return rClient.DeleteAlert(alert.Name)
+}
+
 func updateSMTPConfig(rClient resources.Resources, spec []byte, log *log.Entry) error {
-	log.Debugf("update SMTP config from spec %s", spec)
+	log.Debugf("Updating SMTP config from spec: %s.", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -158,8 +191,13 @@ func updateSMTPConfig(rClient resources.Resources, spec []byte, log *log.Entry) 
 	return nil
 }
 
+func deleteSMTPConfig(rClient resources.Resources, log *log.Entry) error {
+	log.Debug("Deleting SMTP config.")
+	return rClient.DeleteSMTPConfig()
+}
+
 func updateAlertTarget(rClient resources.Resources, spec []byte, log *log.Entry) error {
-	log.Debugf("update alert target from spec %s", spec)
+	log.Debugf("Updating alert target from spec: %s.", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -181,8 +219,8 @@ func updateAlertTarget(rClient resources.Resources, spec []byte, log *log.Entry)
 }
 
 func deleteAlertTarget(rClient resources.Resources, log *log.Entry) error {
-	log.Debug("delete alert target")
-	return trace.Wrap(rClient.DeleteAlertTarget())
+	log.Debug("Deleting alert target.")
+	return rClient.DeleteAlertTarget()
 }
 
 // alert defines the monitoring alert resource
@@ -214,8 +252,18 @@ type Metadata struct {
 
 // alertSpec defines a monitoring alert
 type alertSpec struct {
-	// Formula specifies the Kapacitor formula
+	// GroupName is the alerting rule group name.
+	GroupName string `json:"group_name" yaml:"group_name"`
+	// AlertName is the alerting rule name.
+	AlertName string `json:"alert_name" yaml:"alert_name"`
+	// Formula specifies the alert formula
 	Formula string `json:"formula" yaml:"formula"`
+	// Delay is an optional delay before alert triggers
+	Delay time.Duration `json:"duration" yaml:"duration"`
+	// Labels is the alerting rule labels.
+	Labels map[string]string `json:"labels"`
+	// Annotations is the alerting rule annotations.
+	Annotations map[string]string `json:"annotations"`
 }
 
 // smtpConfigSpec defines a SMTP configuration

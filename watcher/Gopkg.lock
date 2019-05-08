@@ -34,11 +34,12 @@
   version = "v2.1.1"
 
 [[projects]]
-  digest = "1:3d89924c8f89318d81c5d21a5d704bba9ab821f0580a5afcae2b3172f7b1156a"
+  digest = "1:a80dd73b64585bfa4c84e44e277d95ed163e9d73dedfc7e32030eba648e36efb"
   name = "github.com/coreos/prometheus-operator"
   packages = [
     "pkg/apis/monitoring",
     "pkg/apis/monitoring/v1",
+    "pkg/client/versioned",
     "pkg/client/versioned/scheme",
     "pkg/client/versioned/typed/monitoring/v1",
   ]
@@ -176,6 +177,14 @@
   pruneopts = "NUT"
   revision = "e9f42fa127660e552d0ad2b589868d403a9be7c6"
   version = "v1.1.1"
+
+[[projects]]
+  digest = "1:e185ac33228fa2564de37449b91803721319d61077a0080f1231e97a0d9912fb"
+  name = "github.com/gravitational/rigging"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "53e094c60ddc5ac94cebb8301e03660db3996227"
+  version = "5.5.0"
 
 [[projects]]
   digest = "1:1920655c8439bf875819f7d8db882b089f3ca6cb9b3c9ca6413bc2ec2217ea82"
@@ -506,7 +515,21 @@
   version = "kubernetes-1.13.0"
 
 [[projects]]
-  digest = "1:6f0bfad60a079e87b357a152ffd8de17f2fc15617585658b4eaa25947a450fe1"
+  digest = "1:501a73762f1b2c4530206ffb657b39d8b58a9b40280d30e4509ae1232767962c"
+  name = "k8s.io/apiextensions-apiserver"
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset",
+    "pkg/client/clientset/clientset/scheme",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+  ]
+  pruneopts = "NUT"
+  revision = "20c909e7c8c3fec1a0e345b1d4e57f1c1623c368"
+  version = "kubernetes-1.13.0"
+
+[[projects]]
+  digest = "1:a2da0cbc8dfda27eeffa54b53195e607497c6cac737d17f45a667963aeae5f02"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -540,6 +563,7 @@
     "pkg/util/sets",
     "pkg/util/validation",
     "pkg/util/validation/field",
+    "pkg/util/wait",
     "pkg/util/yaml",
     "pkg/version",
     "pkg/watch",
@@ -637,9 +661,11 @@
   input-imports = [
     "github.com/cenkalti/backoff",
     "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1",
+    "github.com/coreos/prometheus-operator/pkg/client/versioned",
     "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1",
     "github.com/ghodss/yaml",
     "github.com/gosimple/slug",
+    "github.com/gravitational/rigging",
     "github.com/gravitational/roundtrip",
     "github.com/gravitational/trace",
     "github.com/prometheus/alertmanager/config",
@@ -649,8 +675,10 @@
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/kubernetes",
+    "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/rest",
   ]

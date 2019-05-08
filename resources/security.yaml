@@ -128,17 +128,19 @@ rules:
     verbs:
       - update
     resources:
-      - configmaps
-    resourceNames:
-      - alerting-addresses
-  - apiGroups:
-      - ""
-    verbs:
-      - update
-    resources:
       - secrets
     resourceNames:
-      - smtp-configuration
+      - alertmanager-main
+  - apiGroups:
+      - "monitoring.coreos.com"
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+    resources:
+      - prometheusrules
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
