@@ -34,16 +34,16 @@ import (
 
 // Resources provides an interface for managing monitoring resources.
 type Resources interface {
-	// UpdateSMTPConfig updates cluster SMTP configuration.
-	UpdateSMTPConfig(SMTPConfig) error
+	// UpsertSMTPConfig creates or updates cluster SMTP configuration.
+	UpsertSMTPConfig(SMTPConfig) error
 	// DeleteSMTPConfig resets cluster SMTP configuration.
 	DeleteSMTPConfig() error
-	// UpdateAlertTarget updates recipient of monitoring alerts.
-	UpdateAlertTarget(AlertTarget) error
+	// UpsertAlertTarget creates or updates recipient of monitoring alerts.
+	UpsertAlertTarget(AlertTarget) error
 	// DeleteAlertTarget resets monitoring alerts recipient.
 	DeleteAlertTarget() error
-	// CreateAlert creates a new or updates an existing monitoring alert.
-	CreateAlert(Alert) error
+	// UpsertAlert creates a new or updates an existing monitoring alert.
+	UpsertAlert(Alert) error
 	// DeleteAlert deletes specified monitoring alert.
 	DeleteAlert(name string) error
 }
@@ -74,16 +74,17 @@ type ClientConfig struct {
 
 // CheckAndSetDefaults validates client configuration and sets defaults.
 func (c *ClientConfig) CheckAndSetDefaults() error {
+	var errors []error
 	if c.KubernetesClient == nil {
-		return trace.BadParameter("missing kubernetes client")
+		errors = append(errors, trace.BadParameter("missing kubernetes client"))
 	}
 	if c.MonitoringClient == nil {
-		return trace.BadParameter("missing monitoring client")
+		errors = append(errors, trace.BadParameter("missing monitoring client"))
 	}
 	if c.Namespace == "" {
-		return trace.BadParameter("missing namespace")
+		errors = append(errors, trace.BadParameter("missing namespace"))
 	}
-	return nil
+	return trace.NewAggregate(errors...)
 }
 
 // New returns a new resources manager client.
@@ -152,8 +153,8 @@ func (a Alert) String() string {
 		a.CRDName, a.AlertName, a.GroupName, a.Formula, a.Delay, a.Labels)
 }
 
-// UpdateSMTPConfig updates cluster SMTP configuration.
-func (c *Client) UpdateSMTPConfig(smtpConf SMTPConfig) error {
+// UpsertSMTPConfig updates cluster SMTP configuration.
+func (c *Client) UpsertSMTPConfig(smtpConf SMTPConfig) error {
 	c.Infof("Updating SMTP configuration: %s.", smtpConf)
 	conf, err := c.getAlertmanagerConfig()
 	if err != nil {
@@ -178,7 +179,7 @@ func (c *Client) DeleteSMTPConfig() error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	err = updateSMTPConfig(conf, "", "", "")
+	err = deleteSMTPConfig(conf)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -189,8 +190,8 @@ func (c *Client) DeleteSMTPConfig() error {
 	return nil
 }
 
-// UpdateAlertTarget updates recipient of monitoring alerts.
-func (c *Client) UpdateAlertTarget(alertTarget AlertTarget) error {
+// UpsertAlertTarget updates recipient of monitoring alerts.
+func (c *Client) UpsertAlertTarget(alertTarget AlertTarget) error {
 	c.Infof("Updating alert target: %s.", alertTarget)
 	conf, err := c.getAlertmanagerConfig()
 	if err != nil {
@@ -233,8 +234,8 @@ func (c *Client) DeleteAlertTarget() error {
 	return nil
 }
 
-// CreateAlert creates a new or updates an existing monitoring alert.
-func (c *Client) CreateAlert(alert Alert) error {
+// UpsertAlert creates a new or updates an existing monitoring alert.
+func (c *Client) UpsertAlert(alert Alert) error {
 	c.Infof("Creating alert: %s.", alert)
 	prometheusRule := c.newPrometheusRule(alert)
 	_, err := c.Rules.Create(prometheusRule)
@@ -326,6 +327,11 @@ func updateSMTPConfig(conf *Config, addr, user, pass string) error {
 		emailConfig.AuthPassword = pass
 	}
 	return nil
+}
+
+// deleteSMTPConfig resets SMTP configuration in the provided config.
+func deleteSMTPConfig(conf *Config) error {
+	return updateSMTPConfig(conf, "", "", "")
 }
 
 // newPrometheusRule returns PrometheusRule CRD object for the provided alert.

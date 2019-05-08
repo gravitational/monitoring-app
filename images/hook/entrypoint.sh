@@ -37,15 +37,15 @@ if [ $1 = "update" ]; then
         rig delete deployments/kapacitor --resource-namespace=$namespace --force
 
         echo "---> Deleting old secrets"
-        for sct in grafana grafana-influxdb-creds smtp-configuration
+        for secret in grafana grafana-influxdb-creds smtp-configuration
         do
-            rig delete secrets/$sct --resource-namespace=$namespace --force
+            rig delete secrets/$secret --resource-namespace=$namespace --force
         done
 
         echo "---> Deleting old configmaps"
-        for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default alerting-addresses
+        for configmap in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default alerting-addresses
         do
-            rig delete configmaps/$cfm --resource-namespace=$namespace --force
+            rig delete configmaps/$configmap --resource-namespace=$namespace --force
         done
     done
 

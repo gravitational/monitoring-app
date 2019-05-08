@@ -127,7 +127,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 	}
 }
 
-func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error {
+func createAlert(client resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("Creating alert from spec %s.", spec)
 
 	if len(bytes.TrimSpace(spec)) == 0 {
@@ -140,7 +140,7 @@ func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	err = rClient.CreateAlert(resources.Alert{
+	err = client.UpsertAlert(resources.Alert{
 		CRDName:     alert.Name,
 		AlertName:   alert.Spec.AlertName,
 		GroupName:   alert.Spec.GroupName,
@@ -155,7 +155,7 @@ func createAlert(rClient resources.Resources, spec []byte, log *log.Entry) error
 	return nil
 }
 
-func deleteAlert(rClient resources.Resources, spec []byte, log *log.Entry) error {
+func deleteAlert(client resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("Deleting alert from spec %s.", spec)
 
 	var alert alert
@@ -163,10 +163,10 @@ func deleteAlert(rClient resources.Resources, spec []byte, log *log.Entry) error
 		return trace.Wrap(err)
 	}
 
-	return rClient.DeleteAlert(alert.Name)
+	return client.DeleteAlert(alert.Name)
 }
 
-func updateSMTPConfig(rClient resources.Resources, spec []byte, log *log.Entry) error {
+func updateSMTPConfig(client resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("Updating SMTP config from spec: %s.", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -178,7 +178,7 @@ func updateSMTPConfig(rClient resources.Resources, spec []byte, log *log.Entry) 
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	err = rClient.UpdateSMTPConfig(resources.SMTPConfig{
+	err = client.UpsertSMTPConfig(resources.SMTPConfig{
 		Host:     config.Spec.Host,
 		Port:     config.Spec.Port,
 		Username: config.Spec.Username,
@@ -191,12 +191,12 @@ func updateSMTPConfig(rClient resources.Resources, spec []byte, log *log.Entry) 
 	return nil
 }
 
-func deleteSMTPConfig(rClient resources.Resources, log *log.Entry) error {
+func deleteSMTPConfig(client resources.Resources, log *log.Entry) error {
 	log.Debug("Deleting SMTP config.")
-	return rClient.DeleteSMTPConfig()
+	return client.DeleteSMTPConfig()
 }
 
-func updateAlertTarget(rClient resources.Resources, spec []byte, log *log.Entry) error {
+func updateAlertTarget(client resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("Updating alert target from spec: %s.", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
@@ -208,7 +208,7 @@ func updateAlertTarget(rClient resources.Resources, spec []byte, log *log.Entry)
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	err = rClient.UpdateAlertTarget(resources.AlertTarget{
+	err = client.UpsertAlertTarget(resources.AlertTarget{
 		Email: target.Spec.Email,
 	})
 	if err != nil {
@@ -218,9 +218,9 @@ func updateAlertTarget(rClient resources.Resources, spec []byte, log *log.Entry)
 	return nil
 }
 
-func deleteAlertTarget(rClient resources.Resources, log *log.Entry) error {
+func deleteAlertTarget(client resources.Resources, log *log.Entry) error {
 	log.Debug("Deleting alert target.")
-	return rClient.DeleteAlertTarget()
+	return client.DeleteAlertTarget()
 }
 
 // alert defines the monitoring alert resource
