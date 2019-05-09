@@ -237,8 +237,7 @@ func (c *Client) DeleteAlertTarget() error {
 // UpsertAlert creates a new or updates an existing monitoring alert.
 func (c *Client) UpsertAlert(alert Alert) error {
 	c.Infof("Creating alert: %s.", alert)
-	prometheusRule := c.newPrometheusRule(alert)
-	_, err := c.Rules.Create(prometheusRule)
+	_, err := c.Rules.Create(c.newPrometheusRule(alert))
 	if err == nil {
 		return nil
 	}
@@ -246,7 +245,14 @@ func (c *Client) UpsertAlert(alert Alert) error {
 	if !trace.IsAlreadyExists(err) {
 		return trace.Wrap(err)
 	}
-	_, err = c.Rules.Update(prometheusRule)
+	// Updating PrometheusRule requires resourceVersion to be set on the
+	// CRD object so retrieve it first and update appropriate fields.
+	rule, err := c.Rules.Get(alert.CRDName, metav1.GetOptions{})
+	if err != nil {
+		return trace.Wrap(rigging.ConvertError(err))
+	}
+	c.updatePrometheusRule(rule, alert)
+	_, err = c.Rules.Update(rule)
 	if err != nil {
 		return trace.Wrap(rigging.ConvertError(err))
 	}
@@ -332,6 +338,12 @@ func updateSMTPConfig(conf *Config, addr, user, pass string) error {
 // deleteSMTPConfig resets SMTP configuration in the provided config.
 func deleteSMTPConfig(conf *Config) error {
 	return updateSMTPConfig(conf, "", "", "")
+}
+
+// updatePrometheusRule updates the provided PrometheusRule spec based on
+// the new alert data.
+func (c *Client) updatePrometheusRule(rule *v1.PrometheusRule, alert Alert) {
+	rule.Spec = c.newPrometheusRule(alert).Spec
 }
 
 // newPrometheusRule returns PrometheusRule CRD object for the provided alert.
