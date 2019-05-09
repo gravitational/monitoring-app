@@ -26,15 +26,24 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
+
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 )
+
+func init() {
+	runtime.Must(monitoringv1.AddToScheme(scheme.Scheme))
+}
 
 // Client is the Kubernetes API client
 type Client struct {
@@ -54,6 +63,19 @@ func NewClient() (*Client, error) {
 	}
 
 	return &Client{Clientset: client}, nil
+}
+
+// NewMonitoringClient returns a new in-cluster Prometheus CRD API client.
+func NewMonitoringClient() (*monitoring.Clientset, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	client, err := monitoring.NewForConfig(config)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return client, nil
 }
 
 // WatchConfigMaps watches Kubernetes API for ConfigMaps using specified configs to match
@@ -173,7 +195,7 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 
 			switch configMap := event.Object.(type) {
 			case *v1.ConfigMap:
-				log.Infof("detected event %v for configmap %q", event.Type, configMap.Name)
+				log.Infof("Detected event %v for configmap %v.", event.Type, configMap.Name)
 				config.RecvCh <- ConfigMapUpdate{
 					ResourceUpdate{event.Type, configMap.TypeMeta, configMap.ObjectMeta},
 					configMap.Data,
@@ -203,7 +225,7 @@ func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secr
 
 			switch secret := event.Object.(type) {
 			case *v1.Secret:
-				log.Infof("detected event %v for secret %q", event.Type, secret.Name)
+				log.Infof("Detected event %v for secret %v.", event.Type, secret.Name)
 				config.RecvCh <- SecretUpdate{
 					ResourceUpdate{event.Type, secret.TypeMeta, secret.ObjectMeta},
 					secret.Data,

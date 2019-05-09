@@ -19,24 +19,30 @@ package main
 import (
 	"bytes"
 	"context"
-	"strconv"
+	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
-	"github.com/gravitational/monitoring-app/watcher/lib/kapacitor"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
+	"github.com/gravitational/monitoring-app/watcher/lib/resources"
 
 	"github.com/ghodss/yaml"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubeapi "k8s.io/client-go/kubernetes"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
-func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
-	kapacitorClient, err := kapacitor.NewClient()
+func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client) error {
+	monitoringClient, err := kubernetes.NewMonitoringClient()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	rClient, err := resources.New(resources.ClientConfig{
+		KubernetesClient: kubernetesClient.Clientset,
+		MonitoringClient: monitoringClient,
+		Namespace:        constants.MonitoringNamespace,
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -64,15 +70,15 @@ func runAlertsWatcher(kubernetesClient *kubernetes.Client) error {
 	}
 	smtpCh := make(chan kubernetes.SecretUpdate)
 
-	go kubernetesClient.WatchConfigMaps(context.TODO(), configmaps...)
-	go kubernetesClient.WatchSecrets(context.TODO(), kubernetes.Secret{smtpLabel, smtpCh})
-	receiverLoop(context.TODO(), kubernetesClient.Clientset, kapacitorClient,
+	go kubernetesClient.WatchConfigMaps(ctx, configmaps...)
+	go kubernetesClient.WatchSecrets(ctx, kubernetes.Secret{smtpLabel, smtpCh})
+	receiverLoop(ctx, kubernetesClient.Clientset, rClient,
 		alertCh, alertTargetCh, smtpCh)
 
 	return nil
 }
 
-func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *kapacitor.Client,
+func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient resources.Resources,
 	alertCh, alertTargetCh <-chan kubernetes.ConfigMapUpdate, smtpCh <-chan kubernetes.SecretUpdate) {
 	for {
 		select {
@@ -81,32 +87,38 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := createAlert(kClient, spec, log); err != nil {
-					log.Warnf("failed to create alert from spec %s: %v", spec, trace.DebugReport(err))
+				if err := createAlert(rClient, spec, log); err != nil {
+					log.Warnf("Failed to create alert from spec %s: %v.", spec, trace.DebugReport(err))
+				}
+			case watch.Deleted:
+				if err := deleteAlert(rClient, spec, log); err != nil {
+					log.Warnf("Failed to delete alert from spec %s: %v.", spec, trace.DebugReport(err))
 				}
 			}
 		case update := <-smtpCh:
 			log := log.WithField("secret", update.ResourceUpdate.Meta())
 			spec := update.Data[constants.ResourceSpecKey]
-			client := kubeClient.Secrets(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateSMTPConfig(client, kClient, spec, log); err != nil {
-					log.Warnf("failed to update SMTP configuration from spec %s: %v", spec, trace.DebugReport(err))
+				if err := updateSMTPConfig(rClient, spec, log); err != nil {
+					log.Warnf("Failed to update SMTP configuration from spec %s: %v.", spec, trace.DebugReport(err))
+				}
+			case watch.Deleted:
+				if err := deleteSMTPConfig(rClient, log); err != nil {
+					log.Warnf("Failed to delete SMTP configuration: %v.", trace.DebugReport(err))
 				}
 			}
 		case update := <-alertTargetCh:
 			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			spec := []byte(update.Data[constants.ResourceSpecKey])
-			client := kubeClient.ConfigMaps(constants.MonitoringNamespace)
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := updateAlertTarget(client, kClient, spec, log); err != nil {
-					log.Warnf("failed to update alert target from spec %s: %v", spec, trace.DebugReport(err))
+				if err := updateAlertTarget(rClient, spec, log); err != nil {
+					log.Warnf("Failed to update alert target from spec %s: %v.", spec, trace.DebugReport(err))
 				}
 			case watch.Deleted:
-				if err := deleteAlertTarget(kClient, log); err != nil {
-					log.Warnf("failed to delete alert target: %v", trace.DebugReport(err))
+				if err := deleteAlertTarget(rClient, log); err != nil {
+					log.Warnf("Failed to delete alert target: %v.", trace.DebugReport(err))
 				}
 			}
 		case <-ctx.Done():
@@ -115,7 +127,9 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, kClient *k
 	}
 }
 
-func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
+func createAlert(client resources.Resources, spec []byte, log *log.Entry) error {
+	log.Debugf("Creating alert from spec %s.", spec)
+
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -126,15 +140,34 @@ func createAlert(client *kapacitor.Client, spec []byte, log *log.Entry) error {
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	err = client.CreateAlert(alert.Name, alert.Spec.Formula)
+	err = client.UpsertAlert(resources.Alert{
+		CRDName:     alert.Name,
+		AlertName:   alert.Spec.AlertName,
+		GroupName:   alert.Spec.GroupName,
+		Formula:     alert.Spec.Formula,
+		Delay:       alert.Spec.Delay,
+		Labels:      alert.Spec.Labels,
+		Annotations: alert.Spec.Annotations,
+	})
 	if err != nil {
 		return trace.Wrap(err, "failed to create task")
 	}
 	return nil
 }
 
-func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
-	log.Debugf("update SMTP config from spec %s", spec)
+func deleteAlert(client resources.Resources, spec []byte, log *log.Entry) error {
+	log.Debugf("Deleting alert from spec %s.", spec)
+
+	var alert alert
+	if err := yaml.Unmarshal(spec, &alert); err != nil {
+		return trace.Wrap(err)
+	}
+
+	return client.DeleteAlert(alert.Name)
+}
+
+func updateSMTPConfig(client resources.Resources, spec []byte, log *log.Entry) error {
+	log.Debugf("Updating SMTP config from spec: %s.", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -145,27 +178,12 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	portS := strconv.FormatInt(int64(config.Spec.Port), 10)
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.KapacitorSMTPSecret,
-			Namespace: constants.MonitoringNamespace,
-		},
-		Data: map[string][]byte{
-			"host": []byte(config.Spec.Host),
-			"port": []byte(portS),
-			"user": []byte(config.Spec.Username),
-			"pass": []byte(config.Spec.Password),
-		},
-	}
-
-	_, err = client.Update(secret)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	err = kClient.UpdateSMTPConfig(config.Spec.Host, config.Spec.Port, config.Spec.Username,
-		config.Spec.Password)
+	err = client.UpsertSMTPConfig(resources.SMTPConfig{
+		Host:     config.Spec.Host,
+		Port:     config.Spec.Port,
+		Username: config.Spec.Username,
+		Password: config.Spec.Password,
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -173,8 +191,13 @@ func updateSMTPConfig(client corev1.SecretInterface, kClient *kapacitor.Client, 
 	return nil
 }
 
-func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Client, spec []byte, log *log.Entry) error {
-	log.Debugf("update alert target from spec %s", spec)
+func deleteSMTPConfig(client resources.Resources, log *log.Entry) error {
+	log.Debug("Deleting SMTP config.")
+	return client.DeleteSMTPConfig()
+}
+
+func updateAlertTarget(client resources.Resources, spec []byte, log *log.Entry) error {
+	log.Debugf("Updating alert target from spec: %s.", spec)
 	if len(bytes.TrimSpace(spec)) == 0 {
 		return trace.NotFound("empty configuration")
 	}
@@ -185,23 +208,9 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 		return trace.Wrap(err, "failed to unmarshal %s", spec)
 	}
 
-	config := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.KapacitorAlertTargetConfigMap,
-			Namespace: constants.MonitoringNamespace,
-		},
-		Data: map[string]string{
-			"from": constants.KapacitorAlertFrom,
-			"to":   target.Spec.Email,
-		},
-	}
-
-	_, err = client.Update(config)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	err = kClient.UpdateAlertTarget(target.Spec.Email)
+	err = client.UpsertAlertTarget(resources.AlertTarget{
+		Email: target.Spec.Email,
+	})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -209,9 +218,9 @@ func updateAlertTarget(client corev1.ConfigMapInterface, kClient *kapacitor.Clie
 	return nil
 }
 
-func deleteAlertTarget(client *kapacitor.Client, log *log.Entry) error {
-	log.Debug("delete alert target")
-	return trace.Wrap(client.DeleteAlertTarget())
+func deleteAlertTarget(client resources.Resources, log *log.Entry) error {
+	log.Debug("Deleting alert target.")
+	return client.DeleteAlertTarget()
 }
 
 // alert defines the monitoring alert resource
@@ -243,8 +252,18 @@ type Metadata struct {
 
 // alertSpec defines a monitoring alert
 type alertSpec struct {
-	// Formula specifies the Kapacitor formula
+	// GroupName is the alerting rule group name.
+	GroupName string `json:"group_name" yaml:"group_name"`
+	// AlertName is the alerting rule name.
+	AlertName string `json:"alert_name" yaml:"alert_name"`
+	// Formula specifies the alert formula
 	Formula string `json:"formula" yaml:"formula"`
+	// Delay is an optional delay before alert triggers
+	Delay time.Duration `json:"duration" yaml:"duration"`
+	// Labels is the alerting rule labels.
+	Labels map[string]string `json:"labels"`
+	// Annotations is the alerting rule annotations.
+	Annotations map[string]string `json:"annotations"`
 }
 
 // smtpConfigSpec defines a SMTP configuration

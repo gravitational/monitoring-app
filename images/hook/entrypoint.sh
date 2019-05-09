@@ -37,38 +37,20 @@ if [ $1 = "update" ]; then
         rig delete deployments/kapacitor --resource-namespace=$namespace --force
 
         echo "---> Deleting old secrets"
-        rig delete secrets/grafana --resource-namespace=$namespace --force
-        rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
+        for secret in grafana grafana-influxdb-creds smtp-configuration
+        do
+            rig delete secrets/$secret --resource-namespace=$namespace --force
+        done
 
         echo "---> Deleting old configmaps"
-        for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default
+        for configmap in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default alerting-addresses
         do
-            rig delete configmaps/$cfm --resource-namespace=$namespace --force
+            rig delete configmaps/$configmap --resource-namespace=$namespace --force
         done
     done
 
-    echo  "---> Moving smtp-cofiguration secret to monitoring namespace"
-    if ! /opt/bin/kubectl --namespace=monitoring get secret smtp-configuration > /dev/null 2>&1; then
-        if /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration > /dev/null 2>&1; then
-            /opt/bin/kubectl --namespace=kube-system get secret smtp-configuration --export=true -o json | \
-                jq '.metadata.namespace = "monitoring"' > /tmp/resource.json
-            rig upsert -f /tmp/resource.json --debug
-            rig delete secrets/smtp-configuration --resource-namespace=kube-system --force
-        fi
-    fi
-
-    echo  "---> Moving alerting-addresses configmap to monitoring namespace"
-    if ! /opt/bin/kubectl --namespace=monitoring get configmap alerting-addresses > /dev/null 2>&1; then
-        if /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses > /dev/null 2>&1; then
-            /opt/bin/kubectl --namespace=kube-system get configmap alerting-addresses --export=true -o json | \
-                jq '.metadata.namespace = "monitoring"' > /tmp/resource.json
-            rig upsert -f /tmp/resource.json --debug
-            rig delete configmaps/alerting-addresses --resource-namespace=kube-system --force
-        fi
-    fi
-
     echo "---> Creating or updating resources"
-    for name in security smtp grafana metrics-server alerts kube-state-metrics
+    for name in watcher security grafana metrics-server kube-state-metrics
     do
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done

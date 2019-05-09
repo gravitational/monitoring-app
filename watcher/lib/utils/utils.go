@@ -39,7 +39,7 @@ func OneOf(value string, values []string) bool {
 // APIClient defines generic interface for an API client
 type APIClient interface {
 	// Health checks the API readiness
-	Health() error
+	Health(context.Context) error
 }
 
 // WaitForAPI spins until the API can be reached successfully or the provided context is cancelled
@@ -47,7 +47,7 @@ func WaitForAPI(ctx context.Context, client APIClient) (err error) {
 	for {
 		select {
 		case <-time.After(constants.PollInterval):
-			err = client.Health()
+			err = client.Health(ctx)
 			if err != nil {
 				log.Infof("API is not ready: %v", trace.DebugReport(err))
 			} else {

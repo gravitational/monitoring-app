@@ -7,7 +7,7 @@ do
     head -n -6 $file | /opt/bin/kubectl apply -f -
 done
 
-for name in security smtp grafana
+for name in security grafana watcher
 do
     /opt/bin/kubectl create -f /var/lib/gravity/resources/${name}.yaml
 done

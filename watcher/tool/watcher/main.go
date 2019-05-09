@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -41,10 +42,8 @@ func main() {
 	switch mode {
 	case constants.ModeDashboards:
 		err = runDashboardsWatcher(client)
-	case constants.ModeRollups:
-		err = runRollupsWatcher(client)
 	case constants.ModeAlerts:
-		err = runAlertsWatcher(client)
+		err = runAlertsWatcher(context.Background(), client)
 	default:
 		fmt.Printf("ERROR: unknown mode %q\n", mode)
 		os.Exit(255)
