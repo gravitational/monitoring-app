@@ -39,6 +39,9 @@ if [ $1 = "update" ]; then
         rig delete configmaps/$configmap --resource-namespace=monitoring --force
     done
 
+    echo "---> Creating monitoring namespace"
+    rig upsert -f /var/lib/gravity/resources/namespace.yaml --force
+
     for file in /var/lib/gravity/resources/crds/*
     do
         rig upsert -f $file --debug
