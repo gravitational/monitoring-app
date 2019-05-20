@@ -67,10 +67,10 @@ spec:
             port: http
         resources:
           limits:
-            cpu: 200m
+            cpu: 100m
             memory: 200Mi
           requests:
-            cpu: 100m
+            cpu: 20m
             memory: 100Mi
         volumeMounts:
         - mountPath: /etc/grafana/cfg
@@ -113,6 +113,13 @@ spec:
         image: watcher:latest
         args:
           - --mode=dashboards
+        resources:
+          limits:
+            cpu: 10m
+            memory: 50Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
         env:
           - name: GRAFANA_USERNAME
             valueFrom:

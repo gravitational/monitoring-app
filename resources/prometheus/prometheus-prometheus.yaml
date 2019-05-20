@@ -33,14 +33,18 @@ spec:
   retention: 30d
   affinity:
     podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          topologyKey: kubernetes.io/hostname
-          labelSelector:
-            matchLabels:
-              app: prometheus
-              prometheus: k8s
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: prometheus
+            operator: In
+            values:
+              - k8s
+          - key: app
+            operator: In
+            values:
+              - prometheus
+        topologyKey: kubernetes.io/hostname
   tolerations:
   - key: "gravitational.io/runlevel"
     value: system

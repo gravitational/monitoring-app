@@ -28,11 +28,11 @@ spec:
           name: http
         resources:
           limits:
-            cpu: 200m
-            memory: 200Mi
-          requests:
             cpu: 100m
             memory: 100Mi
+          requests:
+            cpu: 20m
+            memory: 50Mi
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

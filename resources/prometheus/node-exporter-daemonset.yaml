@@ -26,11 +26,11 @@ spec:
         name: node-exporter
         resources:
           limits:
-            cpu: 250m
-            memory: 180Mi
+            cpu: 100m
+            memory: 100Mi
           requests:
-            cpu: 102m
-            memory: 180Mi
+            cpu: 20m
+            memory: 40Mi
         volumeMounts:
         - mountPath: /host/proc
           name: proc
