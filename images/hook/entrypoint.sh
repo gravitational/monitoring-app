@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -xe
 
 echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 # note that rig does not take explicit changeset ID
@@ -11,56 +11,49 @@ if [ $1 = "update" ]; then
     echo "---> Starting update, changeset: $RIG_CHANGESET"
     rig cs delete --force -c cs/$RIG_CHANGESET
 
-    echo "---> Creating monitoring namespace"
-    /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
+    echo "---> Deleting old 'heapster' resources"
+    rig delete deployments/heapster --resource-namespace=monitoring --force
 
-    for namespace in kube-system monitoring
+    echo "---> Deleting old 'influxdb' resources"
+    rig delete deployments/influxdb --resource-namespace=monitoring --force
+
+    echo "---> Deleting old 'grafana' resources"
+    rig delete deployments/grafana --resource-namespace=monitoring --force
+
+    echo "---> Deleting old 'telegraf' resources"
+    rig delete deployments/telegraf --resource-namespace=monitoring --force
+    rig delete daemonsets/telegraf-node --resource-namespace=monitoring --force
+
+    echo "---> Deleting old deployment 'kapacitor'"
+    rig delete deployments/kapacitor --resource-namespace=monitoring --force
+
+    echo "---> Deleting old secrets"
+    for secret in grafana grafana-influxdb-creds smtp-configuration
     do
-        echo "---> Deleting resources in $namespace namespace"
-        echo "---> Deleting old 'heapster' resources"
-        rig delete deployments/heapster --resource-namespace=$namespace --force
+        rig delete secrets/$secret --resource-namespace=monitoring --force
+    done
 
-        echo "---> Deleting old 'influxdb' resources"
-        # Get node name where influxdb pod scheduled to patch deployment
-        # and reschedule the pod on the same node after update
-        NODE_NAME=$(kubectl --namespace=kube-system get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
-        rig delete deployments/influxdb --resource-namespace=$namespace --force
+    echo "---> Deleting old configmaps"
+    for configmap in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default alerting-addresses
+    do
+        rig delete configmaps/$configmap --resource-namespace=monitoring --force
+    done
 
-        echo "---> Deleting old 'grafana' resources"
-        rig delete deployments/grafana --resource-namespace=$namespace --force
+    echo "---> Creating monitoring namespace"
+    rig upsert -f /var/lib/gravity/resources/namespace.yaml --force
 
-        echo "---> Deleting old 'telegraf' resources"
-        rig delete deployments/telegraf --resource-namespace=$namespace --force
-        rig delete daemonsets/telegraf-node --resource-namespace=$namespace --force
-
-        echo "---> Deleting old deployment 'kapacitor'"
-        rig delete deployments/kapacitor --resource-namespace=$namespace --force
-
-        echo "---> Deleting old secrets"
-        for secret in grafana grafana-influxdb-creds smtp-configuration
-        do
-            rig delete secrets/$secret --resource-namespace=$namespace --force
-        done
-
-        echo "---> Deleting old configmaps"
-        for configmap in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default alerting-addresses
-        do
-            rig delete configmaps/$configmap --resource-namespace=$namespace --force
-        done
+    for file in /var/lib/gravity/resources/crds/*
+    do
+        rig upsert -f $file --debug
     done
 
     echo "---> Creating or updating resources"
-    for name in watcher security grafana metrics-server kube-state-metrics
+    for name in security grafana watcher
     do
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
-    for file in /var/lib/gravity/resources/crds/*
-    do
-        head -n -6 $file | /opt/bin/kubectl apply -f -
-    done
-
-    for file in /var/lib/gravity/resources/prometheus/*.yaml
+    for file in /var/lib/gravity/resources/prometheus/*
     do
         rig upsert -f $file --debug
     done
