@@ -40,7 +40,7 @@ if [ $1 = "update" ]; then
     done
 
     echo "---> Creating monitoring namespace"
-    rig upsert -f /var/lib/gravity/resources/namespace.yaml --force
+    rig upsert -f /var/lib/gravity/resources/namespace.yaml --debug
 
     for file in /var/lib/gravity/resources/crds/*
     do
