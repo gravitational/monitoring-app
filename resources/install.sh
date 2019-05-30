@@ -1,6 +1,6 @@
 #!/bin/sh
 
-/opt/bin/kubectl create -f /var/lib/gravity/resources/namespace.yaml
+/opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 
 for file in /var/lib/gravity/resources/crds/*
 do
@@ -9,7 +9,7 @@ done
 
 for name in security grafana watcher
 do
-    /opt/bin/kubectl create -f /var/lib/gravity/resources/${name}.yaml
+    /opt/bin/kubectl apply -f /var/lib/gravity/resources/${name}.yaml
 done
 
-/opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
+/opt/bin/kubectl apply -f /var/lib/gravity/resources/prometheus/
