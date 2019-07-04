@@ -24,7 +24,7 @@ if [ $1 = "update" ]; then
         # Get node name where influxdb pod scheduled to patch deployment
         # and reschedule the pod on the same node after update
         if kubectl --namespace=$namespace get deployment influxdb --ignore-not-found=false 2>/dev/null; then
-            NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
+            NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o go-template --template='{{(index .items 0).spec.nodeName}}')
         fi
         rig delete deployments/influxdb --resource-namespace=$namespace --force
 
@@ -94,7 +94,8 @@ if [ $1 = "update" ]; then
         rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
     done
 
-    read -r -d '' INFLUXDB_PATCH <<EOF
+    TMPFILE="$(mktemp)"
+    cat >$TMPFILE<<EOF
 spec:
   template:
     spec:
@@ -109,7 +110,8 @@ spec:
                 values:
                 - $NODE_NAME
 EOF
-    kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
+    kubectl --namespace=monitoring patch deployment influxdb -p "$(cat $TMPFILE)"
+    rm $TMPFILE
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug
