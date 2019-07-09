@@ -137,6 +137,10 @@ func (c *Client) ManageUsers(config Config) error {
 		log.WithField("query", query).Debug("User create query.")
 		response, err := c.client.Query(client_v2.NewQuery(query, "", ""))
 		if err != nil {
+			if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+				log.Info("Retention policy already exists with different attributes.")
+				continue
+			}
 			return trace.Wrap(err)
 		}
 
@@ -156,11 +160,6 @@ func (c *Client) ManageUsers(config Config) error {
 
 // CreateRollup creates a rollup query in the database
 func (c *Client) CreateRollup(r Rollup) error {
-	err := r.Check()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	query, err := r.buildCreateQuery()
 	if err != nil {
 		return trace.Wrap(err)
@@ -175,16 +174,17 @@ func (c *Client) CreateRollup(r Rollup) error {
 
 // DeleteRollup deletes a rollup query from the database
 func (c *Client) DeleteRollup(r Rollup) error {
-	err := r.Check()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
 	query, err := r.buildDeleteQuery()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	log.WithField("query", query).Info("Remove rollup.")
+
+	query, err = r.buildCreateQuery()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	log.WithField("query", query).Info("New rollup.")
 
 	if err = c.execQuery(query); err != nil {
 		return trace.Wrap(err)
@@ -225,7 +225,18 @@ func (c *Client) execQuery(query string) error {
 		return trace.Wrap(response.Error())
 	}
 
+	if err = c.execQuery(query); err != nil {
+		return trace.Wrap(err)
+	}
 	return nil
+}
+
+// ConvertInfluxDBError converts error from InfluxDB query results
+func ConvertInfluxDBError(err error) error {
+	if strings.Contains(err.Error(), "retention policy already exists") {
+		return trace.AlreadyExists(err.Error())
+	}
+	return err
 }
 
 const (

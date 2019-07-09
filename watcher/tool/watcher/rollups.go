@@ -26,22 +26,22 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/utils"
 
 	"github.com/gravitational/trace"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runRollupsWatcher(kubernetesClient *kubernetes.Client, config influxdb.Config) error {
-	influxDBClient, err := influxdb.NewClient(config)
+func runRollupsWatcher(ctx context.Context, influxDBConfig influxdb.Config, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
+	influxDBClient, err := influxdb.NewClient(influxDBConfig)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = utils.WaitForAPI(context.TODO(), influxDBClient)
+	err = utils.WaitForAPI(ctx, influxDBClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = influxDBClient.Setup(config)
+	err = influxDBClient.Setup(influxDBConfig)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -53,17 +53,17 @@ func runRollupsWatcher(kubernetesClient *kubernetes.Client, config influxdb.Conf
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
 	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
-	receiveAndManageRollups(context.TODO(), influxDBClient, ch)
+	receiveAndManageRollups(ctx, influxDBClient, ch, retryC)
 	return nil
 }
 
 // receiveAndManageRollups listens on the provided channel that receives new rollups data and creates,
 // updates or deletes them in/from InfluxDB using the provided client
-func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate) {
+func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate, retryC chan<- func() error) {
 	for {
 		select {
 		case update := <-ch:
-			log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
+			log := log.WithField("configmap", update.ResourceUpdate.Meta())
 			for _, v := range update.Data {
 				var rollups []influxdb.Rollup
 				err := json.Unmarshal([]byte(v), &rollups)
@@ -73,21 +73,57 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 				}
 
 				for _, rollup := range rollups {
+					if err := rollup.Check(); err != nil {
+						// Fail immediately on precondition violation
+						log.WithError(err).Warn("Failed to validate rollup.")
+						continue
+					}
+
 					switch update.EventType {
 					case watch.Added:
-						err := client.CreateRollup(rollup)
-						if err != nil {
-							log.Errorf("failed to create rollup %v: %v", rollup, trace.DebugReport(err))
+						handler := func() error {
+							return client.CreateRollup(rollup)
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to create rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
 						}
 					case watch.Deleted:
-						err := client.DeleteRollup(rollup)
-						if err != nil {
-							log.Errorf("failed to delete rollup %v: %v", rollup, trace.DebugReport(err))
+						handler := func() error {
+							return client.DeleteRollup(rollup)
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to delete rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
 						}
 					case watch.Modified:
-						err := client.UpdateRollup(rollup)
-						if err != nil {
-							log.Errorf("failed to alter rollup %v: %v", rollup, trace.DebugReport(err))
+						handler := func() error {
+							return client.UpdateRollup(rollup)
+						}
+						err := handler()
+						if err == nil {
+							// Success - no need to retry
+							break
+						}
+						log.WithError(err).Warnf("Failed to update rollup %v", rollup)
+						select {
+						case retryC <- handler:
+						// Queue handler on retry list
+						case <-ctx.Done():
 						}
 					}
 				}

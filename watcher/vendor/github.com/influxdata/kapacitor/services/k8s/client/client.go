@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"sync"
@@ -92,12 +93,22 @@ func NewConfigInCluster() (Config, error) {
 	t.RootCAs = caCertPool
 
 	config := Config{
-		URLs:      []string{"https://kubernetes"},
+		URLs:      []string{GetK8sHost()},
 		Namespace: string(namespaceBytes),
 		Token:     string(tokenBytes),
 		TLSConfig: t,
 	}
 	return config, nil
+}
+
+func GetK8sHost() string {
+	template := "https://%s"
+
+	if k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST"); k8sHost != "" {
+		return fmt.Sprintf(template, k8sHost)
+	}
+
+	return fmt.Sprintf(template, "kubernetes")
 }
 
 func New(c Config) (Client, error) {
@@ -113,6 +124,7 @@ func New(c Config) (Client, error) {
 		urls:   urls,
 		client: &http.Client{
 			Transport: &http.Transport{
+				Proxy:           http.ProxyFromEnvironment,
 				TLSClientConfig: c.TLSConfig,
 			},
 		},
@@ -157,6 +169,7 @@ func (c *httpClient) Update(new Config) error {
 	if old.TLSConfig != new.TLSConfig {
 		c.client = &http.Client{
 			Transport: &http.Transport{
+				Proxy:           http.ProxyFromEnvironment,
 				TLSClientConfig: new.TLSConfig,
 			},
 		}

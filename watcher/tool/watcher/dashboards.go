@@ -29,13 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runDashboardsWatcher(kubernetesClient *kubernetes.Client) error {
+func runDashboardsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
 	grafanaClient, err := grafana.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = utils.WaitForAPI(context.TODO(), grafanaClient)
+	err = utils.WaitForAPI(ctx, grafanaClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -46,14 +46,15 @@ func runDashboardsWatcher(kubernetesClient *kubernetes.Client) error {
 	}
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
-	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
+	go kubernetesClient.WatchConfigMaps(ctx, kubernetes.ConfigMap{label, ch})
+	receiveAndCreateDashboards(ctx, grafanaClient, ch, retryC)
 	return nil
 }
 
 // receiveAndCreateDashboards listens on the provided channel that receives new dashboards data and creates
 // them in Grafana using the provided client
-func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch <-chan kubernetes.ConfigMapUpdate) {
+func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client,
+	ch <-chan kubernetes.ConfigMapUpdate, retryC chan<- func() error) {
 	for {
 		select {
 		case update := <-ch:
@@ -61,19 +62,37 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client, ch 
 			case watch.Added, watch.Modified:
 				log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
-					err := client.CreateDashboard(dashboard)
-
-					if err != nil {
-						log.Errorf("failed to create dashboard %v: %v", dashboard, trace.DebugReport(err))
+					handler := func() error {
+						return client.CreateDashboard(dashboard)
+					}
+					err := handler()
+					if err == nil {
+						// Success - no need to retry
+						break
+					}
+					log.WithError(err).Warnf("failed to create dashboard %v", dashboard)
+					select {
+					case retryC <- handler:
+					// Queue handler on retry list
+					case <-ctx.Done():
 					}
 				}
 			case watch.Deleted:
 				log := logrus.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
-					err := client.DeleteDashboard(dashboard)
-
-					if err != nil {
-						log.Errorf("failed to delete dashboard %v: %v", dashboard, trace.DebugReport(err))
+					handler := func() error {
+						return client.DeleteDashboard(dashboard)
+					}
+					err := handler()
+					if err == nil {
+						// Success - no need to retry
+						break
+					}
+					log.WithError(err).Warnf("failed to delete dashboard %v", dashboard)
+					select {
+					case retryC <- handler:
+					// Queue handler on retry list
+					case <-ctx.Done():
 					}
 				}
 			}
