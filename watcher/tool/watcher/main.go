@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -32,7 +31,7 @@ import (
 	"github.com/gravitational/version"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
+	flag "github.com/spf13/pflag"
 )
 
 var (
@@ -123,7 +122,7 @@ func root(ccmd *cobra.Command, args []string) error {
 }
 
 // bindFlagEnv binds environment variables to command flags
-func bindFlagEnv(flagSet *pflag.FlagSet) {
+func bindFlagEnv(flagSet *flag.FlagSet) {
 	for env, flag := range envs {
 		cmdFlag := flagSet.Lookup(flag)
 		if cmdFlag != nil {
