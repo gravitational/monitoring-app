@@ -52,4 +52,4 @@ spec:
   additionalScrapeConfigs:
     name: prometheus-additional-scrape-configs
     key: additional-scrape-configs.yaml
-  version: v2.7.2
+  version: v2.11.0

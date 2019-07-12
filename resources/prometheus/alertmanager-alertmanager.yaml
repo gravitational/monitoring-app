@@ -40,4 +40,4 @@ spec:
   - key: "node-role.kubernetes.io/master"
     operator: "Exists"
     effect: "NoSchedule"
-  version: v0.16.2
+  version: v0.18.0
