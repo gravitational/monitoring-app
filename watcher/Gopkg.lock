@@ -102,20 +102,12 @@
   revision = "f39421c51f636f6a03a79a168aacc628e37a584b"
 
 [[projects]]
-  branch = "master"
-  digest = "1:82ef00d5d1dd4b8b3f61617df269eb149a899e0467d8774655d1575b1500bb9b"
+  digest = "1:c41b6e2c529404bc678dab59e17ddd3ea8b09f5a91893e2011aa459811a3af55"
   name = "github.com/gravitational/trace"
   packages = ["."]
   pruneopts = ""
-  revision = "5d6afe38af2b50a51fdf5c49714a628efbbb3161"
-
-[[projects]]
-  digest = "1:63aba57cb8f26c68f0f88cec195c4ed5521c4ab6b19a4745a868af704675eb13"
-  name = "github.com/gravitational/version"
-  packages = ["."]
-  pruneopts = ""
-  revision = "95d33ece5ce1a00844c874822496682f353f3003"
-  version = "0.0.2"
+  revision = "a5c40b57db7203332a073f20771214d0eeb2a168"
+  version = "1.1.7"
 
 [[projects]]
   branch = "master"
@@ -127,6 +119,14 @@
   ]
   pruneopts = ""
   revision = "3befbb6ad0cc97d4c25d851e9528915809e1a22f"
+
+[[projects]]
+  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  pruneopts = ""
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   digest = "1:d37bbe39de6cd00d9f5b59b992fe5173a68e8b1908308fd8dafe9e414da7ebf0"
@@ -229,6 +229,22 @@
   packages = ["."]
   pruneopts = ""
   revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
+  version = "v1.0.3"
+
+[[projects]]
+  digest = "1:0c63b3c7ad6d825a898f28cb854252a3b29d37700c68a117a977263f5ec94efe"
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  pruneopts = ""
+  revision = "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5"
+  version = "v0.0.5"
+
+[[projects]]
+  digest = "1:cbaf13cdbfef0e4734ed8a7504f57fe893d471d62a35b982bf6fb3f036449a66"
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  pruneopts = ""
+  revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
   version = "v1.0.3"
 
 [[projects]]
@@ -458,13 +474,13 @@
     "github.com/gosimple/slug",
     "github.com/gravitational/roundtrip",
     "github.com/gravitational/trace",
-    "github.com/gravitational/version",
     "github.com/influxdata/influxdb/client/v2",
     "github.com/influxdata/kapacitor/client/v1",
     "github.com/influxdata/kapacitor/pipeline",
     "github.com/influxdata/kapacitor/tick",
     "github.com/influxdata/kapacitor/tick/stateful",
     "github.com/sirupsen/logrus",
+    "github.com/spf13/cobra",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",

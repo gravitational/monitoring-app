@@ -18,33 +18,64 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
+	"github.com/gravitational/monitoring-app/watcher/lib/influxdb"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 
 	"github.com/gravitational/trace"
-	"github.com/gravitational/version"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 )
 
-func main() {
-	var mode string
-	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
-	ver := flag.Bool("version", false, "print version")
-	flag.Parse()
+var (
+	mode           string
+	debug          bool
+	influxDBConfig influxdb.Config
 
-	if *ver {
-		version.Print()
-		return
+	envs = map[string]string{
+		"INFLUXDB_ADMIN_USERNAME":    "influxdb-admin-username",
+		"INFLUXDB_ADMIN_PASSWORD":    "influxdb-admin-password",
+		"INFLUXDB_GRAFANA_USERNAME":  "influxdb-grafana-username",
+		"INFLUXDB_GRAFANA_PASSWORD":  "influxdb-grafana-password",
+		"INFLUXDB_TELEGRAF_USERNAME": "influxdb-telegraf-username",
+		"INFLUXDB_TELEGRAF_PASSWORD": "influxdb-telegraf-password",
 	}
 
+	rootCmd = &cobra.Command{
+		Use:   "watcher",
+		Short: "Utility to manage InfluxDB/Grafana/Alerts",
+		RunE:  root,
+	}
+)
+
+func init() {
+	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminPassword, "influxdb-admin-password", constants.InfluxDBAdminUser, "InfluxDB administrator password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaUser, "influxdb-grafana-username", constants.InfluxDBGrafanaUser, "InfluxDB grafana username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaPassword, "influxdb-grafana-password", constants.InfluxDBGrafanaUser, "InfluxDB grafana password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafUser, "influxdb-telegraf-username", constants.InfluxDBTelegrafUser, "InfluxDB telegraf username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafUser, "InfluxDB telegraf password")
+
+	bindFlagEnv(rootCmd.PersistentFlags())
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		log.Error(trace.DebugReport(err))
+		os.Exit(255)
+	}
+}
+
+func root(ccmd *cobra.Command, args []string) error {
 	client, err := kubernetes.NewClient()
 	if err != nil {
-		exitWithError(err)
+		return trace.Wrap(err)
 	}
 
 	ctx := context.TODO()
@@ -54,23 +85,18 @@ func main() {
 	case constants.ModeDashboards:
 		err = runDashboardsWatcher(ctx, client, retryC)
 	case constants.ModeRollups:
-		err = runRollupsWatcher(ctx, client, retryC)
+		err = runRollupsWatcher(ctx, client, influxDBConfig, retryC)
 	case constants.ModeAlerts:
 		err = runAlertsWatcher(ctx, client, retryC)
 	default:
-		fmt.Printf("ERROR: unknown mode %q\n", mode)
-		os.Exit(255)
+		return trace.Errorf("ERROR: unknown mode %q\n", mode)
 	}
 
 	if err != nil {
-		exitWithError(err)
+		return trace.Wrap(err)
 	}
-}
 
-func exitWithError(err error) {
-	log.Error(trace.DebugReport(err))
-	fmt.Printf("ERROR: %v\n", err.Error())
-	os.Exit(255)
+	return nil
 }
 
 func runRetryLoop(ctx context.Context) chan<- func() error {
@@ -98,4 +124,16 @@ func runRetryLoop(ctx context.Context) chan<- func() error {
 		}
 	}()
 	return retryC
+}
+
+// bindFlagEnv binds environment variables to command flags
+func bindFlagEnv(flagSet *flag.FlagSet) {
+	for env, flag := range envs {
+		cmdFlag := flagSet.Lookup(flag)
+		if cmdFlag != nil {
+			if value := os.Getenv(env); value != "" {
+				cmdFlag.Value.Set(value)
+			}
+		}
+	}
 }

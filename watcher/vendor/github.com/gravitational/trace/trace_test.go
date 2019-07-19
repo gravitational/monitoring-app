@@ -41,6 +41,8 @@ var _ = Suite(&TraceSuite{})
 func (s *TraceSuite) TestEmpty(c *C) {
 	c.Assert(DebugReport(nil), Equals, "")
 	c.Assert(UserMessage(nil), Equals, "")
+	c.Assert(UserMessageWithFields(nil), Equals, "")
+	c.Assert(GetFields(nil), DeepEquals, map[string]interface{}{})
 }
 
 func (s *TraceSuite) TestWrap(c *C) {
@@ -73,6 +75,28 @@ func (s *TraceSuite) TestWrapUserMessage(c *C) {
 	c.Assert(line(UserMessage(err)), Equals, "user message, user message 2")
 }
 
+func (s *TraceSuite) TestUserMessageWithFields(c *C) {
+	testErr := fmt.Errorf("description")
+	c.Assert(UserMessageWithFields(testErr), Equals, testErr.Error())
+
+	err := Wrap(testErr, "user message")
+	c.Assert(line(UserMessageWithFields(err)), Equals, "user message")
+
+	err.AddField("test_key", "test_value")
+	c.Assert(line(UserMessageWithFields(err)), Equals, "test_key=\"test_value\" user message")
+}
+
+func (s *TraceSuite) TestGetFields(c *C) {
+	testErr := fmt.Errorf("description")
+	c.Assert(GetFields(testErr), DeepEquals, map[string]interface{}{})
+
+	fields := map[string]interface{}{
+		"test_key": "test_value",
+	}
+	err := Wrap(testErr).AddFields(fields)
+	c.Assert(GetFields(err), DeepEquals, fields)
+}
+
 func (s *TraceSuite) TestWrapNil(c *C) {
 	err1 := Wrap(nil, "message: %v", "extra")
 	c.Assert(err1, IsNil)
@@ -96,14 +120,13 @@ func (s *TraceSuite) TestLogFormatter(c *C) {
 		log.SetFormatter(f)
 
 		// check case with global Infof
-		buf := &bytes.Buffer{}
-		log.SetOutput(buf)
+		var buf bytes.Buffer
+		log.SetOutput(&buf)
 		log.Infof("hello")
 		c.Assert(line(buf.String()), Matches, ".*trace_test.go.*")
 
 		// check case with embedded Infof
-		buf = &bytes.Buffer{}
-		log.SetOutput(buf)
+		buf.Reset()
 		log.WithFields(log.Fields{"a": "b"}).Infof("hello")
 		c.Assert(line(buf.String()), Matches, ".*trace_test.go.*")
 	}
@@ -409,7 +432,23 @@ func (s *TraceSuite) TestAggregates(c *C) {
 func (s *TraceSuite) TestErrorf(c *C) {
 	err := Errorf("error")
 	c.Assert(line(DebugReport(err)), Matches, "*.trace_test.go.*")
+	c.Assert(line(DebugReport(err)), Not(Matches), "*.Fields.*")
 	c.Assert(line(err.(*TraceErr).Message), Equals, "error")
+}
+
+func (s *TraceSuite) TestWithField(c *C) {
+	err := Wrap(Errorf("error")).AddField("testfield", true)
+	c.Assert(line(DebugReport(err)), Matches, "*.testfield.*")
+}
+
+func (s *TraceSuite) TestWithFields(c *C) {
+	err := Wrap(Errorf("error")).AddFields(map[string]interface{}{
+		"testfield1": true,
+		"testfield2": "value2",
+	})
+	c.Assert(line(DebugReport(err)), Matches, "*.Fields.*")
+	c.Assert(line(DebugReport(err)), Matches, "*.testfield1: true.*")
+	c.Assert(line(DebugReport(err)), Matches, "*.testfield2: value2.*")
 }
 
 func (s *TraceSuite) TestAggregateConvertsToCommonErrors(c *C) {

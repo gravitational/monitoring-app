@@ -48,7 +48,7 @@ build:
 # build-inside-container builds the "watcher" binary inside the buildbox
 #
 .PHONY: build-inside-container
-build-inside-container: tool/watcher/*.go
+build-inside-container:
 	GOOS=linux GOARCH=amd64 go build -ldflags "${VERSION_FLAGS} -w" -o $(BUILDDIR)/$(NAME) github.com/gravitational/monitoring-app/watcher/tool/watcher
 
 

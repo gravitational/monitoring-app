@@ -37,6 +37,38 @@ spec:
           runAsUser: -1
         args:
           - --mode=rollups
+          - --debug=true
+        env:
+          - name: INFLUXDB_ADMIN_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: influxdb
+                key: username
+          - name: INFLUXDB_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: influxdb
+                key: password
+          - name: INFLUXDB_GRAFANA_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: grafana-influxdb-creds
+                key: username
+          - name: INFLUXDB_GRAFANA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: grafana-influxdb-creds
+                key: password
+          - name: INFLUXDB_TELEGRAF_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: telegraf-influxdb-creds
+                key: username
+          - name: INFLUXDB_TELEGRAF_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: telegraf-influxdb-creds
+                key: password
       - name: influxdb
         image: monitoring-influxdb:latest
         command:

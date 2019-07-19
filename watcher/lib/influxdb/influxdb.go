@@ -27,20 +27,57 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Config is the configuration for InfluxDB
+type Config struct {
+	// InfluxDBAdminUser is the InfluxDB admin username
+	InfluxDBAdminUser string
+	// InfluxDBAdminPassword is the InfluxDB admin password
+	InfluxDBAdminPassword string
+	// InfluxDBGrafanaUser is the InfluxDB grafana username
+	InfluxDBGrafanaUser string
+	// InfluxDBGrafanaPassword is the InfluxDB grafana password
+	InfluxDBGrafanaPassword string
+	// InfluxDBTelegrafUser is the InfluxDB telegraf username
+	InfluxDBTelegrafUser string
+	// InfluxDBTelegrafPassword is the InfluxDB telegraf password
+	InfluxDBTelegrafPassword string
+}
+
 // Client is the InfluxDB API client
 type Client struct {
 	client client_v2.Client
 }
 
 // NewClient creates a new InfluxDB client
-func NewClient() (*Client, error) {
+func NewClient(config Config) (*Client, error) {
 	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
 		Addr:     constants.InfluxDBAPIAddress,
-		Username: constants.InfluxDBAdminUser,
-		Password: constants.InfluxDBAdminPassword,
+		Username: config.InfluxDBAdminUser,
+		Password: config.InfluxDBAdminPassword,
 	})
 	if err != nil {
 		return nil, trace.Wrap(err)
+	}
+
+	// check authentication
+	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		if trace.IsAccessDenied(ConvertInfluxDBError(response.Error())) {
+			// try root/root for backward compatibility
+			client, err = client_v2.NewHTTPClient(client_v2.HTTPConfig{
+				Addr:     constants.InfluxDBAPIAddress,
+				Username: constants.InfluxDBAdminUser,
+				Password: constants.InfluxDBAdminPassword,
+			})
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			return &Client{client: client}, nil
+		}
+		return nil, trace.Wrap(response.Error())
 	}
 
 	return &Client{client: client}, nil
@@ -58,46 +95,83 @@ func (c *Client) Health() error {
 
 // Setup populates empty InfluxDB database with default users and retention policies.
 // If retention policy exists then creation will be skipped.
-func (c *Client) Setup() error {
-	queries := []string{
-		fmt.Sprintf(createAdminQuery, constants.InfluxDBAdminUser, constants.InfluxDBAdminPassword),
-		fmt.Sprintf(createUserQuery, constants.InfluxDBGrafanaUser, constants.InfluxDBGrafanaPassword),
-		fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase),
-		fmt.Sprintf(grantReadQuery, constants.InfluxDBDatabase, constants.InfluxDBGrafanaUser),
+func (c *Client) Setup(config Config) error {
+	// create database for storing metrics from cluster
+	log.Infof("Creating database %s", constants.InfluxDBDatabase)
+	if err := c.execQuery(fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase)); err != nil {
+		return trace.Wrap(err, "failed ro create database %s", constants.InfluxDBDatabase)
 	}
-	for _, query := range queries {
-		log.WithField("query", query).Info("Setup users query.")
 
-		if err := c.execQuery(query); err != nil {
+	var users = map[string]string{
+		config.InfluxDBAdminUser:    config.InfluxDBAdminPassword,
+		config.InfluxDBGrafanaUser:  config.InfluxDBGrafanaPassword,
+		config.InfluxDBTelegrafUser: config.InfluxDBTelegrafPassword,
+	}
+
+	for user, password := range users {
+		var isAdmin bool
+		if user == config.InfluxDBAdminUser {
+			isAdmin = true
+		}
+		if err := c.UpsertUser(user, password, isAdmin); err != nil {
 			return trace.Wrap(err)
 		}
 	}
 
-	queries = []string{
-		fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy,
-			constants.InfluxDBDatabase, constants.DurationDefault) + " default",
-		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionMedium, constants.InfluxDBDatabase,
-			constants.DurationMedium),
-		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionLong, constants.InfluxDBDatabase,
-			constants.DurationLong),
+	var privileges = map[string]string{
+		config.InfluxDBGrafanaUser:  "read",
+		config.InfluxDBTelegrafUser: "write",
 	}
-	for _, query := range queries {
-		log.WithField("query", query).Info("Setup retention policies query.")
+	for user, grants := range privileges {
+		if err := c.GrantUserPrivileges(user, grants); err != nil {
+			return trace.Wrap(err)
+		}
+	}
 
-		err := c.execQuery(query)
-		if err != nil {
-			if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
-				log.Info("Retention policy already exists with different attributes.")
-				continue
+	if err := c.setupRetentionPolicies(); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+// UpsertUser create user if not exists in the database and updates its password if different
+func (c *Client) UpsertUser(user, password string, isAdmin bool) error {
+
+	query := fmt.Sprintf(createUserQuery, user, password)
+	if isAdmin {
+		query = fmt.Sprintf(createAdminQuery, user, password)
+	}
+	log.Infof("Creating user %s.", user)
+	err := c.execQuery(query)
+	if err != nil {
+		if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+			log.Info("User %s already exists with different password. Updating password...")
+			if err = c.execQuery(fmt.Sprintf(updatePasswordQuery, user, password)); err != nil {
+				return trace.Wrap(err, "failing update password for user %s", user)
 			}
-			return trace.Wrap(err)
+
 		}
+		return trace.Wrap(err, "failed ro create user %s", user)
+	}
+	return nil
+}
+
+// GrantUserPrivileges sets user privileges in the database
+func (c *Client) GrantUserPrivileges(user, privileges string) error {
+	query := fmt.Sprintf(grantPrivilegesQuery, privileges, user, constants.InfluxDBDatabase)
+	if err := c.execQuery(query); err != nil {
+		return trace.Wrap(err, "failed to grant privileges for user %s on database %s", user, constants.InfluxDBDatabase)
 	}
 	return nil
 }
 
 // CreateRollup creates a new rollup query in the database
 func (c *Client) CreateRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	query, err := r.buildCreateQuery()
 	if err != nil {
 		return trace.Wrap(err)
@@ -112,6 +186,11 @@ func (c *Client) CreateRollup(r Rollup) error {
 
 // DeleteRollup deletes a rollup query from the database
 func (c *Client) DeleteRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	query, err := r.buildDeleteQuery()
 	if err != nil {
 		return trace.Wrap(err)
@@ -126,6 +205,11 @@ func (c *Client) DeleteRollup(r Rollup) error {
 
 // UpdateRollup updates an existing rollup query or creates a new one in the database.
 func (c *Client) UpdateRollup(r Rollup) error {
+	err := r.Check()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	deleteQuery, err := r.buildDeleteQuery()
 	if err != nil {
 		return trace.Wrap(err)
@@ -155,10 +239,37 @@ func (c *Client) execQuery(query string) error {
 	return nil
 }
 
+func (c *Client) setupRetentionPolicies() error {
+	queries := []string{
+		fmt.Sprintf(createRetentionPolicyQuery, constants.InfluxDBRetentionPolicy,
+			constants.InfluxDBDatabase, constants.DurationDefault) + " default",
+		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionMedium, constants.InfluxDBDatabase,
+			constants.DurationMedium),
+		fmt.Sprintf(createRetentionPolicyQuery, constants.RetentionLong, constants.InfluxDBDatabase,
+			constants.DurationLong),
+	}
+	for _, query := range queries {
+		log.WithField("query", query).Info("Setup retention policies query.")
+
+		err := c.execQuery(query)
+		if err != nil {
+			if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+				log.Info("Retention policy already exists with different attributes. Skipping it.")
+				continue
+			}
+			return trace.Wrap(err)
+		}
+	}
+	return nil
+}
+
 // ConvertInfluxDBError converts error from InfluxDB query results
 func ConvertInfluxDBError(err error) error {
-	if strings.Contains(err.Error(), "retention policy already exists") {
+	if strings.Contains(err.Error(), "already exists") {
 		return trace.AlreadyExists(err.Error())
+	}
+	if strings.Contains(err.Error(), "authorization failed") {
+		return trace.AccessDenied(err.Error())
 	}
 	return err
 }
@@ -166,12 +277,16 @@ func ConvertInfluxDBError(err error) error {
 const (
 	// createAdminQuery is the InfluxDB query to create admin user
 	createAdminQuery = "create user %v with password '%v' with all privileges"
+	// updatePasswordQuery is the InfluxDB query to update password for the user
+	updatePasswordQuery = "set password for %v = '%v'"
 	// createUserQuery is the InfluxDB query to create a non-privileged user
 	createUserQuery = "create user %v with password '%v'"
-	// grantReadQuery is the InfluxDB query to grant read privileges on a database to a user
-	grantReadQuery = "grant read on %q to %v"
+	// grantPrivilegesQuery is the InfluxDB query to grant privileges on a database to a user
+	grantPrivilegesQuery = "grant %v on %q to %v"
 	// createDatabaseQuery is the InfluxDB query to create a database
 	createDatabaseQuery = "create database %q"
 	// createRetentionPolicyQuery is the InfluxDB query to create a retention policy
 	createRetentionPolicyQuery = "create retention policy %q on %q duration %v replication 1"
+	// checkAuthenticationQuery is the simple query to check that authentication was successful
+	checkAuthenticationQuery = "show databases"
 )

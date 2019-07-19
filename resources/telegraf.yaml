@@ -35,6 +35,17 @@ spec:
       containers:
       - name: telegraf
         image: monitoring-telegraf:latest
+        env:
+          - name: INFLUXDB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: influxdb
+                key: username
+          - name: INFLUXDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: influxdb
+                key: password
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -74,6 +85,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: INFLUXDB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb
+                  key: username
+            - name: INFLUXDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb
+                  key: password
           resources:
             limits:
               memory: "100Mi"
