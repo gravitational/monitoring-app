@@ -47,9 +47,10 @@ var (
 	}
 
 	rootCmd = &cobra.Command{
-		Use:   "watcher",
-		Short: "Utility to manage InfluxDB/Grafana/Alerts",
-		RunE:  root,
+		Use:          "watcher",
+		Short:        "Utility to manage InfluxDB/Grafana/Alerts",
+		SilenceUsage: true,
+		RunE:         root,
 	}
 )
 

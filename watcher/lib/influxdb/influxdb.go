@@ -50,6 +50,7 @@ type Client struct {
 
 // NewClient creates a new InfluxDB client
 func NewClient(config Config) (*Client, error) {
+	log.Info("Initializing client.")
 	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
 		Addr:     constants.InfluxDBAPIAddress,
 		Username: config.InfluxDBAdminUser,
@@ -65,19 +66,20 @@ func NewClient(config Config) (*Client, error) {
 		return nil, trace.Wrap(err)
 	}
 	if response.Error() != nil {
-		if trace.IsAccessDenied(ConvertInfluxDBError(response.Error())) {
-			// try root/root for backward compatibility
-			client, err = client_v2.NewHTTPClient(client_v2.HTTPConfig{
-				Addr:     constants.InfluxDBAPIAddress,
-				Username: constants.InfluxDBAdminUser,
-				Password: constants.InfluxDBAdminPassword,
-			})
+		if trace.IsNotFound(ConvertInfluxDBError(response.Error())) {
+			if err := createAdminUser(client, config); err != nil {
+				return nil, trace.Wrap(err)
+			}
+		} else if trace.IsAccessDenied(ConvertInfluxDBError(response.Error())) {
+			// try default root/root for backward compatibility
+			client, err := backwardCompatibleInfluxDBClient(config)
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}
-			return &Client{client: client}, nil
+			return &Client{client: *client}, nil
+		} else {
+			return nil, trace.Wrap(response.Error())
 		}
-		return nil, trace.Wrap(response.Error())
 	}
 
 	return &Client{client: client}, nil
@@ -99,21 +101,16 @@ func (c *Client) Setup(config Config) error {
 	// create database for storing metrics from cluster
 	log.Infof("Creating database %s", constants.InfluxDBDatabase)
 	if err := c.execQuery(fmt.Sprintf(createDatabaseQuery, constants.InfluxDBDatabase)); err != nil {
-		return trace.Wrap(err, "failed ro create database %s", constants.InfluxDBDatabase)
+		return trace.Wrap(err, "failed to create database %s", constants.InfluxDBDatabase)
 	}
 
 	var users = map[string]string{
-		config.InfluxDBAdminUser:    config.InfluxDBAdminPassword,
 		config.InfluxDBGrafanaUser:  config.InfluxDBGrafanaPassword,
 		config.InfluxDBTelegrafUser: config.InfluxDBTelegrafPassword,
 	}
 
 	for user, password := range users {
-		var isAdmin bool
-		if user == config.InfluxDBAdminUser {
-			isAdmin = true
-		}
-		if err := c.UpsertUser(user, password, isAdmin); err != nil {
+		if err := c.UpsertUser(user, password); err != nil {
 			return trace.Wrap(err)
 		}
 	}
@@ -135,30 +132,27 @@ func (c *Client) Setup(config Config) error {
 }
 
 // UpsertUser create user if not exists in the database and updates its password if different
-func (c *Client) UpsertUser(user, password string, isAdmin bool) error {
-
+func (c *Client) UpsertUser(user, password string) error {
 	query := fmt.Sprintf(createUserQuery, user, password)
-	if isAdmin {
-		query = fmt.Sprintf(createAdminQuery, user, password)
-	}
 	log.Infof("Creating user %s.", user)
+
 	err := c.execQuery(query)
 	if err != nil {
 		if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
-			log.Info("User %s already exists with different password. Updating password...")
+			log.Infof("User %s already exists with different password. Updating password...", user)
 			if err = c.execQuery(fmt.Sprintf(updatePasswordQuery, user, password)); err != nil {
-				return trace.Wrap(err, "failing update password for user %s", user)
+				return trace.Wrap(err, "failed to update password for user %s", user)
 			}
 
 		}
-		return trace.Wrap(err, "failed ro create user %s", user)
+		return trace.Wrap(err, "failed to create user %s", user)
 	}
 	return nil
 }
 
 // GrantUserPrivileges sets user privileges in the database
 func (c *Client) GrantUserPrivileges(user, privileges string) error {
-	query := fmt.Sprintf(grantPrivilegesQuery, privileges, user, constants.InfluxDBDatabase)
+	query := fmt.Sprintf(grantPrivilegesQuery, privileges, constants.InfluxDBDatabase, user)
 	if err := c.execQuery(query); err != nil {
 		return trace.Wrap(err, "failed to grant privileges for user %s on database %s", user, constants.InfluxDBDatabase)
 	}
@@ -271,7 +265,45 @@ func ConvertInfluxDBError(err error) error {
 	if strings.Contains(err.Error(), "authorization failed") {
 		return trace.AccessDenied(err.Error())
 	}
+	if strings.Contains(err.Error(), "create admin user first or disable authentication") {
+		return trace.NotFound(err.Error())
+	}
 	return err
+}
+
+func backwardCompatibleInfluxDBClient(config Config) (*client_v2.Client, error) {
+	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
+		Addr:     constants.InfluxDBAPIAddress,
+		Username: constants.InfluxDBAdminUser,
+		Password: constants.InfluxDBAdminPassword,
+	})
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		log.Errorf("Failed to authorize with user %v and default user. Probably password was changed in influxdb secret.", config.InfluxDBAdminUser)
+		return nil, trace.Wrap(response.Error())
+	}
+
+	return &client, nil
+}
+
+func createAdminUser(client client_v2.Client, config Config) error {
+	log.Infof("Creating admin user %v", config.InfluxDBAdminUser)
+	query := fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword)
+	response, err := client.Query(client_v2.NewQuery(query, "", ""))
+	if err != nil {
+		return trace.Wrap(err, "failed to create admin user")
+	}
+	if response.Error() != nil {
+		return trace.Wrap(response.Error(), "failed to create admin user")
+	}
+	return nil
 }
 
 const (
