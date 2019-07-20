@@ -39,12 +39,12 @@ spec:
           - name: INFLUXDB_USERNAME
             valueFrom:
               secretKeyRef:
-                name: influxdb
+                name: telegraf-influxdb-creds
                 key: username
           - name: INFLUXDB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: influxdb
+                name: telegraf-influxdb-creds
                 key: password
 ---
 apiVersion: extensions/v1beta1
@@ -88,12 +88,12 @@ spec:
             - name: INFLUXDB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: influxdb
+                  name: telegraf-influxdb-creds
                   key: username
             - name: INFLUXDB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: influxdb
+                  name: telegraf-influxdb-creds
                   key: password
           resources:
             limits:
