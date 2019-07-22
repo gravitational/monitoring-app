@@ -27,6 +27,9 @@ if [ $1 = "update" ]; then
     echo "---> Deleting old deployment 'kapacitor'"
     rig delete deployments/kapacitor --resource-namespace=monitoring --force
 
+    echo "---> Deleting old 'kube-state-metrics' resources"
+    rig delete daemonsets/kube-state-metrics --resource-namespace=monitoring --force
+
     echo "---> Deleting old secrets"
     for secret in grafana grafana-influxdb-creds smtp-configuration
     do
