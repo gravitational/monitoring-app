@@ -13,3 +13,4 @@ do
 done
 
 /opt/bin/kubectl apply -f /var/lib/gravity/resources/prometheus/
+/opt/bin/kubectl apply -f /var/lib/gravity/resources/nethealth/
