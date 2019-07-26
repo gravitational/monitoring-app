@@ -109,6 +109,9 @@ spec:
         - mountPath: /grafana-dashboard-definitions/0/pods
           name: grafana-dashboard-pods
           readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/nethealth
+          name: grafana-dashboard-nethealth
+          readOnly: false
       - name: watcher
         image: watcher:latest
         args:
@@ -166,6 +169,9 @@ spec:
       - configMap:
           name: grafana-dashboard-pods
         name: grafana-dashboard-pods
+      - configMap:
+          name: grafana-dashboard-nethealth
+        name: grafana-dashboard-nethealth
 ---
 apiVersion: v1
 kind: Service
