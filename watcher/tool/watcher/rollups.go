@@ -30,18 +30,18 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runRollupsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, config influxdb.Config, retryC chan<- func() error) error {
-	influxDBClient, err := influxdb.NewClient(config)
+func runRollupsWatcher(watcherCfg watcherConfig, influxDBConfig influxdb.Config) error {
+	influxDBClient, err := influxdb.NewClient(influxDBConfig)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = utils.WaitForAPI(ctx, influxDBClient)
+	err = utils.WaitForAPI(watcherCfg.ctx, influxDBClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = influxDBClient.Setup(config)
+	err = influxDBClient.Setup(influxDBConfig)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -52,14 +52,14 @@ func runRollupsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client,
 	}
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
-	receiveAndManageRollups(ctx, influxDBClient, ch, retryC)
+	go watcherCfg.kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
+	receiveAndManageRollups(watcherCfg, influxDBClient, ch)
 	return nil
 }
 
 // receiveAndManageRollups listens on the provided channel that receives new rollups data and creates,
 // updates or deletes them in/from InfluxDB using the provided client
-func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate, retryC chan<- func() error) {
+func receiveAndManageRollups(config watcherConfig, client *influxdb.Client, ch <-chan kubernetes.ConfigMapUpdate) {
 	for {
 		select {
 		case update := <-ch:
@@ -91,9 +91,9 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						}
 						log.WithError(err).Warnf("Failed to create rollup %v", rollup)
 						select {
-						case retryC <- handler:
+						case config.retryC <- handler:
 						// Queue handler on retry list
-						case <-ctx.Done():
+						case <-config.ctx.Done():
 						}
 					case watch.Deleted:
 						handler := func() error {
@@ -106,9 +106,9 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						}
 						log.WithError(err).Warnf("Failed to delete rollup %v", rollup)
 						select {
-						case retryC <- handler:
+						case config.retryC <- handler:
 						// Queue handler on retry list
-						case <-ctx.Done():
+						case <-config.ctx.Done():
 						}
 					case watch.Modified:
 						handler := func() error {
@@ -121,14 +121,14 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						}
 						log.WithError(err).Warnf("Failed to update rollup %v", rollup)
 						select {
-						case retryC <- handler:
+						case config.retryC <- handler:
 						// Queue handler on retry list
-						case <-ctx.Done():
+						case <-config.ctx.Done():
 						}
 					}
 				}
 			}
-		case <-ctx.Done():
+		case <-config.ctx.Done():
 			return
 		}
 	}

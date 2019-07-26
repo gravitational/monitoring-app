@@ -54,6 +54,12 @@ var (
 	}
 )
 
+type watcherConfig struct {
+	ctx              context.Context
+	retryC           chan<- func() error
+	kubernetesClient *kubernetes.Client
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
@@ -68,7 +74,7 @@ func init() {
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Error(trace.DebugReport(err))
+		log.WithError(err).Error("Command failed.")
 		os.Exit(255)
 	}
 }
@@ -82,15 +88,22 @@ func root(ccmd *cobra.Command, args []string) error {
 	ctx := context.TODO()
 	retryC := runRetryLoop(ctx)
 
+	config := watcherConfig{
+		ctx:              ctx,
+		retryC:           retryC,
+		kubernetesClient: client,
+	}
+
 	switch mode {
 	case constants.ModeDashboards:
-		err = runDashboardsWatcher(ctx, client, retryC)
+		err = runDashboardsWatcher(config)
 	case constants.ModeRollups:
-		err = runRollupsWatcher(ctx, client, influxDBConfig, retryC)
+		err = runRollupsWatcher(config, influxDBConfig)
 	case constants.ModeAlerts:
-		err = runAlertsWatcher(ctx, client, retryC)
+		err = runAlertsWatcher(config)
 	default:
-		return trace.Errorf("ERROR: unknown mode %q\n", mode)
+		return trace.BadParameter("bad mode type. Should be %v, %v or %v", constants.ModeAlerts,
+			constants.ModeDashboards, constants.ModeRollups)
 	}
 
 	if err != nil {

@@ -35,7 +35,7 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
+func runAlertsWatcher(config watcherConfig) error {
 	kapacitorClient, err := kapacitor.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
@@ -64,10 +64,10 @@ func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, 
 	}
 	smtpCh := make(chan kubernetes.SecretUpdate)
 
-	go kubernetesClient.WatchConfigMaps(ctx, configmaps...)
-	go kubernetesClient.WatchSecrets(ctx, kubernetes.Secret{smtpLabel, smtpCh})
-	receiverLoop(ctx, kubernetesClient.Clientset, kapacitorClient,
-		alertCh, alertTargetCh, smtpCh, retryC)
+	go config.kubernetesClient.WatchConfigMaps(config.ctx, configmaps...)
+	go config.kubernetesClient.WatchSecrets(config.ctx, kubernetes.Secret{smtpLabel, smtpCh})
+	receiverLoop(config.ctx, config.kubernetesClient.Clientset, kapacitorClient,
+		alertCh, alertTargetCh, smtpCh, config.retryC)
 
 	return nil
 }

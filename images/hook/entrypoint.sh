@@ -20,8 +20,7 @@ if [ $1 = "update" ]; then
         rig delete deployments/heapster --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'influxdb' resources"
-        # Get node name where influxdb pod scheduled to patch deployment
-        # and reschedule the pod on the same node after update
+        # Patch influxdb deployment but keep the pod scheduled to the same node after the update
         if kubectl --namespace=$namespace get deployment influxdb --ignore-not-found=false 2>/dev/null; then
             NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o go-template --template='{{(index .items 0).spec.nodeName}}')
         fi
@@ -81,7 +80,6 @@ if [ $1 = "update" ]; then
 
     # Generate password for InfluxDB grafana user
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ')
-    sed -i s/grafanaInfluxDBPassword/$password/g /var/lib/gravity/resources/grafana.yaml
     sed -i s/cGRGY29ma2NHYllIekRZMUdadmg=/$(echo -n $password | /opt/bin/base64)/g /var/lib/gravity/resources/secrets.yaml
 
     # Generate password for InfluxDB telegraf user

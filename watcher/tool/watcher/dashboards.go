@@ -29,13 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func runDashboardsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, retryC chan<- func() error) error {
+func runDashboardsWatcher(config watcherConfig) error {
 	grafanaClient, err := grafana.NewClient()
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	err = utils.WaitForAPI(ctx, grafanaClient)
+	err = utils.WaitForAPI(config.ctx, grafanaClient)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -46,8 +46,8 @@ func runDashboardsWatcher(ctx context.Context, kubernetesClient *kubernetes.Clie
 	}
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
-	go kubernetesClient.WatchConfigMaps(ctx, kubernetes.ConfigMap{label, ch})
-	receiveAndCreateDashboards(ctx, grafanaClient, ch, retryC)
+	go config.kubernetesClient.WatchConfigMaps(config.ctx, kubernetes.ConfigMap{label, ch})
+	receiveAndCreateDashboards(config.ctx, grafanaClient, ch, config.retryC)
 	return nil
 }
 

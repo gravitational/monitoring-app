@@ -61,25 +61,9 @@ func NewClient(config Config) (*Client, error) {
 	}
 
 	// check authentication
-	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	if response.Error() != nil {
-		if trace.IsNotFound(ConvertInfluxDBError(response.Error())) {
-			if err := createAdminUser(client, config); err != nil {
-				return nil, trace.Wrap(err)
-			}
-		} else if trace.IsAccessDenied(ConvertInfluxDBError(response.Error())) {
-			// try default root/root for backward compatibility
-			client, err := backwardCompatibleInfluxDBClient(config)
-			if err != nil {
-				return nil, trace.Wrap(err)
-			}
-			return &Client{client: *client}, nil
-		} else {
-			return nil, trace.Wrap(response.Error())
-		}
+	err = authenticateClient(client)
+	if err == nil {
+		return &Client{client: client}, nil
 	}
 
 	return &Client{client: client}, nil
@@ -131,14 +115,14 @@ func (c *Client) Setup(config Config) error {
 	return nil
 }
 
-// UpsertUser create user if not exists in the database and updates its password if different
+// UpsertUser creates user if does not exist in the database and updates its password if different
 func (c *Client) UpsertUser(user, password string) error {
 	query := fmt.Sprintf(createUserQuery, user, password)
 	log.Infof("Creating user %s.", user)
 
 	err := c.execQuery(query)
 	if err != nil {
-		if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+		if trace.IsAlreadyExists(ConvertError(err)) {
 			log.Infof("User %s already exists with different password. Updating password...", user)
 			if err = c.execQuery(fmt.Sprintf(updatePasswordQuery, user, password)); err != nil {
 				return trace.Wrap(err, "failed to update password for user %s", user)
@@ -247,7 +231,7 @@ func (c *Client) setupRetentionPolicies() error {
 
 		err := c.execQuery(query)
 		if err != nil {
-			if trace.IsAlreadyExists(ConvertInfluxDBError(err)) {
+			if trace.IsAlreadyExists(ConvertError(err)) {
 				log.Info("Retention policy already exists with different attributes. Skipping it.")
 				continue
 			}
@@ -257,8 +241,8 @@ func (c *Client) setupRetentionPolicies() error {
 	return nil
 }
 
-// ConvertInfluxDBError converts error from InfluxDB query results
-func ConvertInfluxDBError(err error) error {
+// ConvertError converts error from InfluxDB query results
+func ConvertError(err error) error {
 	if strings.Contains(err.Error(), "already exists") {
 		return trace.AlreadyExists(err.Error())
 	}
@@ -271,7 +255,19 @@ func ConvertInfluxDBError(err error) error {
 	return err
 }
 
-func backwardCompatibleInfluxDBClient(config Config) (*client_v2.Client, error) {
+func authenticateClient(client client_v2.Client) error {
+	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		return trace.Wrap(ConvertError(response.Error()))
+	}
+
+	return nil
+}
+
+func backwardsCompatibleClient(config Config) (*client_v2.Client, error) {
 	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
 		Addr:     constants.InfluxDBAPIAddress,
 		Username: constants.InfluxDBAdminUser,
