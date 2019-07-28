@@ -115,7 +115,7 @@ func (c *Client) Setup(config Config) error {
 	return nil
 }
 
-// UpsertUser creates user if does not exist in the database and updates its password if different
+// UpsertUser creates user if one does not exist in the database and updates its password if different
 func (c *Client) UpsertUser(user, password string) error {
 	query := fmt.Sprintf(createUserQuery, user, password)
 	log.Infof("Creating user %s.", user)
