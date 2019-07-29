@@ -8521,6 +8521,7 @@ data:
       "links": [],
       "panels": [
         {
+          "datasource": "$datasource",
           "aliasColors": {},
           "bars": false,
           "dashLength": 10,
@@ -8614,6 +8615,7 @@ data:
           }
         },
         {
+          "datasource": "$datasource",
           "aliasColors": {},
           "bars": false,
           "cacheTimeout": null,
