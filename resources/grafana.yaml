@@ -8498,7 +8498,7 @@ metadata:
   labels:
     monitoring: dashboard
 data:
-  nethealth: |
+  nethealth.json: |
     {
       "annotations": {
         "list": [
