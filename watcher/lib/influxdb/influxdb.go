@@ -51,22 +51,19 @@ type Client struct {
 // NewClient creates a new InfluxDB client
 func NewClient(config Config) (*Client, error) {
 	log.Info("Initializing client.")
-	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
-		Addr:     constants.InfluxDBAPIAddress,
-		Username: config.InfluxDBAdminUser,
-		Password: config.InfluxDBAdminPassword,
-	})
+	// check authentication
+	client, err := authenticateClient(config)
+	if err == nil {
+		return &Client{client: *client}, nil
+	}
+	log.Errorf("Authentication client error: %v", err)
+	// try backwards compatible authentication
+	log.Info("Trying backwards compatible authentication...")
+	client, err = backwardsCompatibleClient(config)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
-	// check authentication
-	err = authenticateClient(client)
-	if err == nil {
-		return &Client{client: client}, nil
-	}
-
-	return &Client{client: client}, nil
+	return &Client{client: *client}, nil
 }
 
 // Health checks the API readiness
@@ -255,16 +252,31 @@ func ConvertError(err error) error {
 	return err
 }
 
-func authenticateClient(client client_v2.Client) error {
-	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
+func authenticateClient(config Config) (*client_v2.Client, error) {
+	client, err := client_v2.NewHTTPClient(client_v2.HTTPConfig{
+		Addr:     constants.InfluxDBAPIAddress,
+		Username: config.InfluxDBAdminUser,
+		Password: config.InfluxDBAdminPassword,
+	})
 	if err != nil {
-		return trace.Wrap(err)
-	}
-	if response.Error() != nil {
-		return trace.Wrap(ConvertError(response.Error()))
+		return nil, trace.Wrap(err)
 	}
 
-	return nil
+	response, err := client.Query(client_v2.NewQuery(checkAuthenticationQuery, "", ""))
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if response.Error() != nil {
+		if trace.IsNotFound(ConvertError(response.Error())) {
+			if err = createAdminUser(client, config); err != nil {
+				return nil, trace.Wrap(err)
+			}
+			return &client, nil
+		}
+		return nil, trace.Wrap(response.Error())
+	}
+
+	return &client, nil
 }
 
 func backwardsCompatibleClient(config Config) (*client_v2.Client, error) {
