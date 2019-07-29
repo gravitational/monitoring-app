@@ -46,6 +46,16 @@ spec:
               value: "kapacitor.monitoring.svc.cluster.local"
             - name: "KAPACITOR_INFLUXDB_0_URLS_0"
               value: "http://influxdb.monitoring.svc.cluster.local:8086"
+            - name: "KAPACITOR_INFLUXDB_0_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb
+                  key: username
+            - name: "KAPACITOR_INFLUXDB_0_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb
+                  key: password
             - name: "KAPACITOR_LOGGING_LEVEL"
               value: "INFO"
             - name: "KAPACITOR_KUBERNETES_ENABLED"
