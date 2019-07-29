@@ -8504,7 +8504,7 @@ data:
         "list": [
           {
             "builtIn": 1,
-            "datasource": "Prometheus",
+            "datasource": "prometheus",
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
@@ -8521,7 +8521,7 @@ data:
       "links": [],
       "panels": [
         {
-          "datasource": "Prometheus",
+          "datasource": "prometheus",
           "aliasColors": {},
           "bars": false,
           "dashLength": 10,
@@ -8615,7 +8615,7 @@ data:
           }
         },
         {
-          "datasource": "Prometheus",
+          "datasource": "prometheus",
           "aliasColors": {},
           "bars": false,
           "cacheTimeout": null,
