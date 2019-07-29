@@ -8504,7 +8504,7 @@ data:
         "list": [
           {
             "builtIn": 1,
-            "datasource": "-- Grafana --",
+            "datasource": "$datasource",
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
@@ -8662,20 +8662,6 @@ data:
               "intervalFactor": 1,
               "legendFormat": "{{peer_name}}",
               "refId": "A"
-            },
-            {
-              "expr": "sum(increase (nethealth_echo_timeout_total[1m])) by (node_name,peer_name)",
-              "format": "time_series",
-              "hide": true,
-              "intervalFactor": 1,
-              "refId": "B"
-            },
-            {
-              "expr": " sum(increase (nethealth_echo_request_total[1m])) by (node_name,peer_name)",
-              "format": "time_series",
-              "hide": true,
-              "intervalFactor": 1,
-              "refId": "C"
             }
           ],
           "thresholds": [],
