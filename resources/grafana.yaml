@@ -80,7 +80,7 @@ spec:
           - name: config
             mountPath: /etc/grafana/cfg
           - name: datasources
-            mountPath: /etc/grafana/provisioning/datasources
+            mountPath: /etc/grafana/provisioning-noenv/datasources
           - name: dashboards-cfg
             mountPath: /etc/grafana/provisioning/dashboards
           - name: dashboards
