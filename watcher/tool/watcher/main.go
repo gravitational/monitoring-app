@@ -44,6 +44,8 @@ var (
 		"INFLUXDB_GRAFANA_PASSWORD":  "influxdb-grafana-password",
 		"INFLUXDB_TELEGRAF_USERNAME": "influxdb-telegraf-username",
 		"INFLUXDB_TELEGRAF_PASSWORD": "influxdb-telegraf-password",
+		"INFLUXDB_HEAPSTER_USERNAME": "influxdb-heapster-username",
+		"INFLUXDB_HEAPSTER_PASSWORD": "influxdb-heapster-password",
 	}
 
 	rootCmd = &cobra.Command{
@@ -62,6 +64,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaPassword, "influxdb-grafana-password", constants.InfluxDBGrafanaUser, "InfluxDB grafana password")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafUser, "influxdb-telegraf-username", constants.InfluxDBTelegrafUser, "InfluxDB telegraf username")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafUser, "InfluxDB telegraf password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBHeapsterUser, "influxdb-heapster-username", constants.InfluxDBHeapsterUser, "InfluxDB heapster username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBHeapsterPassword, "influxdb-heapster-password", constants.InfluxDBHeapsterUser, "InfluxDB heapster password")
 
 	bindFlagEnv(rootCmd.PersistentFlags())
 }

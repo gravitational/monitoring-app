@@ -41,6 +41,10 @@ type Config struct {
 	InfluxDBTelegrafUser string
 	// InfluxDBTelegrafPassword is the InfluxDB telegraf password
 	InfluxDBTelegrafPassword string
+	// InfluxDBHeapsterUser is the InfluxDB heapster username
+	InfluxDBHeapsterUser string
+	// InfluxDBHeapsterPassword is the InfluxDB heapster password
+	InfluxDBHeapsterPassword string
 }
 
 // Client is the InfluxDB API client
@@ -88,6 +92,7 @@ func (c *Client) Setup(config Config) error {
 	var users = map[string]string{
 		config.InfluxDBGrafanaUser:  config.InfluxDBGrafanaPassword,
 		config.InfluxDBTelegrafUser: config.InfluxDBTelegrafPassword,
+		config.InfluxDBHeapsterUser: config.InfluxDBHeapsterPassword,
 	}
 
 	for user, password := range users {
@@ -99,6 +104,7 @@ func (c *Client) Setup(config Config) error {
 	var privileges = map[string]string{
 		config.InfluxDBGrafanaUser:  "read",
 		config.InfluxDBTelegrafUser: "write",
+		config.InfluxDBHeapsterUser: "write",
 	}
 	for user, grants := range privileges {
 		if err := c.GrantUserPrivileges(user, grants); err != nil {
