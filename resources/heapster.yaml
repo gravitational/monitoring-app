@@ -43,7 +43,7 @@ spec:
         - --source=kubernetes:https://kubernetes.default.svc.cluster.local?kubeletPort=10250&kubeletHttps=true&inClusterConfig=false&auth=/etc/kubernetes/kubectl.kubeconfig
         - --sink=influxdb:http://influxdb.monitoring.svc:8086?user=$(INFLUXDB_USERNAME)&pw=$(INFLUXDB_PASSWORD)
         env:
-          - name: INFLUXDB_PASSWORD
+          - name: INFLUXDB_USERNAME
             valueFrom:
               secretKeyRef:
                 name: heapster-influxdb-creds
