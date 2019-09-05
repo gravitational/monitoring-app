@@ -60,6 +60,14 @@ const (
 	InfluxDBGrafanaUser = "grafana"
 	// InfluxDBGrafanaPassword is the InfluxDB password for Grafana
 	InfluxDBGrafanaPassword = "grafana"
+	// InfluxDBTelegrafUser is the InfluxDB user for Telegraf
+	InfluxDBTelegrafUser = "telegraf"
+	// InfluxDBTelegrafPassword is the InfluxDB password for Telegraf
+	InfluxDBTelegrafPassword = "telegraf"
+	// InfluxDBHeapsterUser is the InfluxDB user for Heapster
+	InfluxDBHeapsterUser = "heapster"
+	// InfluxDBHeapsterPassword is the InfluxDB password for Heapster
+	InfluxDBHeapsterPassword = "heapster"
 
 	// InfluxDBRetentionPolicy is the name of the default retention policy
 	InfluxDBRetentionPolicy = "default"

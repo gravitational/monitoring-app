@@ -26,13 +26,13 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -173,7 +173,7 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 
 			switch configMap := event.Object.(type) {
 			case *v1.ConfigMap:
-				log.Infof("detected event %v for configmap %q", event.Type, configMap.Name)
+				log.Infof("Detected event %v for configmap %q", event.Type, configMap.Name)
 				config.RecvCh <- ConfigMapUpdate{
 					ResourceUpdate{event.Type, configMap.TypeMeta, configMap.ObjectMeta},
 					configMap.Data,
@@ -203,7 +203,7 @@ func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secr
 
 			switch secret := event.Object.(type) {
 			case *v1.Secret:
-				log.Infof("detected event %v for secret %q", event.Type, secret.Name)
+				log.Infof("Detected event %v for secret %q", event.Type, secret.Name)
 				config.RecvCh <- SecretUpdate{
 					ResourceUpdate{event.Type, secret.TypeMeta, secret.ObjectMeta},
 					secret.Data,
