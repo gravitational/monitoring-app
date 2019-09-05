@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
 echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
@@ -7,7 +7,6 @@ echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 if [ $1 = "update" ]; then
     echo "---> Checking: $RIG_CHANGESET"
     if rig status $RIG_CHANGESET --retry-attempts=1 --retry-period=1s; then exit 0; fi
-
     echo "---> Starting update, changeset: $RIG_CHANGESET"
     rig cs delete --force -c cs/$RIG_CHANGESET
 
@@ -21,9 +20,11 @@ if [ $1 = "update" ]; then
         rig delete deployments/heapster --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'influxdb' resources"
-        # Get node name where influxdb pod scheduled to patch deployment
-        # and reschedule the pod on the same node after update
-        NODE_NAME=$(kubectl --namespace=kube-system get pod -l app=monitoring,component=influxdb -o jsonpath='{.items[0].spec.nodeName}')
+        # Patch influxdb deployment but keep the pod scheduled to the same node after the update
+        if kubectl --namespace=$namespace get deployment influxdb --ignore-not-found=false 2>/dev/null; then
+            NODE_NAME=$(kubectl --namespace=$namespace get pod -l app=monitoring,component=influxdb -o go-template --template='{{(index .items 0).spec.nodeName}}')
+        fi
+
         rig delete deployments/influxdb --resource-namespace=$namespace --force
 
         echo "---> Deleting old 'grafana' resources"
@@ -39,6 +40,8 @@ if [ $1 = "update" ]; then
         echo "---> Deleting old secrets"
         rig delete secrets/grafana --resource-namespace=$namespace --force
         rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
+        rig delete secrets/telegraf-influxdb-creds --resource-namespace=$namespace --force
+        rig delete secrets/influxdb --resource-namespace=$namespace --force
 
         echo "---> Deleting old configmaps"
         for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default
@@ -67,17 +70,34 @@ if [ $1 = "update" ]; then
         fi
     fi
 
-    echo "---> Creating new 'grafana' password"
+    # Generate password for Grafana administrator
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
-    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
+    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/secrets.yaml
+
+    # Generate password for InfluxDB administrator
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+    sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/$password/g /var/lib/gravity/resources/secrets.yaml
+
+    # Generate password for InfluxDB grafana user
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ')
+    sed -i s/cGRGY29ma2NHYllIekRZMUdadmg=/$(echo -n $password | /opt/bin/base64)/g /var/lib/gravity/resources/secrets.yaml
+
+    # Generate password for InfluxDB telegraf user
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+    sed -i s/bllMNU1sdEREeHFSTlFxMEVsZkY=/$password/g /var/lib/gravity/resources/secrets.yaml
+
+    # Generate password for InfluxDB heapster user
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+    sed -i s/MTIxMzQyNDMyZHdkY2RldmdyZWc=/$password/g /var/lib/gravity/resources/secrets.yaml
 
     echo "---> Creating or updating resources"
-    for filename in security smtp influxdb grafana heapster kapacitor telegraf alerts
+    for filename in security secrets smtp influxdb grafana heapster kapacitor telegraf alerts
     do
         rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
     done
 
-    read -r -d '' INFLUXDB_PATCH <<EOF
+    TMPFILE="$(mktemp)"
+    cat >$TMPFILE<<EOF
 spec:
   template:
     spec:
@@ -92,7 +112,8 @@ spec:
                 values:
                 - $NODE_NAME
 EOF
-    kubectl --namespace=kube-system patch deployment influxdb --patch="$INFLUXDB_PATCH"
+    kubectl --namespace=monitoring patch deployment influxdb -p "$(cat $TMPFILE)"
+    rm $TMPFILE
 
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug

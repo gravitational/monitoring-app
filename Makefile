@@ -1,4 +1,5 @@
 export VERSION ?= $(shell git describe --tags)
+export COMMIT ?= $(shell git rev-parse HEAD)
 REPOSITORY := gravitational.io
 NAME := monitoring-app
 OPS_URL ?= https://opscenter.localhost.localdomain:32009
@@ -23,6 +24,8 @@ IMPORT_OPTIONS := --vendor \
 	--exclude="images" \
 	--exclude="Makefile" \
 	--exclude=".gitignore" \
+	--exclude="watcher" \
+	--ignore="watcher" \
 	--registry-url=leader.telekube.local:5000 \
 	--ops-url=$(OPS_URL) \
 	--repository=$(REPOSITORY) \

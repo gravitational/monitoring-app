@@ -66,7 +66,7 @@ spec:
               secretKeyRef:
                 name: grafana
                 key: password
-          - name: INFLUXDB_USER
+          - name: INFLUXDB_USERNAME
             valueFrom:
               secretKeyRef:
                 name: grafana-influxdb-creds
@@ -80,7 +80,7 @@ spec:
           - name: config
             mountPath: /etc/grafana/cfg
           - name: datasources
-            mountPath: /etc/grafana/provisioning/datasources
+            mountPath: /etc/grafana/provisioning-noenv/datasources
           - name: dashboards-cfg
             mountPath: /etc/grafana/provisioning/dashboards
           - name: dashboards
@@ -115,16 +115,6 @@ spec:
         - name: dashboards
           configMap:
             name: grafana-dashboards
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: grafana-influxdb-creds
-  namespace: monitoring
-data:
-  username: Z3JhZmFuYQ==
-  password: Z3JhZmFuYQ==
 ---
 apiVersion: v1
 kind: Service
@@ -369,8 +359,8 @@ data:
         type: influxdb
         access: proxy
         url: "http://influxdb.monitoring.svc:8086"
-        password: "grafana"
-        user: "grafana"
+        user: "$INFLUXDB_USERNAME"
+        password: "$INFLUXDB_PASSWORD"
         database: "k8s"
         isDefault: true
         version: 1
@@ -407,6 +397,7 @@ data:
         "editable": false,
         "hideControls": false,
         "id": null,
+        "uid": "sS2fy3FWk",
         "links": [],
         "originalTitle": "Cluster",
         "refresh": false,
@@ -3920,13 +3911,3 @@ data:
         "title": "Pods",
         "version": 14
     }
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: grafana
-  namespace: monitoring
-type: Opaque
-data:
-  username: YWRtaW4=
-  password: cGFzc3dvcmQtZ29lcy1oZXJlCg==
