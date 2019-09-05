@@ -4,12 +4,9 @@ import (
 	"errors"
 	"fmt"
 	goast "go/ast"
-	"log"
-	"os"
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -17,20 +14,6 @@ import (
 	"github.com/influxdata/kapacitor/tick/ast"
 	"github.com/influxdata/kapacitor/tick/stateful"
 )
-
-var mu sync.Mutex
-var logger = log.New(os.Stderr, "[tick] ", log.LstdFlags)
-
-func getLogger() *log.Logger {
-	mu.Lock()
-	defer mu.Unlock()
-	return logger
-}
-func SetLogger(l *log.Logger) {
-	mu.Lock()
-	defer mu.Unlock()
-	logger = l
-}
 
 type unboundFunc func(obj interface{}) (interface{}, error)
 
@@ -507,7 +490,7 @@ func evalFunc(f *ast.FunctionNode, scope *stateful.Scope, stck *stack, args []in
 				return nil, fmt.Errorf("line %d char %d: no global function %q defined", f.Line(), f.Char(), f.Func)
 			}
 			method := reflect.ValueOf(fnc)
-			o, err := callMethodReflection(method, args)
+			o, err := callMethodReflection(nil, method, args)
 			return o, wrapError(f, err)
 		}
 
@@ -649,7 +632,7 @@ func NewReflectionDescriber(obj interface{}, chainMethods map[string]reflect.Val
 
 	// Get all properties
 	var err error
-	r.properties, r.propertyMethods, err = getProperties(r.Desc(), rv)
+	r.properties, r.propertyMethods, err = getProperties(r.Desc(), rv, rv)
 	if err != nil {
 		return nil, err
 	}
@@ -670,7 +653,7 @@ func NewReflectionDescriber(obj interface{}, chainMethods map[string]reflect.Val
 // Recurses up anonymous fields.
 func getProperties(
 	desc string,
-	rv reflect.Value,
+	rv, exported reflect.Value,
 ) (
 	map[string]reflect.Value,
 	map[string]reflect.Value,
@@ -701,7 +684,12 @@ func getProperties(
 				// Skip nil fields
 				continue
 			}
-			props, propMethods, err := getProperties(fmt.Sprintf("%s.%s", desc, property.Name), anonValue)
+			// Preserve the exported field for finding methods.
+			anonExported := exported
+			if goast.IsExported(property.Name) {
+				anonExported = anonValue
+			}
+			props, propMethods, err := getProperties(fmt.Sprintf("%s.%s", desc, property.Name), anonValue, anonExported)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -721,9 +709,9 @@ func getProperties(
 		methodName := property.Tag.Get("tick")
 		if methodName != "" {
 			// Property is set via a property method.
-			method := rv.MethodByName(methodName)
-			if !method.IsValid() && rv.CanAddr() {
-				method = rv.Addr().MethodByName(methodName)
+			method := exported.MethodByName(methodName)
+			if !method.IsValid() && exported.CanAddr() {
+				method = exported.Addr().MethodByName(methodName)
 			}
 			if method.IsValid() {
 				propertyMethods[methodName] = method
@@ -795,23 +783,23 @@ func (r *ReflectionDescriber) Desc() string {
 // Using reflection check if the object has the method or field.
 // A field is a valid method because we can set it via reflection too.
 func (r *ReflectionDescriber) HasChainMethod(name string) bool {
-	name = capilatizeFirst(name)
+	name = capitalizeFirst(name)
 	_, ok := r.chainMethods[name]
 	return ok
 }
 
 func (r *ReflectionDescriber) CallChainMethod(name string, args ...interface{}) (interface{}, error) {
 	// Check for a method and call it
-	name = capilatizeFirst(name)
+	name = capitalizeFirst(name)
 	if method, ok := r.chainMethods[name]; ok {
-		return callMethodReflection(method, args)
+		return callMethodReflection(nil, method, args)
 	}
 	return nil, fmt.Errorf("unknown method %s on %T", name, r.obj)
 }
 
 // Using reflection check if the object has a field with the property name.
 func (r *ReflectionDescriber) HasProperty(name string) bool {
-	name = capilatizeFirst(name)
+	name = capitalizeFirst(name)
 	_, ok := r.propertyMethods[name]
 	if ok {
 		return ok
@@ -822,16 +810,16 @@ func (r *ReflectionDescriber) HasProperty(name string) bool {
 
 func (r *ReflectionDescriber) Property(name string) interface{} {
 	// Properties set by property methods cannot be read
-	name = capilatizeFirst(name)
+	name = capitalizeFirst(name)
 	property := r.properties[name]
 	return property.Interface()
 }
 
 func (r *ReflectionDescriber) SetProperty(name string, values ...interface{}) (interface{}, error) {
-	name = capilatizeFirst(name)
+	name = capitalizeFirst(name)
 	propertyMethod, ok := r.propertyMethods[name]
 	if ok {
-		return callMethodReflection(propertyMethod, values)
+		return callMethodReflection(r.obj, propertyMethod, values)
 	} else {
 		if len(values) == 1 {
 			property, ok := r.properties[name]
@@ -847,15 +835,18 @@ func (r *ReflectionDescriber) SetProperty(name string, values ...interface{}) (i
 	return nil, fmt.Errorf("no property %s on %T", name, r.obj)
 }
 
-func callMethodReflection(method reflect.Value, args []interface{}) (interface{}, error) {
+func callMethodReflection(obj interface{}, method reflect.Value, args []interface{}) (interface{}, error) {
 	rargs := make([]reflect.Value, len(args))
 	for i, arg := range args {
 		rargs[i] = reflect.ValueOf(arg)
 	}
 	ret := method.Call(rargs)
-	if l := len(ret); l == 1 {
+	switch l := len(ret); l {
+	case 0:
+		return obj, nil
+	case 1:
 		return ret[0].Interface(), nil
-	} else if l == 2 {
+	case 2:
 		if i := ret[1].Interface(); i != nil {
 			if err, ok := i.(error); !ok {
 				return nil, fmt.Errorf("second return value form function must be an 'error', got %T", i)
@@ -869,8 +860,8 @@ func callMethodReflection(method reflect.Value, args []interface{}) (interface{}
 	return nil, fmt.Errorf("function must return a single value or (interface{}, error)")
 }
 
-// Capilatizes the first rune in the string
-func capilatizeFirst(s string) string {
+// Capitalizes the first rune in the string
+func capitalizeFirst(s string) string {
 	r, n := utf8.DecodeRuneInString(s)
 	s = string(unicode.ToUpper(r)) + s[n:]
 	return s
