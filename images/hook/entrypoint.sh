@@ -86,6 +86,9 @@ if [ $1 = "update" ]; then
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
     sed -i s/bllMNU1sdEREeHFSTlFxMEVsZkY=/$password/g /var/lib/gravity/resources/secrets.yaml
 
+    # Generate password for InfluxDB heapster user
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+    sed -i s/MTIxMzQyNDMyZHdkY2RldmdyZWc=/$password/g /var/lib/gravity/resources/secrets.yaml
 
     echo "---> Creating or updating resources"
     for filename in security secrets smtp influxdb grafana heapster kapacitor telegraf alerts

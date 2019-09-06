@@ -68,6 +68,16 @@ spec:
               secretKeyRef:
                 name: telegraf-influxdb-creds
                 key: password
+          - name: INFLUXDB_HEAPSTER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: heapster-influxdb-creds
+                key: username
+          - name: INFLUXDB_HEAPSTER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: heapster-influxdb-creds
+                key: password
       - name: influxdb
         image: monitoring-influxdb:latest
         command:

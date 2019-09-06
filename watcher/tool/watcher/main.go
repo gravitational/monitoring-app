@@ -44,6 +44,8 @@ var (
 		"INFLUXDB_GRAFANA_PASSWORD":  "influxdb-grafana-password",
 		"INFLUXDB_TELEGRAF_USERNAME": "influxdb-telegraf-username",
 		"INFLUXDB_TELEGRAF_PASSWORD": "influxdb-telegraf-password",
+		"INFLUXDB_HEAPSTER_USERNAME": "influxdb-heapster-username",
+		"INFLUXDB_HEAPSTER_PASSWORD": "influxdb-heapster-password",
 	}
 
 	rootCmd = &cobra.Command{
@@ -57,11 +59,13 @@ var (
 func init() {
 	rootCmd.PersistentFlags().StringVar(&mode, "mode", "", fmt.Sprintf("Watcher mode: %v", constants.AllModes))
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminUser, "influxdb-admin-username", constants.InfluxDBAdminUser, "InfluxDB administrator username")
-	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminPassword, "influxdb-admin-password", constants.InfluxDBAdminUser, "InfluxDB administrator password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBAdminPassword, "influxdb-admin-password", constants.InfluxDBAdminPassword, "InfluxDB administrator password")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaUser, "influxdb-grafana-username", constants.InfluxDBGrafanaUser, "InfluxDB grafana username")
-	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaPassword, "influxdb-grafana-password", constants.InfluxDBGrafanaUser, "InfluxDB grafana password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBGrafanaPassword, "influxdb-grafana-password", constants.InfluxDBGrafanaPassword, "InfluxDB grafana password")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafUser, "influxdb-telegraf-username", constants.InfluxDBTelegrafUser, "InfluxDB telegraf username")
-	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafUser, "InfluxDB telegraf password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafPassword, "InfluxDB telegraf password")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBHeapsterUser, "influxdb-heapster-username", constants.InfluxDBHeapsterUser, "InfluxDB heapster username")
+	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBHeapsterPassword, "influxdb-heapster-password", constants.InfluxDBHeapsterPassword, "InfluxDB heapster password")
 
 	bindFlagEnv(rootCmd.PersistentFlags())
 }
