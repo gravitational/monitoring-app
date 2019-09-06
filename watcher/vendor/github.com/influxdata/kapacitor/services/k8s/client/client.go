@@ -9,11 +9,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 
+	khttp "github.com/influxdata/kapacitor/http"
 	"github.com/pkg/errors"
 )
 
@@ -92,12 +94,22 @@ func NewConfigInCluster() (Config, error) {
 	t.RootCAs = caCertPool
 
 	config := Config{
-		URLs:      []string{"https://kubernetes"},
+		URLs:      []string{GetK8sHost()},
 		Namespace: string(namespaceBytes),
 		Token:     string(tokenBytes),
 		TLSConfig: t,
 	}
 	return config, nil
+}
+
+func GetK8sHost() string {
+	template := "https://%s"
+
+	if k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST"); k8sHost != "" {
+		return fmt.Sprintf(template, k8sHost)
+	}
+
+	return fmt.Sprintf(template, "kubernetes")
 }
 
 func New(c Config) (Client, error) {
@@ -112,9 +124,7 @@ func New(c Config) (Client, error) {
 		config: c,
 		urls:   urls,
 		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: c.TLSConfig,
-			},
+			Transport: khttp.NewDefaultTransportWithTLS(c.TLSConfig),
 		},
 	}, nil
 }
@@ -156,9 +166,7 @@ func (c *httpClient) Update(new Config) error {
 
 	if old.TLSConfig != new.TLSConfig {
 		c.client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: new.TLSConfig,
-			},
+			Transport: khttp.NewDefaultTransportWithTLS(new.TLSConfig),
 		}
 	}
 	return nil

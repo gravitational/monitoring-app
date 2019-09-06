@@ -3,17 +3,21 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"path"
 	"strconv"
 	"time"
 
 	"github.com/influxdata/influxdb/influxql"
+	khttp "github.com/influxdata/kapacitor/http"
 	"github.com/pkg/errors"
 )
 
@@ -30,6 +34,7 @@ const (
 	basePreviewPath   = "/kapacitor/v1preview"
 	pingPath          = basePath + "/ping"
 	logLevelPath      = basePath + "/loglevel"
+	logsPath          = basePreviewPath + "/logs"
 	debugVarsPath     = basePath + "/debug/vars"
 	tasksPath         = basePath + "/tasks"
 	templatesPath     = basePath + "/templates"
@@ -42,11 +47,13 @@ const (
 	replayQueryPath   = basePath + "/replays/query"
 	configPath        = basePath + "/config"
 	serviceTestsPath  = basePath + "/service-tests"
-	alertsPath        = basePreviewPath + "/alerts"
-	handlersPath      = alertsPath + "/handlers"
+	alertsPath        = basePath + "/alerts"
 	topicsPath        = alertsPath + "/topics"
 	topicEventsPath   = "events"
 	topicHandlersPath = "handlers"
+	storagePath       = basePath + "/storage"
+	storesPath        = storagePath + "/stores"
+	backupPath        = storagePath + "/backup"
 )
 
 // HTTP configuration for connecting to Kapacitor
@@ -70,6 +77,10 @@ type Config struct {
 
 	// Optional credentials for authenticating with the server.
 	Credentials *Credentials
+
+	// Optional Transport https://golang.org/pkg/net/http/#RoundTripper
+	// If nil the default transport will be used
+	Transport http.RoundTripper
 }
 
 // AuthenticationMethod defines the type of authentication used.
@@ -115,6 +126,23 @@ func (c Credentials) Validate() error {
 	return nil
 }
 
+type localTransport struct {
+	h http.Handler
+}
+
+func (l *localTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	w := httptest.NewRecorder()
+	l.h.ServeHTTP(w, r)
+
+	return w.Result(), nil
+}
+
+func NewLocalTransport(h http.Handler) http.RoundTripper {
+	return &localTransport{
+		h: h,
+	}
+}
+
 // Basic HTTP client
 type Client struct {
 	url         *url.URL
@@ -145,20 +173,25 @@ func New(conf Config) (*Client, error) {
 		}
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
+	rt := conf.Transport
+	var tr *http.Transport
+
+	if rt == nil {
+		tr = khttp.NewDefaultTransportWithTLS(&tls.Config{
 			InsecureSkipVerify: conf.InsecureSkipVerify,
-		},
-	}
-	if conf.TLSConfig != nil {
-		tr.TLSClientConfig = conf.TLSConfig
+		})
+		if conf.TLSConfig != nil {
+			tr.TLSClientConfig = conf.TLSConfig
+		}
+
+		rt = tr
 	}
 	return &Client{
 		url:       u,
 		userAgent: conf.UserAgent,
 		httpClient: &http.Client{
 			Timeout:   conf.Timeout,
-			Transport: tr,
+			Transport: rt,
 		},
 		credentials: conf.Credentials,
 	}, nil
@@ -191,16 +224,17 @@ func (d DBRP) String() string {
 // Statistics about the execution of a task.
 type ExecutionStats struct {
 	// Summary stats about the entire task
-	TaskStats map[string]interface{} `json:"task-stats"`
+	TaskStats map[string]interface{} `json:"task-stats,omitempty"`
 	// Stats for each node in the task
-	NodeStats map[string]map[string]interface{} `json:"node-stats"`
+	NodeStats map[string]map[string]interface{} `json:"node-stats,omitempty"`
 }
 
 type TaskType int
 
 const (
-	StreamTask TaskType = 1
-	BatchTask  TaskType = 2
+	InvalidTask TaskType = 0
+	StreamTask  TaskType = 1
+	BatchTask   TaskType = 2
 )
 
 func (tt TaskType) MarshalText() ([]byte, error) {
@@ -209,6 +243,8 @@ func (tt TaskType) MarshalText() ([]byte, error) {
 		return []byte("stream"), nil
 	case BatchTask:
 		return []byte("batch"), nil
+	case InvalidTask:
+		return []byte("invalid"), nil
 	default:
 		return nil, fmt.Errorf("unknown TaskType %d", tt)
 	}
@@ -220,6 +256,8 @@ func (tt *TaskType) UnmarshalText(text []byte) error {
 		*tt = StreamTask
 	case "batch":
 		*tt = BatchTask
+	case "invalid":
+		*tt = InvalidTask
 	default:
 		return fmt.Errorf("unknown TaskType %s", s)
 	}
@@ -509,9 +547,9 @@ func (vs *Vars) UnmarshalJSON(b []byte) error {
 }
 
 type Var struct {
-	Type        VarType     `json:"type"`
-	Value       interface{} `json:"value"`
-	Description string      `json:"description"`
+	Type        VarType     `json:"type" yaml:"type"`
+	Value       interface{} `json:"value" yaml:"value"`
+	Description string      `json:"description" yaml:"description"`
 }
 
 // A Task plus its read-only attributes.
@@ -560,16 +598,17 @@ type Recording struct {
 
 // Information about a replay.
 type Replay struct {
-	Link          Link      `json:"link"`
-	ID            string    `json:"id"`
-	Task          string    `json:"task"`
-	Recording     string    `json:"recording"`
-	RecordingTime bool      `json:"recording-time"`
-	Clock         Clock     `json:"clock"`
-	Date          time.Time `json:"date"`
-	Error         string    `json:"error"`
-	Status        Status    `json:"status"`
-	Progress      float64   `json:"progress"`
+	Link           Link           `json:"link"`
+	ID             string         `json:"id"`
+	Task           string         `json:"task"`
+	Recording      string         `json:"recording"`
+	RecordingTime  bool           `json:"recording-time"`
+	Clock          Clock          `json:"clock"`
+	Date           time.Time      `json:"date"`
+	Error          string         `json:"error"`
+	Status         Status         `json:"status"`
+	Progress       float64        `json:"progress"`
+	ExecutionStats ExecutionStats `json:"stats,omitempty"`
 }
 
 type JSONOperation struct {
@@ -589,10 +628,7 @@ func (c *Client) BaseURL() url.URL {
 	return *c.url
 }
 
-// Perform the request.
-// If result is not nil the response body is JSON decoded into result.
-// Codes is a list of valid response codes.
-func (c *Client) Do(req *http.Request, result interface{}, codes ...int) (*http.Response, error) {
+func (c *Client) prepRequest(req *http.Request) error {
 	req.Header.Set("User-Agent", c.userAgent)
 	if c.credentials != nil {
 		switch c.credentials.Method {
@@ -601,8 +637,36 @@ func (c *Client) Do(req *http.Request, result interface{}, codes ...int) (*http.
 		case BearerAuthentication:
 			req.Header.Set("Authorization", "Bearer "+c.credentials.Token)
 		default:
-			return nil, errors.New("unknown authentication method set")
+			return errors.New("unknown authentication method set")
 		}
+	}
+	return nil
+}
+
+func (c *Client) decodeError(resp *http.Response) error {
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	type errResp struct {
+		Error string `json:"error"`
+	}
+	d := json.NewDecoder(bytes.NewReader(body))
+	rp := errResp{}
+	d.Decode(&rp)
+	if rp.Error != "" {
+		return errors.New(rp.Error)
+	}
+	return fmt.Errorf("invalid response: code %d: body: %s", resp.StatusCode, string(body))
+}
+
+// Perform the request.
+// If result is not nil the response body is JSON decoded into result.
+// Codes is a list of valid response codes.
+func (c *Client) Do(req *http.Request, result interface{}, codes ...int) (*http.Response, error) {
+	err := c.prepRequest(req)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -618,20 +682,7 @@ func (c *Client) Do(req *http.Request, result interface{}, codes ...int) (*http.
 		}
 	}
 	if !valid {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		type errResp struct {
-			Error string `json:"error"`
-		}
-		d := json.NewDecoder(bytes.NewReader(body))
-		rp := errResp{}
-		d.Decode(&rp)
-		if rp.Error != "" {
-			return nil, errors.New(rp.Error)
-		}
-		return nil, fmt.Errorf("invalid response: code %d: body: %s", resp.StatusCode, string(body))
+		return nil, c.decodeError(resp)
 	}
 	if result != nil {
 		d := json.NewDecoder(resp.Body)
@@ -641,6 +692,51 @@ func (c *Client) Do(req *http.Request, result interface{}, codes ...int) (*http.
 		}
 	}
 	return resp, nil
+}
+
+func (c *Client) Logs(ctx context.Context, w io.Writer, q map[string]string) error {
+	u := c.BaseURL()
+	u.Path = logsPath
+
+	qp := u.Query()
+	for k, v := range q {
+		qp.Add(k, v)
+	}
+	u.RawQuery = qp.Encode()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return err
+	}
+	req = req.WithContext(ctx)
+	err = c.prepRequest(req)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("bad status code %v", resp.StatusCode)
+	}
+
+	errCh := make(chan error, 1)
+	defer close(errCh)
+	go func() {
+		_, err := io.Copy(w, resp.Body)
+		errCh <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil
+	case err := <-errCh:
+		return err
+	}
+
 }
 
 // Ping the server for a response.
@@ -687,6 +783,10 @@ func (c *Client) ServiceTestLink(service string) Link {
 	return Link{Relation: Self, Href: path.Join(serviceTestsPath, service)}
 }
 
+func (c *Client) TopicLink(id string) Link {
+	return Link{Relation: Self, Href: path.Join(topicsPath, id)}
+}
+
 func (c *Client) TopicEventsLink(topic string) Link {
 	return Link{Relation: Self, Href: path.Join(topicsPath, topic, topicEventsPath)}
 }
@@ -697,22 +797,21 @@ func (c *Client) TopicEventLink(topic, event string) Link {
 func (c *Client) TopicHandlersLink(topic string) Link {
 	return Link{Relation: Self, Href: path.Join(topicsPath, topic, topicHandlersPath)}
 }
-
-func (c *Client) HandlerLink(id string) Link {
-	return Link{Relation: Self, Href: path.Join(handlersPath, id)}
+func (c *Client) TopicHandlerLink(topic, id string) Link {
+	return Link{Relation: Self, Href: path.Join(topicsPath, topic, topicHandlersPath, id)}
 }
-func (c *Client) TopicLink(id string) Link {
-	return Link{Relation: Self, Href: path.Join(topicsPath, id)}
+func (c *Client) StorageLink(name string) Link {
+	return Link{Relation: Self, Href: path.Join(storesPath, name)}
 }
 
 type CreateTaskOptions struct {
-	ID         string     `json:"id,omitempty"`
-	TemplateID string     `json:"template-id,omitempty"`
+	ID         string     `json:"id,omitempty" yaml:"id"`
+	TemplateID string     `json:"template-id,omitempty" yaml:"template-id"`
 	Type       TaskType   `json:"type,omitempty"`
-	DBRPs      []DBRP     `json:"dbrps,omitempty"`
+	DBRPs      []DBRP     `json:"dbrps,omitempty" yaml:"dbrps"`
 	TICKscript string     `json:"script,omitempty"`
 	Status     TaskStatus `json:"status,omitempty"`
-	Vars       Vars       `json:"vars,omitempty"`
+	Vars       Vars       `json:"vars,omitempty" yaml:"vars"`
 }
 
 // Create a new task.
@@ -740,13 +839,13 @@ func (c *Client) CreateTask(opt CreateTaskOptions) (Task, error) {
 }
 
 type UpdateTaskOptions struct {
-	ID         string     `json:"id,omitempty"`
-	TemplateID string     `json:"template-id,omitempty"`
+	ID         string     `json:"id,omitempty" yaml:"id"`
+	TemplateID string     `json:"template-id,omitempty" yaml:"template-id"`
 	Type       TaskType   `json:"type,omitempty"`
-	DBRPs      []DBRP     `json:"dbrps,omitempty"`
+	DBRPs      []DBRP     `json:"dbrps,omitempty" yaml:"dbrps"`
 	TICKscript string     `json:"script,omitempty"`
 	Status     TaskStatus `json:"status,omitempty"`
-	Vars       Vars       `json:"vars,omitempty"`
+	Vars       Vars       `json:"vars,omitempty" yaml:"vars"`
 }
 
 // Update an existing task.
@@ -1910,51 +2009,23 @@ func (c *Client) ListTopicEvents(link Link, opt *ListTopicEventsOptions) (TopicE
 }
 
 type TopicHandlers struct {
-	Link     Link      `json:"link"`
-	Topic    string    `json:"topic"`
-	Handlers []Handler `json:"handlers"`
+	Link     Link           `json:"link"`
+	Topic    string         `json:"topic"`
+	Handlers []TopicHandler `json:"handlers"`
 }
 
-// TopicHandlers returns the current state for events within a topic.
-func (c *Client) ListTopicHandlers(link Link) (TopicHandlers, error) {
-	t := TopicHandlers{}
-	if link.Href == "" {
-		return t, fmt.Errorf("invalid link %v", link)
-	}
-
-	u := *c.url
-	u.Path = link.Href
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return t, err
-	}
-
-	_, err = c.Do(req, &t, http.StatusOK)
-	return t, err
+type TopicHandler struct {
+	Link    Link                   `json:"link"`
+	ID      string                 `json:"id"`
+	Kind    string                 `json:"kind"`
+	Options map[string]interface{} `json:"options"`
+	Match   string                 `json:"match"`
 }
 
-type Handlers struct {
-	Link     Link      `json:"link"`
-	Handlers []Handler `json:"handlers"`
-}
-
-type Handler struct {
-	Link    Link            `json:"link"`
-	ID      string          `json:"id"`
-	Topics  []string        `json:"topics"`
-	Actions []HandlerAction `json:"actions"`
-}
-
-type HandlerAction struct {
-	Kind    string                 `json:"kind" yaml:"kind"`
-	Options map[string]interface{} `json:"options" yaml:"options"`
-}
-
-// Handler retrieves an alert handler.
+// TopicHandler retrieves an alert handler.
 // Errors if no handler exists.
-func (c *Client) Handler(link Link) (Handler, error) {
-	h := Handler{}
+func (c *Client) TopicHandler(link Link) (TopicHandler, error) {
+	h := TopicHandler{}
 	if link.Href == "" {
 		return h, fmt.Errorf("invalid link %v", link)
 	}
@@ -1971,39 +2042,41 @@ func (c *Client) Handler(link Link) (Handler, error) {
 	return h, err
 }
 
-type HandlerOptions struct {
-	ID      string          `json:"id" yaml:"id"`
-	Topics  []string        `json:"topics" yaml:"topics"`
-	Actions []HandlerAction `json:"actions" yaml:"actions"`
+type TopicHandlerOptions struct {
+	Topic   string                 `json:"topic" yaml:"topic"`
+	ID      string                 `json:"id" yaml:"id"`
+	Kind    string                 `json:"kind" yaml:"kind"`
+	Options map[string]interface{} `json:"options" yaml:"options"`
+	Match   string                 `json:"match" yaml:"match"`
 }
 
-// CreateHandler creates a new alert handler.
+// CreateTopicHandler creates a new alert handler.
 // Errors if the handler already exists.
-func (c *Client) CreateHandler(opt HandlerOptions) (Handler, error) {
+func (c *Client) CreateTopicHandler(link Link, opt TopicHandlerOptions) (TopicHandler, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	err := enc.Encode(opt)
 	if err != nil {
-		return Handler{}, err
+		return TopicHandler{}, err
 	}
 
 	u := *c.url
-	u.Path = handlersPath
+	u.Path = link.Href
 
 	req, err := http.NewRequest("POST", u.String(), &buf)
 	if err != nil {
-		return Handler{}, err
+		return TopicHandler{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	h := Handler{}
+	h := TopicHandler{}
 	_, err = c.Do(req, &h, http.StatusOK)
 	return h, err
 }
 
-// PatchHandler applies a patch operation to an existing handler.
-func (c *Client) PatchHandler(link Link, patch JSONPatch) (Handler, error) {
-	h := Handler{}
+// PatchTopicHandler applies a patch operation to an existing handler.
+func (c *Client) PatchTopicHandler(link Link, patch JSONPatch) (TopicHandler, error) {
+	h := TopicHandler{}
 	if link.Href == "" {
 		return h, fmt.Errorf("invalid link %v", link)
 	}
@@ -2027,9 +2100,9 @@ func (c *Client) PatchHandler(link Link, patch JSONPatch) (Handler, error) {
 	return h, err
 }
 
-// ReplaceHandler replaces an existing handler, with the new definition.
-func (c *Client) ReplaceHandler(link Link, opt HandlerOptions) (Handler, error) {
-	h := Handler{}
+// ReplaceTopicHandler replaces an existing handler, with the new definition.
+func (c *Client) ReplaceTopicHandler(link Link, opt TopicHandlerOptions) (TopicHandler, error) {
+	h := TopicHandler{}
 	if link.Href == "" {
 		return h, fmt.Errorf("invalid link %v", link)
 	}
@@ -2053,8 +2126,8 @@ func (c *Client) ReplaceHandler(link Link, opt HandlerOptions) (Handler, error) 
 	return h, err
 }
 
-// DeleteHandler deletes a handler.
-func (c *Client) DeleteHandler(link Link) error {
+// DeleteTopicHandler deletes a handler.
+func (c *Client) DeleteTopicHandler(link Link) error {
 	if link.Href == "" {
 		return fmt.Errorf("invalid link %v", link)
 	}
@@ -2070,27 +2143,27 @@ func (c *Client) DeleteHandler(link Link) error {
 	return err
 }
 
-type ListHandlersOptions struct {
+type ListTopicHandlersOptions struct {
 	Pattern string
 }
 
-func (o *ListHandlersOptions) Default() {}
+func (o *ListTopicHandlersOptions) Default() {}
 
-func (o *ListHandlersOptions) Values() *url.Values {
+func (o *ListTopicHandlersOptions) Values() *url.Values {
 	v := &url.Values{}
 	v.Set("pattern", o.Pattern)
 	return v
 }
 
-func (c *Client) ListHandlers(opt *ListHandlersOptions) (Handlers, error) {
-	handlers := Handlers{}
+func (c *Client) ListTopicHandlers(link Link, opt *ListTopicHandlersOptions) (TopicHandlers, error) {
+	handlers := TopicHandlers{}
 	if opt == nil {
-		opt = new(ListHandlersOptions)
+		opt = new(ListTopicHandlersOptions)
 	}
 	opt.Default()
 
 	u := *c.url
-	u.Path = handlersPath
+	u.Path = link.Href
 	u.RawQuery = opt.Values().Encode()
 
 	req, err := http.NewRequest("GET", u.String(), nil)
@@ -2103,6 +2176,116 @@ func (c *Client) ListHandlers(opt *ListHandlersOptions) (Handlers, error) {
 		return handlers, err
 	}
 	return handlers, nil
+}
+
+type StorageList struct {
+	Link    Link      `json:"link"`
+	Storage []Storage `json:"storage"`
+}
+
+type Storage struct {
+	Link Link   `json:"link"`
+	Name string `json:"name"`
+}
+
+type StorageAction int
+
+const (
+	_ StorageAction = iota
+	StorageRebuild
+)
+
+func (sa StorageAction) MarshalText() ([]byte, error) {
+	switch sa {
+	case StorageRebuild:
+		return []byte("rebuild"), nil
+	default:
+		return nil, fmt.Errorf("unknown StorageAction %d", sa)
+	}
+}
+
+func (sa *StorageAction) UnmarshalText(text []byte) error {
+	switch s := string(text); s {
+	case "rebuild":
+		*sa = StorageRebuild
+	default:
+		return fmt.Errorf("unknown StorageAction %s", s)
+	}
+	return nil
+}
+
+func (sa StorageAction) String() string {
+	s, err := sa.MarshalText()
+	if err != nil {
+		return err.Error()
+	}
+	return string(s)
+}
+
+type StorageActionOptions struct {
+	Action StorageAction `json:"action"`
+}
+
+func (c *Client) ListStorage() (StorageList, error) {
+	list := StorageList{}
+	u := *c.url
+	u.Path = storesPath
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return list, err
+	}
+
+	_, err = c.Do(req, &list, http.StatusOK)
+	if err != nil {
+		return list, err
+	}
+	return list, nil
+}
+
+func (c *Client) DoStorageAction(l Link, opt StorageActionOptions) error {
+	u := *c.url
+	u.Path = l.Href
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	err := enc.Encode(opt)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", u.String(), &buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	_, err = c.Do(req, nil, http.StatusNoContent)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Backup requests a backup of all storage from Kapacitor.
+// A short read is possible, to verify that the backup was successful
+// check that the number of bytes read matches the returned size.
+func (c *Client) Backup() (int64, io.ReadCloser, error) {
+	u := *c.url
+	u.Path = backupPath
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	err = c.prepRequest(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	return resp.ContentLength, resp.Body, nil
 }
 
 type LogLevelOptions struct {
@@ -2144,6 +2327,7 @@ type DebugVars struct {
 	NumTasks         int                    `json:"num_tasks"`
 	Memstats         map[string]interface{} `json:"memstats"`
 	Version          string                 `json:"version"`
+	Platform         string                 `json:"platform"`
 }
 
 type Stat struct {
@@ -2179,4 +2363,38 @@ func (d *Duration) UnmarshalText(data []byte) error {
 	}
 	*d = Duration(dur)
 	return nil
+}
+
+type DBRPs []DBRP
+
+func (d *DBRPs) String() string {
+	return fmt.Sprint(*d)
+}
+
+type TaskVars struct {
+	ID         string `json:"id,omitempty" yaml:"id"`
+	TemplateID string `json:"template-id,omitempty" yaml:"template-id"`
+	DBRPs      []DBRP `json:"dbrps,omitempty" yaml:"dbrps"`
+	Vars       Vars   `json:"vars,omitempty" yaml:"vars"`
+}
+
+func (t TaskVars) CreateTaskOptions() (CreateTaskOptions, error) {
+	o := CreateTaskOptions{
+		ID:         t.ID,
+		TemplateID: t.TemplateID,
+		Vars:       t.Vars,
+		DBRPs:      t.DBRPs,
+	}
+
+	return o, nil
+}
+
+func (t TaskVars) UpdateTaskOptions() (UpdateTaskOptions, error) {
+	o := UpdateTaskOptions{
+		ID:         t.ID,
+		TemplateID: t.TemplateID,
+		Vars:       t.Vars,
+		DBRPs:      t.DBRPs,
+	}
+	return o, nil
 }
