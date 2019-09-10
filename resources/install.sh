@@ -19,6 +19,10 @@ sed -i s/bllMNU1sdEREeHFSTlFxMEVsZkY=/$password/g /var/lib/gravity/resources/sec
 password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
 sed -i s/MTIxMzQyNDMyZHdkY2RldmdyZWc=/$password/g /var/lib/gravity/resources/secrets.yaml
 
+# Generate password for InfluxDB kapacitor user
+password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+sed -i s/OVQ5NUpmaDA4TUVXYWtzcVZVZHE=/$password/g /var/lib/gravity/resources/secrets.yaml
+
 /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 for filename in security secrets smtp influxdb grafana heapster kapacitor telegraf alerts
 do

@@ -45,6 +45,10 @@ type Config struct {
 	InfluxDBHeapsterUser string
 	// InfluxDBHeapsterPassword is the InfluxDB heapster password
 	InfluxDBHeapsterPassword string
+	// InfluxDBKapacitorUser is the InfluxDB kapacitor username
+	InfluxDBKapacitorUser string
+	// InfluxDBKapacitorPassword is the InfluxDB kapacitor password
+	InfluxDBKapacitorPassword string
 }
 
 // Client is the InfluxDB API client
@@ -90,9 +94,10 @@ func (c *Client) Setup(config Config) error {
 	}
 
 	var users = map[string]string{
-		config.InfluxDBGrafanaUser:  config.InfluxDBGrafanaPassword,
-		config.InfluxDBTelegrafUser: config.InfluxDBTelegrafPassword,
-		config.InfluxDBHeapsterUser: config.InfluxDBHeapsterPassword,
+		config.InfluxDBGrafanaUser:   config.InfluxDBGrafanaPassword,
+		config.InfluxDBTelegrafUser:  config.InfluxDBTelegrafPassword,
+		config.InfluxDBHeapsterUser:  config.InfluxDBHeapsterPassword,
+		config.InfluxDBKapacitorUser: config.InfluxDBKapacitorPassword,
 	}
 
 	for user, password := range users {
@@ -102,9 +107,10 @@ func (c *Client) Setup(config Config) error {
 	}
 
 	var privileges = map[string]string{
-		config.InfluxDBGrafanaUser:  "read",
-		config.InfluxDBTelegrafUser: "write",
-		config.InfluxDBHeapsterUser: "write",
+		config.InfluxDBGrafanaUser:   "read",
+		config.InfluxDBTelegrafUser:  "write",
+		config.InfluxDBHeapsterUser:  "write",
+		config.InfluxDBKapacitorUser: "all",
 	}
 	for user, grants := range privileges {
 		if err := c.GrantUserPrivileges(user, grants); err != nil {

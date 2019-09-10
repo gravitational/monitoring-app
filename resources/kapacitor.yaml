@@ -49,12 +49,12 @@ spec:
             - name: "KAPACITOR_INFLUXDB_0_USERNAME"
               valueFrom:
                 secretKeyRef:
-                  name: influxdb
+                  name: kapacitor-influxdb-creds
                   key: username
             - name: "KAPACITOR_INFLUXDB_0_PASSWORD"
               valueFrom:
                 secretKeyRef:
-                  name: influxdb
+                  name: kapacitor-influxdb-creds
                   key: password
             - name: "KAPACITOR_LOGGING_LEVEL"
               value: "INFO"
