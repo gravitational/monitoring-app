@@ -67,6 +67,15 @@ func NewClient(config Config) (*Client, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	// update password for admin user and reconnect
+	if err = upsertAdminUser(*client, config); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	client, err = authenticateClient(config)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	return &Client{client: *client}, nil
 }
 
@@ -130,7 +139,7 @@ func (c *Client) UpsertUser(user, password string) error {
 			if err = c.execQuery(fmt.Sprintf(updatePasswordQuery, user, password)); err != nil {
 				return trace.Wrap(err, "failed to update password for user %s", user)
 			}
-
+			return nil
 		}
 		return trace.Wrap(err, "failed to create user %s", user)
 	}
@@ -274,7 +283,7 @@ func authenticateClient(config Config) (*client_v2.Client, error) {
 	}
 	if response.Error() != nil {
 		if trace.IsNotFound(ConvertError(response.Error())) {
-			if err = createAdminUser(client, config); err != nil {
+			if err = upsertAdminUser(client, config); err != nil {
 				return nil, trace.Wrap(err)
 			}
 			return &client, nil
@@ -307,17 +316,36 @@ func backwardsCompatibleClient(config Config) (*client_v2.Client, error) {
 	return &client, nil
 }
 
-func createAdminUser(client client_v2.Client, config Config) error {
+func upsertAdminUser(client client_v2.Client, config Config) error {
 	log.Infof("Creating admin user %v", config.InfluxDBAdminUser)
 	query := fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword)
 	response, err := client.Query(client_v2.NewQuery(query, "", ""))
 	if err != nil {
 		return trace.Wrap(err, "failed to create admin user")
 	}
+
+	if response.Error() == nil {
+		return nil
+	}
+	if trace.IsAlreadyExists(ConvertError(response.Error())) {
+		log.Infof("Admin user %s already exists with different password. Updating password...", config.InfluxDBAdminUser)
+		err = updateUserPassword(client, config)
+		return trace.Wrap(err)
+	}
+
+	return trace.Wrap(response.Error(), "failed to create admin user")
+}
+
+func updateUserPassword(client client_v2.Client, config Config) error {
+	response, err := client.Query(client_v2.NewQuery(fmt.Sprintf(updatePasswordQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword), "", ""))
+	if err != nil {
+		return trace.Wrap(err, "failed to update password for admin user %s", config.InfluxDBAdminUser)
+	}
 	if response.Error() != nil {
-		return trace.Wrap(response.Error(), "failed to create admin user")
+		return trace.Wrap(response.Error(), "failed to update password for admin user %s", config.InfluxDBAdminUser)
 	}
 	return nil
+
 }
 
 const (
