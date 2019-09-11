@@ -38,16 +38,14 @@ var (
 	influxDBConfig influxdb.Config
 
 	envs = map[string]string{
-		"INFLUXDB_ADMIN_USERNAME":     "influxdb-admin-username",
-		"INFLUXDB_ADMIN_PASSWORD":     "influxdb-admin-password",
-		"INFLUXDB_GRAFANA_USERNAME":   "influxdb-grafana-username",
-		"INFLUXDB_GRAFANA_PASSWORD":   "influxdb-grafana-password",
-		"INFLUXDB_TELEGRAF_USERNAME":  "influxdb-telegraf-username",
-		"INFLUXDB_TELEGRAF_PASSWORD":  "influxdb-telegraf-password",
-		"INFLUXDB_HEAPSTER_USERNAME":  "influxdb-heapster-username",
-		"INFLUXDB_HEAPSTER_PASSWORD":  "influxdb-heapster-password",
-		"INFLUXDB_KAPACITOR_USERNAME": "influxdb-kapacitor-username",
-		"INFLUXDB_KAPACITOR_PASSWORD": "influxdb-kapacitor-password",
+		"INFLUXDB_ADMIN_USERNAME":    "influxdb-admin-username",
+		"INFLUXDB_ADMIN_PASSWORD":    "influxdb-admin-password",
+		"INFLUXDB_GRAFANA_USERNAME":  "influxdb-grafana-username",
+		"INFLUXDB_GRAFANA_PASSWORD":  "influxdb-grafana-password",
+		"INFLUXDB_TELEGRAF_USERNAME": "influxdb-telegraf-username",
+		"INFLUXDB_TELEGRAF_PASSWORD": "influxdb-telegraf-password",
+		"INFLUXDB_HEAPSTER_USERNAME": "influxdb-heapster-username",
+		"INFLUXDB_HEAPSTER_PASSWORD": "influxdb-heapster-password",
 	}
 
 	rootCmd = &cobra.Command{
@@ -68,8 +66,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBTelegrafPassword, "influxdb-telegraf-password", constants.InfluxDBTelegrafPassword, "InfluxDB telegraf password")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBHeapsterUser, "influxdb-heapster-username", constants.InfluxDBHeapsterUser, "InfluxDB heapster username")
 	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBHeapsterPassword, "influxdb-heapster-password", constants.InfluxDBHeapsterPassword, "InfluxDB heapster password")
-	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBKapacitorUser, "influxdb-kapacitor-username", constants.InfluxDBKapacitorUser, "InfluxDB kapacitor username")
-	rootCmd.PersistentFlags().StringVar(&influxDBConfig.InfluxDBKapacitorPassword, "influxdb-kapacitor-password", constants.InfluxDBKapacitorPassword, "InfluxDB kapacitor password")
 
 	bindFlagEnv(rootCmd.PersistentFlags())
 }

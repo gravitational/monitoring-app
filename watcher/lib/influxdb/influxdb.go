@@ -45,10 +45,6 @@ type Config struct {
 	InfluxDBHeapsterUser string
 	// InfluxDBHeapsterPassword is the InfluxDB heapster password
 	InfluxDBHeapsterPassword string
-	// InfluxDBKapacitorUser is the InfluxDB kapacitor username
-	InfluxDBKapacitorUser string
-	// InfluxDBKapacitorPassword is the InfluxDB kapacitor password
-	InfluxDBKapacitorPassword string
 }
 
 // Client is the InfluxDB API client
@@ -71,6 +67,15 @@ func NewClient(config Config) (*Client, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	// update password for admin user and reconnect
+	if err = upsertAdminUser(*client, config); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	client, err = authenticateClient(config)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	return &Client{client: *client}, nil
 }
 
@@ -94,10 +99,9 @@ func (c *Client) Setup(config Config) error {
 	}
 
 	var users = map[string]string{
-		config.InfluxDBGrafanaUser:   config.InfluxDBGrafanaPassword,
-		config.InfluxDBTelegrafUser:  config.InfluxDBTelegrafPassword,
-		config.InfluxDBHeapsterUser:  config.InfluxDBHeapsterPassword,
-		config.InfluxDBKapacitorUser: config.InfluxDBKapacitorPassword,
+		config.InfluxDBGrafanaUser:  config.InfluxDBGrafanaPassword,
+		config.InfluxDBTelegrafUser: config.InfluxDBTelegrafPassword,
+		config.InfluxDBHeapsterUser: config.InfluxDBHeapsterPassword,
 	}
 
 	for user, password := range users {
@@ -107,10 +111,9 @@ func (c *Client) Setup(config Config) error {
 	}
 
 	var privileges = map[string]string{
-		config.InfluxDBGrafanaUser:   "read",
-		config.InfluxDBTelegrafUser:  "write",
-		config.InfluxDBHeapsterUser:  "write",
-		config.InfluxDBKapacitorUser: "all",
+		config.InfluxDBGrafanaUser:  "read",
+		config.InfluxDBTelegrafUser: "write",
+		config.InfluxDBHeapsterUser: "write",
 	}
 	for user, grants := range privileges {
 		if err := c.GrantUserPrivileges(user, grants); err != nil {
@@ -136,7 +139,7 @@ func (c *Client) UpsertUser(user, password string) error {
 			if err = c.execQuery(fmt.Sprintf(updatePasswordQuery, user, password)); err != nil {
 				return trace.Wrap(err, "failed to update password for user %s", user)
 			}
-
+			return nil
 		}
 		return trace.Wrap(err, "failed to create user %s", user)
 	}
@@ -280,7 +283,7 @@ func authenticateClient(config Config) (*client_v2.Client, error) {
 	}
 	if response.Error() != nil {
 		if trace.IsNotFound(ConvertError(response.Error())) {
-			if err = createAdminUser(client, config); err != nil {
+			if err = upsertAdminUser(client, config); err != nil {
 				return nil, trace.Wrap(err)
 			}
 			return &client, nil
@@ -313,7 +316,7 @@ func backwardsCompatibleClient(config Config) (*client_v2.Client, error) {
 	return &client, nil
 }
 
-func createAdminUser(client client_v2.Client, config Config) error {
+func upsertAdminUser(client client_v2.Client, config Config) error {
 	log.Infof("Creating admin user %v", config.InfluxDBAdminUser)
 	query := fmt.Sprintf(createAdminQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword)
 	response, err := client.Query(client_v2.NewQuery(query, "", ""))
@@ -321,6 +324,17 @@ func createAdminUser(client client_v2.Client, config Config) error {
 		return trace.Wrap(err, "failed to create admin user")
 	}
 	if response.Error() != nil {
+		if trace.IsAlreadyExists(ConvertError(response.Error())) {
+			log.Infof("Admin user %s already exists with different password. Updating password...", config.InfluxDBAdminUser)
+			resp, err := client.Query(client_v2.NewQuery(fmt.Sprintf(updatePasswordQuery, config.InfluxDBAdminUser, config.InfluxDBAdminPassword), "", ""))
+			if err != nil {
+				return trace.Wrap(err, "failed to update password for admin user %s", config.InfluxDBAdminUser)
+			}
+			if resp.Error() != nil {
+				return trace.Wrap(resp.Error(), "failed to update password for admin user %s", config.InfluxDBAdminUser)
+			}
+			return nil
+		}
 		return trace.Wrap(response.Error(), "failed to create admin user")
 	}
 	return nil

@@ -80,16 +80,6 @@ spec:
               secretKeyRef:
                 name: heapster-influxdb-creds
                 key: password
-          - name: INFLUXDB_KAPACITOR_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: kapacitor-influxdb-creds
-                key: username
-          - name: INFLUXDB_KAPACITOR_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: kapacitor-influxdb-creds
-                key: password
       - name: influxdb
         image: monitoring-influxdb:latest
         command:

@@ -68,10 +68,6 @@ const (
 	InfluxDBHeapsterUser = "heapster"
 	// InfluxDBHeapsterPassword is the InfluxDB password for Heapster
 	InfluxDBHeapsterPassword = "heapster"
-	// InfluxDBHeapsterUser is the InfluxDB user for Heapster
-	InfluxDBKapacitorUser = "kapacitor"
-	// InfluxDBKapacitorPassword is the InfluxDB password for Kapacitor
-	InfluxDBKapacitorPassword = "kapacitor"
 
 	// InfluxDBRetentionPolicy is the name of the default retention policy
 	InfluxDBRetentionPolicy = "default"
