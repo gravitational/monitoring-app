@@ -70,10 +70,10 @@ if [ $1 = "update" ]; then
         fi
     fi
 
-    # create influxdb secret in case it does not exist because upgading from old gravity version
+    # create influxdb secret in case it does not exist because upgrading from old gravity version
     if ! /opt/bin/kubectl --namespace=monitoring get secret influxdb > /dev/null 2>&1;
     then
-        # backward compatible password
+        # backwards-compatible password
         sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/cm9vdA==/g /var/lib/gravity/resources/influxdb-secret.yaml
         rig upsert -f /var/lib/gravity/resources/influxdb-secret.yaml --debug
     fi
