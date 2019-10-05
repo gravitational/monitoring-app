@@ -70,6 +70,14 @@ if [ $1 = "update" ]; then
         fi
     fi
 
+    # create influxdb secret in case it does not exist because upgrading from old gravity version
+    if ! /opt/bin/kubectl --namespace=monitoring get secret influxdb > /dev/null 2>&1;
+    then
+        # backwards-compatible password
+        sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/cm9vdA==/g /var/lib/gravity/resources/influxdb-secret.yaml
+        rig upsert -f /var/lib/gravity/resources/influxdb-secret.yaml --debug
+    fi
+    
     # Generate password for Grafana administrator
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
     sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/secrets.yaml
