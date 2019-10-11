@@ -135,8 +135,6 @@ spec:
     spec:
       terminationGracePeriodSeconds: 5
       serviceAccountName: nethealth
-      selector:
-
       nodeSelector:
         beta.kubernetes.io/arch: amd64
       tolerations:
