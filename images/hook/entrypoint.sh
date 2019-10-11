@@ -41,7 +41,7 @@ if [ $1 = "update" ]; then
         rig delete secrets/grafana --resource-namespace=$namespace --force
         rig delete secrets/grafana-influxdb-creds --resource-namespace=$namespace --force
         rig delete secrets/telegraf-influxdb-creds --resource-namespace=$namespace --force
-        rig delete secrets/influxdb --resource-namespace=$namespace --force
+        rig delete secrets/heapster-influxdb-creds --resource-namespace=$namespace --force
 
         echo "---> Deleting old configmaps"
         for cfm in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default
@@ -70,13 +70,17 @@ if [ $1 = "update" ]; then
         fi
     fi
 
+    # create influxdb secret in case it does not exist because upgrading from old gravity version
+    if ! /opt/bin/kubectl --namespace=monitoring get secret influxdb > /dev/null 2>&1;
+    then
+        # backwards-compatible password
+        sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/cm9vdA==/g /var/lib/gravity/resources/influxdb-secret.yaml
+        rig upsert -f /var/lib/gravity/resources/influxdb-secret.yaml --debug
+    fi
+
     # Generate password for Grafana administrator
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
     sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/secrets.yaml
-
-    # Generate password for InfluxDB administrator
-    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
-    sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/$password/g /var/lib/gravity/resources/secrets.yaml
 
     # Generate password for InfluxDB grafana user
     password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ')
