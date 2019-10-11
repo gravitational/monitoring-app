@@ -24,3 +24,5 @@ for filename in security secrets influxdb-secret smtp influxdb grafana heapster 
 do
     /opt/bin/kubectl create -f /var/lib/gravity/resources/${filename}.yaml
 done
+
+/opt/bin/kubectl apply -f /var/lib/gravity/resources/nethealth/

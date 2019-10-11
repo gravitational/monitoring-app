@@ -1,0 +1,222 @@
+# Copyright 2019 Gravitational, Inc.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#    http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
+  name: nethealth
+  namespace: nethealth
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  allowedCapabilities:
+  - NET_RAW
+  volumes:
+  - 'configMap'
+  - 'emptyDir'
+  - 'projected'
+  - 'secret'
+  - 'downwardAPI'
+  runAsUser:
+    rule: 'RunAsAny'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nethealth
+  namespace: monitoring
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: monitoring
+  name: nethealth
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - watch
+      - list
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+    resourceNames:
+      - nethealth
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nethealth
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+      - watch
+      - get
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: monitoring
+  name: nethealth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nethealth
+subjects:
+- kind: ServiceAccount
+  name: nethealth
+  namespace: monitoring
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nethealth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nethealth
+subjects:
+- kind: ServiceAccount
+  name: nethealth
+  namespace: monitoring
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nethealth
+  namespace: monitoring
+  labels:
+    app: nethealth
+spec:
+  selector:
+    matchLabels:
+      k8s-app: nethealth
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: nethealth
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
+    spec:
+      terminationGracePeriodSeconds: 5
+      serviceAccountName: nethealth
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      tolerations:
+        # Tolerate all taints
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+      containers:
+        - name: nethealth
+          image: quay.io/gravitational/nethealth-dev:6.0.0-3-gfb57cbfb-dirty
+          command:
+            - /nethealth
+          args:
+            - run
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 0
+            capabilities:
+              drop:
+              - all
+              add: 
+              - NET_RAW
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmpfs
+          ports:
+          - name: metrics
+            containerPort: 9801
+            protocol: TCP
+      volumes:
+        - name: tmpfs
+          emptyDir:
+            medium: Memory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nethealth
+  namespace: monitoring
+  labels:
+    k8s-app: nethealth
+spec:
+  selector:
+    k8s-app: nethealth
+  ports:
+  - name: metrics 
+    protocol: TCP
+    port: 9801
+    targetPort: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  annotations:
+  labels:
+    k8s-app: nethealth
+  name: nethealth
+  namespace: monitoring
+spec:
+  endpoints:
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 15s
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - monitoring
+  selector:
+    matchLabels:
+      k8s-app: nethealth
