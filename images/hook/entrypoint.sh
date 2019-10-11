@@ -58,6 +58,11 @@ if [ $1 = "update" ]; then
         rig upsert -f $file --debug
     done
 
+    for file in /var/lib/gravity/resources/nethealth/*
+    do
+        rig upsert -f $file --debug
+    done
+
     echo "---> Checking status"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug
 
