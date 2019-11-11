@@ -91,7 +91,7 @@ spec:
       containers:
         - name: telegraf
           image: monitoring-telegraf:latest
-          command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run-node.sh"]
+          command: ["/usr/bin/dumb-init", "--"]
           args:
             - /usr/bin/telegraf
             - --config
@@ -165,7 +165,7 @@ spec:
       containers:
         - name: telegraf
           image: monitoring-telegraf:latest
-          command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run-node.sh"]
+          command: ["/usr/bin/dumb-init", "--"]
           args:
             - /usr/bin/telegraf
             - --config
