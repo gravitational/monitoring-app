@@ -50,24 +50,36 @@ spec:
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: telegraf-node
+  name: telegraf-node-master
   namespace: monitoring
   labels:
     app: monitoring
     component: telegraf
+    node: master
 spec:
   selector:
     matchLabels:
       app: monitoring
       component: telegraf
+      node: master
   template:
     metadata:
       labels:
         app: monitoring
         component: telegraf
+        node: master
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: gravitational.io/k8s-role
+                    operator: In
+                    values:
+                      - master
       serviceAccountName: monitoring
       tolerations:
         # allows to run on master nodes
@@ -79,7 +91,85 @@ spec:
       containers:
         - name: telegraf
           image: monitoring-telegraf:latest
-          command: ["/usr/bin/dumb-init", "--", "/usr/local/bin/run-node.sh"]
+          command: ["/usr/bin/dumb-init", "--"]
+          args:
+            - /usr/bin/telegraf
+            - --config
+            - /etc/telegraf/telegraf-node-master.conf
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: INFLUXDB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: telegraf-influxdb-creds
+                  key: username
+            - name: INFLUXDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telegraf-influxdb-creds
+                  key: password
+          resources:
+            limits:
+              memory: "100Mi"
+              cpu: "100m"
+            requests:
+              memory: "50Mi"
+              cpu: "50m"
+          volumeMounts:
+            - name: certificates
+              mountPath: /var/lib/gravity/secrets
+      volumes:
+        - name: certificates
+          hostPath:
+            path: /var/lib/gravity/secrets
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: telegraf-node-worker
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: telegraf
+    node: worker
+spec:
+  selector:
+    matchLabels:
+      app: monitoring
+      component: telegraf
+      node: worker
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        component: telegraf
+        node: worker
+      annotations:
+        seccomp.security.alpha.kubernetes.io/pod: docker/default
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: gravitational.io/k8s-role
+                    operator: NotIn
+                    values:
+                      - master
+      serviceAccountName: monitoring
+      securityContext:
+        runAsUser: -1
+      containers:
+        - name: telegraf
+          image: monitoring-telegraf:latest
+          command: ["/usr/bin/dumb-init", "--"]
+          args:
+            - /usr/bin/telegraf
+            - --config
+            - /etc/telegraf/telegraf-node.conf
           env:
             - name: NODE_NAME
               valueFrom:
