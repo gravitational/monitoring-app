@@ -71,15 +71,8 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: gravitational.io/k8s-role
-                    operator: In
-                    values:
-                      - master
+      nodeSelector:
+        gravitational.io/k8s-role: master
       serviceAccountName: monitoring
       tolerations:
         # allows to run on master nodes
@@ -150,15 +143,8 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: gravitational.io/k8s-role
-                    operator: NotIn
-                    values:
-                      - master
+      nodeSelector:
+        gravitational.io/k8s-role: node
       serviceAccountName: monitoring
       securityContext:
         runAsUser: -1
