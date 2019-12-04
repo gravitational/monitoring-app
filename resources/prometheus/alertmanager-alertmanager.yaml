@@ -8,7 +8,6 @@ metadata:
 spec:
   baseImage: leader.telekube.local:5000/prometheus/alertmanager
   nodeSelector:
-    beta.kubernetes.io/os: linux
     gravitational.io/k8s-role: master
   replicas: 3
   securityContext:

@@ -13,7 +13,6 @@ spec:
       port: web
   baseImage: leader.telekube.local:5000/prometheus/prometheus
   nodeSelector:
-    beta.kubernetes.io/os: linux
     gravitational.io/k8s-role: master
   replicas: 2
   resources:
