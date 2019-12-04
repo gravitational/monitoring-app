@@ -41,8 +41,6 @@ spec:
       annotations:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
-      nodeSelector:
-        beta.kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
@@ -127,8 +125,6 @@ spec:
               secretKeyRef:
                 name: grafana
                 key: password
-      nodeSelector:
-        beta.kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
