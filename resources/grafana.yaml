@@ -411,6 +411,237 @@ data:
                         "aliasColors": {},
                         "bars": false,
                         "datasource": null,
+                        "error": false,
+                        "fill": 1,
+                        "grid": {
+                            "leftLogBase": 1,
+                            "leftMax": null,
+                            "leftMin": null,
+                            "rightLogBase": 1,
+                            "rightMax": null,
+                            "rightMin": null,
+                            "threshold1": null,
+                            "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                            "threshold2": null,
+                            "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                        },
+                        "id": 13,
+                        "isNew": true,
+                        "legend": {
+                            "avg": false,
+                            "current": false,
+                            "max": false,
+                            "min": false,
+                            "show": true,
+                            "total": false,
+                            "values": false
+                        },
+                        "lines": true,
+                        "linewidth": 2,
+                        "links": [],
+                        "nullPointMode": "connected",
+                        "percentage": false,
+                        "pointradius": 5,
+                        "points": false,
+                        "renderer": "flot",
+                        "seriesOverrides": [],
+                        "span": 12,
+                        "stack": false,
+                        "steppedLine": false,
+                        "targets": [
+                            {
+                            "alias": "Load avg 1m",
+                            "groupBy": [
+                                {
+                                "params": [
+                                    "$__interval"
+                                ],
+                                "type": "time"
+                                },
+                                {
+                                "params": [
+                                    "null"
+                                ],
+                                "type": "fill"
+                                }
+                            ],
+                            "measurement": "system",
+                            "orderByTime": "ASC",
+                            "policy": "default",
+                            "refId": "A",
+                            "resultFormat": "time_series",
+                            "select": [
+                                [
+                                {
+                                    "params": [
+                                    "load1"
+                                    ],
+                                    "type": "field"
+                                },
+                                {
+                                    "params": [],
+                                    "type": "mean"
+                                }
+                                ]
+                            ],
+                            "tags": []
+                            },
+                            {
+                            "alias": "Load avg 5m",
+                            "groupBy": [
+                                {
+                                "params": [
+                                    "$__interval"
+                                ],
+                                "type": "time"
+                                },
+                                {
+                                "params": [
+                                    "null"
+                                ],
+                                "type": "fill"
+                                }
+                            ],
+                            "measurement": "system",
+                            "orderByTime": "ASC",
+                            "policy": "default",
+                            "refId": "B",
+                            "resultFormat": "time_series",
+                            "select": [
+                                [
+                                {
+                                    "params": [
+                                    "load5"
+                                    ],
+                                    "type": "field"
+                                },
+                                {
+                                    "params": [],
+                                    "type": "mean"
+                                }
+                                ]
+                            ],
+                            "tags": []
+                            },
+                            {
+                            "alias": "Load avg 15m",
+                            "groupBy": [
+                                {
+                                "params": [
+                                    "$__interval"
+                                ],
+                                "type": "time"
+                                },
+                                {
+                                "params": [
+                                    "null"
+                                ],
+                                "type": "fill"
+                                }
+                            ],
+                            "measurement": "system",
+                            "orderByTime": "ASC",
+                            "policy": "default",
+                            "refId": "C",
+                            "resultFormat": "time_series",
+                            "select": [
+                                [
+                                {
+                                    "params": [
+                                    "load15"
+                                    ],
+                                    "type": "field"
+                                },
+                                {
+                                    "params": [],
+                                    "type": "mean"
+                                }
+                                ]
+                            ],
+                            "tags": []
+                            },
+                            {
+                            "alias": "Total CPU cores",
+                            "groupBy": [
+                                {
+                                "params": [
+                                    "$__interval"
+                                ],
+                                "type": "time"
+                                },
+                                {
+                                "params": [
+                                    "null"
+                                ],
+                                "type": "fill"
+                                }
+                            ],
+                            "measurement": "system",
+                            "orderByTime": "ASC",
+                            "policy": "default",
+                            "refId": "D",
+                            "resultFormat": "time_series",
+                            "select": [
+                                [
+                                {
+                                    "params": [
+                                    "n_cpus"
+                                    ],
+                                    "type": "field"
+                                },
+                                {
+                                    "params": [],
+                                    "type": "mean"
+                                }
+                                ]
+                            ],
+                            "tags": []
+                            }
+                        ],
+                        "thresholds": [],
+                        "timeFrom": null,
+                        "timeShift": null,
+                        "title": "Load avg 1/5/15",
+                        "tooltip": {
+                            "shared": true,
+                            "sort": 0,
+                            "value_type": "cumulative"
+                        },
+                        "type": "graph",
+                        "xaxis": {
+                            "buckets": null,
+                            "mode": "time",
+                            "name": null,
+                            "show": true,
+                            "values": []
+                        },
+                        "yaxes": [
+                            {
+                            "format": "short",
+                            "label": "",
+                            "logBase": 1,
+                            "max": null,
+                            "min": null,
+                            "show": true
+                            },
+                            {
+                            "format": "short",
+                            "label": "",
+                            "logBase": 1,
+                            "max": null,
+                            "min": null,
+                            "show": true
+                            }
+                        ],
+                        "yaxis": {
+                            "align": true,
+                            "alignLevel": null
+                        }
+                    },
+                    {
+                        "aliasColors": {},
+                        "bars": false,
+                        "datasource": null,
                         "editable": false,
                         "error": false,
                         "fill": 1,
