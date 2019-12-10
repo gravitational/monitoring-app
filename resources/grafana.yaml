@@ -144,6 +144,23 @@ data:
     [
       {
         "retention": "medium",
+        "measurement": "system"
+        "name": "system/mean"
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
         "measurement": "cpu/usage_rate",
         "name": "cpu/usage_rate/medium",
         "functions": [
