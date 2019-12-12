@@ -144,8 +144,8 @@ data:
     [
       {
         "retention": "medium",
-        "measurement": "system"
-        "name": "system/mean"
+        "measurement": "system",
+        "name": "system/mean",
         "functions": [
           {
             "function": "max",
