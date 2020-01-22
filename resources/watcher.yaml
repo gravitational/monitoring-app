@@ -25,8 +25,9 @@ spec:
       - key: "gravitational.io/runlevel"
         value: system
         operator: Equal
-      - key: "node-role.kubernetes.io/master"
-        operator: "Exists"
+      - key: "gravitational.io/k8s-role"
+        operator: "Equal"
+        value: "master"
         effect: "NoSchedule"
       containers:
         - name: watcher

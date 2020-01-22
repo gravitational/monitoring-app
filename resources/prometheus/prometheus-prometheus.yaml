@@ -45,8 +45,9 @@ spec:
     value: system
     operator: Equal
   # allows to run on master nodes
-  - key: "node-role.kubernetes.io/master"
-    operator: "Exists"
+  - key: "gravitational.io/k8s-role"
+    operator: "Equal"
+    value: "master"
     effect: "NoSchedule"
   additionalScrapeConfigs:
     name: prometheus-additional-scrape-configs
