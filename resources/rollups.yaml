@@ -230,7 +230,7 @@ data:
         "functions": [
           {
             "function": "mean",
-            "field": "value",
+            "field": "value"
           }
         ]
       },
@@ -241,7 +241,7 @@ data:
         "functions": [
           {
             "function": "mean",
-            "field": "value",
+            "field": "value"
           }
         ]
       }
