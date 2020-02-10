@@ -1365,7 +1365,7 @@ data:
             "groupBy": [
                 {
                 "params": [
-                    "1s"
+                    "5m"
                 ],
                 "type": "time"
                 },
@@ -1386,7 +1386,7 @@ data:
             "measurement": "cpu/usage_rate",
             "orderByTime": "ASC",
             "policy": "default",
-            "query": "SELECT sum(\"value_mean\") FROM \"medium\".\"cpu/usage_rate/medium\" WHERE (\"type\" = 'node' AND \"nodename\" =~ /$nodename$/) AND time < now() -24h AND $timeFilter GROUP BY time(1s), \"nodename\" fill(null)",
+            "query": "SELECT sum(\"value_mean\") FROM \"medium\".\"cpu/usage_rate/medium\" WHERE (\"type\" = 'node' AND \"nodename\" =~ /$nodename$/) AND time < now() -24h AND $timeFilter GROUP BY time(5m), \"nodename\" fill(null)",
             "rawQuery": true,
             "refId": "D",
             "resultFormat": "time_series",
@@ -1687,7 +1687,7 @@ data:
             "groupBy": [
                 {
                 "params": [
-                    "1s"
+                    "1m"
                 ],
                 "type": "time"
                 },
@@ -1733,7 +1733,7 @@ data:
             "groupBy": [
                 {
                 "params": [
-                    "1s"
+                    "5m"
                 ],
                 "type": "time"
                 },
@@ -1779,7 +1779,7 @@ data:
             "groupBy": [
                 {
                 "params": [
-                    "1s"
+                    "1h"
                 ],
                 "type": "time"
                 },
@@ -1825,7 +1825,7 @@ data:
             "groupBy": [
                 {
                 "params": [
-                    "1s"
+                    "1h"
                 ],
                 "type": "time"
                 },
