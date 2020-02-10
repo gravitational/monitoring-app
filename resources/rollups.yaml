@@ -1,0 +1,248 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollups-default
+  namespace: monitoring
+  labels:
+    monitoring: rollup
+data:
+  rollups: |
+    [
+      {
+        "retention": "medium",
+        "measurement": "cpu/usage_rate",
+        "name": "cpu/usage_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "memory/usage",
+        "name": "memory/usage/medium",
+        "functions": [
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "memory/working_set",
+        "name": "memory/working_set/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "filesystem/usage",
+        "name": "filesystem/usage/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/tx",
+        "name": "network/tx/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/tx_rate",
+        "name": "network/tx_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/rx",
+        "name": "network/rx/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "network/rx_rate",
+        "name": "network/rx_rate/medium",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "cpu/usage_rate",
+        "name": "cpu/usage_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "memory/usage",
+        "name": "memory/usage/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "filesystem/usage",
+        "name": "filesystem/usage/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/tx",
+        "name": "network/tx/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/tx_rate",
+        "name": "network/tx_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/rx",
+        "name": "network/rx/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value"
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "network/rx_rate",
+        "name": "network/rx_rate/long",
+        "functions": [
+          {
+            "function": "max",
+            "field": "value",
+            "alias": "value_max"
+          },
+          {
+            "function": "mean",
+            "field": "value",
+            "alias": "value_mean"
+          }
+        ]
+      },
+      {
+        "retention": "medium",
+        "measurement": "system",
+        "name": "load1/medium",
+        "functions": [
+          {
+            "function": "mean",
+            "field": "value",
+          }
+        ]
+      },
+      {
+        "retention": "long",
+        "measurement": "system",
+        "name": "load1/long",
+        "functions": [
+          {
+            "function": "mean",
+            "field": "value",
+          }
+        ]
+      }
+    ]

@@ -95,7 +95,7 @@ if [ $1 = "update" ]; then
     sed -i s/MTIxMzQyNDMyZHdkY2RldmdyZWc=/$password/g /var/lib/gravity/resources/secrets.yaml
 
     echo "---> Creating or updating resources"
-    for filename in security secrets smtp influxdb grafana heapster kapacitor telegraf alerts
+    for filename in security secrets smtp influxdb grafana heapster kapacitor telegraf rollups alerts
     do
         rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
     done
