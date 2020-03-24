@@ -135,8 +135,6 @@ spec:
     spec:
       terminationGracePeriodSeconds: 5
       serviceAccountName: nethealth
-      nodeSelector:
-        beta.kubernetes.io/arch: amd64
       tolerations:
         # Tolerate all taints
         - effect: NoSchedule
@@ -184,19 +182,3 @@ spec:
         - name: tmpfs
           emptyDir:
             medium: Memory
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nethealth
-  namespace: monitoring
-  labels:
-    k8s-app: nethealth
-spec:
-  selector:
-    k8s-app: nethealth
-  ports:
-  - name: metrics 
-    protocol: TCP
-    port: 9801
-    targetPort: metrics
