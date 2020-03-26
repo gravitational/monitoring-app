@@ -119,7 +119,7 @@ EOF
     kubectl --namespace=monitoring patch deployment influxdb -p "$(cat $TMPFILE)"
     rm $TMPFILE
 
-    for file in /var/lib/gravity/resources/nethealth/*
+    for file in /var/lib/gravity/resources/nethealth/nethealth.yaml
     do
         rig upsert -f $file --debug
     done
