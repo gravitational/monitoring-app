@@ -42,6 +42,8 @@ type Rollup struct {
 	Functions []Function `json:"functions"`
 	// CustomFrom is a custom 'from' clause. Either CustomFrom or Measurement must be provided.
 	CustomFrom string `json:"custom_from,omitempty"`
+	// Where is a where clause for the rollup
+	Where string `json:"where,omitempty"`
 	// CustomGroupBy is a custom 'group by' clause
 	CustomGroupBy string `json:"custom_group_by,omitempty"`
 }
@@ -92,6 +94,7 @@ func (r *Rollup) buildCreateQuery() (string, error) {
 		"retention_from":   constants.InfluxDBRetentionPolicy,
 		"measurement_from": r.Measurement,
 		"custom_from":      r.CustomFrom,
+		"where":            r.Where,
 		"custom_group_by":  r.CustomGroupBy,
 		"interval":         constants.RetentionToInterval[r.Retention],
 	})
@@ -213,7 +216,7 @@ func validateParam(funcName, param string) error {
 var (
 	// createQueryTemplate is the template for creating InfluxDB continuous query
 	createQueryTemplate = template.Must(template.New("query").Parse(
-		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{if .custom_from}}{{.custom_from}}{{else}}{{.database}}."{{.retention_from}}"."{{.measurement_from}}"{{end}} group by {{if .custom_group_by}}{{.custom_group_by}}{{else}}*, time({{.interval}}){{end}} end`))
+		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{if .custom_from}}{{.custom_from}}{{else}}{{.database}}."{{.retention_from}}"."{{.measurement_from}}"{{end}}{{if .where}} where{{.where}}{{end}} group by {{if .custom_group_by}}{{.custom_group_by}}{{else}}*, time({{.interval}}){{end}} end`))
 	// deleteQueryTemplate is the template for deleting Influx continuous query
 	deleteQueryTemplate = template.Must(template.New("query").Parse(
 		`drop continuous query "{{.name}}" on {{.database}}`))

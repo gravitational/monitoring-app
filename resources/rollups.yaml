@@ -24,7 +24,8 @@ data:
             "field": "value",
             "alias": "value_mean"
           }
-        ]
+        ],
+        "where": "type <> 'sys_container'"
       },
       {
         "retention": "medium",
@@ -36,7 +37,8 @@ data:
             "field": "value",
             "alias": "value_mean"
           }
-        ]
+        ],
+        "where": "type <> 'sys_container'"
       },
       {
         "retention": "medium",
@@ -53,7 +55,8 @@ data:
             "field": "value",
             "alias": "value_mean"
           }
-        ]
+        ],
+        "where": "type <> 'sys_container'"
       },
       {
         "retention": "medium",
