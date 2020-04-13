@@ -62,6 +62,17 @@ spec:
         ports:
         - containerPort: 3000
           name: http
+        env:
+          - name: GF_SECURITY_ADMIN_USER
+            valueFrom:
+              secretKeyRef:
+                name: grafana
+                key: username
+          - name: GF_SECURITY_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: grafana
+                key: password
         readinessProbe:
           httpGet:
             path: /api/health
