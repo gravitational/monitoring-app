@@ -47,6 +47,10 @@ if [ $1 = "update" ]; then
         rig upsert -f $file --debug
     done
 
+    # Generate password for Grafana administrator
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
+
     echo "---> Creating or updating resources"
     for name in security grafana watcher
     do
