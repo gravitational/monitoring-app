@@ -8512,26 +8512,18 @@ data:
     {
       "annotations": {
         "list": [
-          {
-            "builtIn": 1,
-            "datasource": "prometheus",
-            "enable": true,
-            "hide": true,
-            "iconColor": "rgba(0, 211, 255, 1)",
-            "name": "Annotations & Alerts",
-            "type": "dashboard"
-          }
+
         ]
       },
       "description": "Overlay network health tests",
-      "editable": true,
+      "editable": false,
       "gnetId": null,
       "graphTooltip": 0,
-      "id": 4,
+      "id": null,
       "links": [],
       "panels": [
         {
-          "datasource": "prometheus",
+          "datasource": "$datasource",
           "aliasColors": {},
           "bars": false,
           "dashLength": 10,
@@ -8625,7 +8617,7 @@ data:
           }
         },
         {
-          "datasource": "prometheus",
+          "datasource": "$datasource",
           "aliasColors": {},
           "bars": false,
           "cacheTimeout": null,
@@ -8727,7 +8719,24 @@ data:
         "network"
       ],
       "templating": {
-        "list": []
+          "list": [
+              {
+                  "current": {
+                      "text": "Prometheus",
+                      "value": "Prometheus"
+                  },
+                  "hide": 0,
+                  "label": null,
+                  "name": "datasource",
+                  "options": [
+
+                  ],
+                  "query": "prometheus",
+                  "refresh": 1,
+                  "regex": "",
+                  "type": "datasource"
+              }
+          ]
       },
       "time": {
         "from": "now-1h",
