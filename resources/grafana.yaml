@@ -8505,8 +8505,6 @@ kind: ConfigMap
 metadata:
   name: grafana-dashboard-nethealth
   namespace: monitoring
-  labels:
-    monitoring: dashboard
 data:
   nethealth.json: |
     {
