@@ -10,7 +10,7 @@ if [ $1 = "update" ]; then
 
     echo "---> Getting node name for influxdb pod"
     # Patch influxdb deployment but keep the pod scheduled to the same node after the update
-    if kubectl --namespace=monitoring get pod -l app=monitoring,component=influxdb --ignore-not-found=false 2>/dev/null; then
+    if kubectl --namespace=monitoring get pod | grep -q influxdb; then
         NODE_NAME=$(kubectl --namespace=monitoring get pod -l app=monitoring,component=influxdb -o go-template --template='{{(index .items 0).spec.nodeName}}')
     fi
 
