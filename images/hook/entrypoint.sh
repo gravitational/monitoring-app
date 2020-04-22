@@ -62,6 +62,7 @@ spec:
                 - $NODE_NAME
 EOF
         kubectl --namespace=monitoring patch deployment influxdb -p "$(cat $TMPFILE)"
+        kubectl --namespace=monitoring delete pod -l app=monitoring,component=influxdb
         rm $TMPFILE
     fi
 
