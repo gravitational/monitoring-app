@@ -6,18 +6,14 @@ metadata:
     seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default
     seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
   name: nethealth
-  namespace: nethealth
 spec:
   privileged: false
   allowPrivilegeEscalation: false
   allowedCapabilities:
   - NET_RAW
   volumes:
-  - 'configMap'
   - 'emptyDir'
-  - 'projected'
   - 'secret'
-  - 'downwardAPI'
   runAsUser:
     rule: 'RunAsAny'
   seLinux:
@@ -161,17 +157,10 @@ spec:
               add:
               - NET_RAW
           imagePullPolicy: Always
-          volumeMounts:
-            - mountPath: /tmp
-              name: tmpfs
           ports:
           - name: metrics
             containerPort: 9801
             protocol: TCP
-      volumes:
-        - name: tmpfs
-          emptyDir:
-            medium: Memory
 ---
 apiVersion: v1
 kind: Service

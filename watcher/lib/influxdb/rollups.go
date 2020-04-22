@@ -216,7 +216,7 @@ func validateParam(funcName, param string) error {
 var (
 	// createQueryTemplate is the template for creating InfluxDB continuous query
 	createQueryTemplate = template.Must(template.New("query").Parse(
-		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{if .custom_from}}{{.custom_from}}{{else}}{{.database}}."{{.retention_from}}"."{{.measurement_from}}"{{end}}{{if .where}} where{{.where}}{{end}} group by {{if .custom_group_by}}{{.custom_group_by}}{{else}}*, time({{.interval}}){{end}} end`))
+		`create continuous query "{{.name}}" on {{.database}} begin select {{.functions}} into {{.database}}."{{.retention_into}}"."{{.measurement_into}}" from {{if .custom_from}}{{.custom_from}}{{else}}{{.database}}."{{.retention_from}}"."{{.measurement_from}}"{{end}}{{if .where}} where {{.where}}{{end}} group by {{if .custom_group_by}}{{.custom_group_by}}{{else}}*, time({{.interval}}){{end}} end`))
 	// deleteQueryTemplate is the template for deleting Influx continuous query
 	deleteQueryTemplate = template.Must(template.New("query").Parse(
 		`drop continuous query "{{.name}}" on {{.database}}`))
