@@ -1,24 +1,40 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     app: monitoring
-    component: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.5
   name: kube-state-metrics
   namespace: monitoring
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: monitoring
-      component: kube-state-metrics
+      app.kubernetes.io/name: kube-state-metrics
   template:
     metadata:
       labels:
-        app: monitoring
-        component: kube-state-metrics
+        app.kubernetes.io/name: kube-state-metrics
+        app.kubernetes.io/version: 1.9.5
     spec:
       containers:
+      - args:
+        - --host=127.0.0.1
+        - --port=8081
+        - --telemetry-host=127.0.0.1
+        - --telemetry-port=8082
+        image: quay.io/coreos/kube-state-metrics:v1.9.5
+        name: kube-state-metrics
+        securityContext:
+          runAsUser: 65534
+        resources:
+          limits:
+            cpu: 100m
+            memory: 150Mi
+          requests:
+            cpu: 100m
+            memory: 150Mi
       - args:
         - --logtostderr
         - --secure-listen-address=:8443
@@ -29,6 +45,8 @@ spec:
         ports:
         - containerPort: 8443
           name: https-main
+        securityContext:
+          runAsUser: 65534
         resources:
           limits:
             cpu: 20m
@@ -46,6 +64,8 @@ spec:
         ports:
         - containerPort: 9443
           name: https-self
+        securityContext:
+          runAsUser: 65534
         resources:
           limits:
             cpu: 20m
@@ -53,23 +73,6 @@ spec:
           requests:
             cpu: 10m
             memory: 20Mi
-      - args:
-        - --host=127.0.0.1
-        - --port=8081
-        - --telemetry-host=127.0.0.1
-        - --telemetry-port=8082
-        image: quay.io/coreos/kube-state-metrics:v1.5.0
-        name: kube-state-metrics
-        resources:
-          limits:
-            cpu: 100m
-            memory: 150Mi
-          requests:
-            cpu: 100m
-            memory: 150Mi
       nodeSelector:
         gravitational.io/k8s-role: master
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
       serviceAccountName: kube-state-metrics

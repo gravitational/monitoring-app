@@ -11,5 +11,4 @@ spec:
     port: 443
     targetPort: 6443
   selector:
-    app: monitoring
-    component: prometheus-adapter
+    name: prometheus-adapter

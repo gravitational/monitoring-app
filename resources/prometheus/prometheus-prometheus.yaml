@@ -13,7 +13,10 @@ spec:
       port: web
   baseImage: leader.telekube.local:5000/prometheus/prometheus
   nodeSelector:
+    kubernetes.io/os: linux
     gravitational.io/k8s-role: master
+  podMonitorNamespaceSelector: {}
+  podMonitorSelector: {}
   replicas: 2
   resources:
     requests:
@@ -51,4 +54,4 @@ spec:
   additionalScrapeConfigs:
     name: prometheus-additional-scrape-configs
     key: additional-scrape-configs.yaml
-  version: v2.7.2
+  version: v2.15.2

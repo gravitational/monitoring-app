@@ -8,6 +8,7 @@ metadata:
 spec:
   baseImage: leader.telekube.local:5000/prometheus/alertmanager
   nodeSelector:
+    kubernetes.io/os: linux
     gravitational.io/k8s-role: master
   replicas: 3
   securityContext:
@@ -39,4 +40,4 @@ spec:
   - key: "node-role.kubernetes.io/master"
     operator: "Exists"
     effect: "NoSchedule"
-  version: v0.16.2
+  version: v0.20.0

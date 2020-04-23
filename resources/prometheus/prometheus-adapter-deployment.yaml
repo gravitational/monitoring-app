@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus-adapter
@@ -7,8 +7,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: monitoring
-      component: prometheus-adapter
+      name: prometheus-adapter
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -16,8 +15,7 @@ spec:
   template:
     metadata:
       labels:
-        app: monitoring
-        component: prometheus-adapter
+        name: prometheus-adapter
     spec:
       containers:
       - args:
@@ -27,7 +25,7 @@ spec:
         - --metrics-relist-interval=1m
         - --prometheus-url=http://prometheus-k8s.monitoring.svc:9090/
         - --secure-port=6443
-        image: quay.io/coreos/k8s-prometheus-adapter-amd64:v0.4.1
+        image: quay.io/coreos/k8s-prometheus-adapter-amd64:v0.5.0
         name: prometheus-adapter
         ports:
         - containerPort: 6443
@@ -42,6 +40,7 @@ spec:
           name: config
           readOnly: false
       nodeSelector:
+        kubernetes.io/os: linux
         gravitational.io/k8s-role: master
       serviceAccountName: prometheus-adapter
       volumes:
