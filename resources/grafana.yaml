@@ -22,7 +22,7 @@ data:
     # Default UI theme ("dark" or "light")
     default_theme = light
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -287,7 +287,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "CPU Utilisation",
+                        "title": "CPU Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 0,
@@ -471,7 +471,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Memory Utilisation",
+                        "title": "Memory Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 0,
@@ -655,7 +655,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Disk IO Utilisation",
+                        "title": "Disk IO Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 0,
@@ -839,7 +839,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Net Utilisation (Transmitted)",
+                        "title": "Net Utilization (Transmitted)",
                         "tooltip": {
                             "shared": true,
                             "sort": 0,
@@ -1226,7 +1226,7 @@ data:
                         "thresholds": "70,80",
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "CPU Utilisation",
+                        "title": "CPU Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 0,
@@ -1478,7 +1478,7 @@ data:
                         "thresholds": "70,80",
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Memory Utilisation",
+                        "title": "Memory Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 0,

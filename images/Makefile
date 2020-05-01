@@ -1,6 +1,6 @@
 .PHONY: all grafana deploy mta hook
 
-GRAFANA_VERSION := 6.0.2
+GRAFANA_VERSION := 6.6.0
 
 PWD=$(shell pwd)
 .DEFAULT_GOAL := all
