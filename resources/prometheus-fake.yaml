@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: alertmanager
-        image: quay.io/prometheus/alertmanager:v0.16.2
+        image: quay.io/prometheus/alertmanager:v0.20.0
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -44,7 +44,7 @@ spec:
     spec:
       containers:
       - name: prometheus
-        image: quay.io/prometheus/prometheus:v2.7.2
+        image: quay.io/prometheus/prometheus:v2.15.2
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -68,7 +68,7 @@ spec:
     spec:
       containers:
       - name: configmap-reload
-        image: quay.io/coreos/configmap-reload:v0.0.1
+        image: jimmidyson/configmap-reload:v0.3.0
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -92,7 +92,7 @@ spec:
     spec:
       containers:
       - name: prometheus-config-reloader
-        image: quay.io/coreos/prometheus-config-reloader:v0.29.0
+        image: quay.io/coreos/prometheus-config-reloader:v0.38.1
 ---
 apiVersion: apps/v1
 kind: Deployment
