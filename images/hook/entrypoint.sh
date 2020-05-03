@@ -52,6 +52,11 @@ if [ $1 = "update" ]; then
     sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
 
     echo "---> Creating or updating resources"
+    for file in /var/lib/gravity/resources/dashboards/*
+    do
+        rig upsert -f $file --debug
+    done
+
     for name in security grafana watcher
     do
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
