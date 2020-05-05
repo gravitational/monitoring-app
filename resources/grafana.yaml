@@ -154,6 +154,9 @@ spec:
         - mountPath: /grafana-dashboard-definitions/0/workload-total
           name: grafana-dashboard-workload-total
           readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/grafana-dashboard-cluster-rsrc-use
+          name: grafana-dashboard-cluster-rsrc-use
+          readOnly: false
       - name: watcher
         image: watcher:latest
         args:
@@ -242,6 +245,9 @@ spec:
       - configMap:
           name: grafana-dashboard-workload-total
         name: grafana-dashboard-workload-total
+      - configMap:
+          name: grafana-dashboard-cluster-rsrc-use
+        name: grafana-dashboard-cluster-rsrc-use
 ---
 apiVersion: v1
 kind: Service

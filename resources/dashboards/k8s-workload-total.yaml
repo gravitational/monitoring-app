@@ -1138,7 +1138,6 @@ data:
         "schemaVersion": 18,
         "style": "dark",
         "tags": [
-            "kubernetes-mixin"
         ],
         "templating": {
             "list": [
