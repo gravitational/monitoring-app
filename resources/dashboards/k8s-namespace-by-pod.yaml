@@ -1226,7 +1226,7 @@ data:
                 "type": "row"
             }
         ],
-        "refresh": "10s",
+        "refresh": "1m",
         "rows": [
 
         ],

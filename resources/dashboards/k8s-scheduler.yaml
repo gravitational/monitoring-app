@@ -21,7 +21,7 @@ data:
         "links": [
 
         ],
-        "refresh": "10s",
+        "refresh": "1m",
         "rows": [
             {
                 "collapse": false,
