@@ -45,6 +45,8 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring
+      securityContext:
+        runAsUser: -1
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
@@ -56,8 +58,6 @@ spec:
       containers:
       - name: grafana
         image: monitoring-grafana:latest
-        securityContext:
-          runAsUser: 0
         env:
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
@@ -90,8 +90,6 @@ spec:
             mountPath: /var/lib/grafana/dashboards
       - name: watcher
         image: watcher:latest
-        securityContext:
-          runAsUser: -1
         args:
           - --mode=dashboards
         env:
