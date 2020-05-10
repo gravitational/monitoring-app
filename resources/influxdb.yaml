@@ -24,6 +24,8 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring
+      securityContext:
+        runAsUser: -1
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
@@ -32,11 +34,24 @@ spec:
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
         effect: "NoSchedule"
+      initContainers:
+        - name: fix-permissions
+          image: watcher:latest
+          securityContext:
+            runAsUser: 0
+          command: ["chown", "-R", "$(SERVICE_UID)", "/var/lib/influxdb"]
+          env:
+            - name: SERVICE_UID
+              valueFrom:
+                configMapKeyRef:
+                  name: gravity-service-user
+                  key: service-uid
+          volumeMounts:
+            - mountPath: /var/lib/influxdb
+              name: influxdb-storage
       containers:
       - name: watcher
         image: watcher:latest
-        securityContext:
-          runAsUser: -1
         args:
           - --mode=rollups
         env:
