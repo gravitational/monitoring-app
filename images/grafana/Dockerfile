@@ -50,6 +50,9 @@ RUN groupadd -r -g $GF_GID grafana && \
 EXPOSE 3000
 
 COPY ./run.sh /run.sh
+COPY ./init.sh /init.sh
+
+RUN chmod +x /run.sh /init.sh
 
 USER grafana
 ENTRYPOINT [ "/run.sh" ]

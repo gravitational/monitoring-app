@@ -19,7 +19,7 @@ hooks:
             restartPolicy: OnFailure
             containers:
               - name: hook
-                image: quay.io/gravitational/debian-tall:stretch
+                image: quay.io/gravitational/debian-grande:stretch
                 command: ["/bin/sh", "/var/lib/gravity/resources/install.sh"]
   update:
     job: |

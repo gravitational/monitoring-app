@@ -55,6 +55,23 @@ spec:
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
         effect: "NoSchedule"
+      initContainers:
+      - name: init
+        image: monitoring-grafana:latest
+        command: ["/init.sh"]
+        securityContext:
+          runAsUser: 0
+        env:
+          - name: SERVICE_UID
+            valueFrom:
+              configMapKeyRef:
+                name: gravity-service-user
+                key: service-uid
+        volumeMounts:
+          - name: grafana-etc
+            mountPath: /etc/grafana
+          - name: datasources
+            mountPath: /tmp/datasources
       containers:
       - name: grafana
         image: monitoring-grafana:latest
@@ -80,10 +97,10 @@ spec:
                 name: grafana-influxdb-creds
                 key: password
         volumeMounts:
+          - name: grafana-etc
+            mountPath: /etc/grafana
           - name: config
             mountPath: /etc/grafana/cfg
-          - name: datasources
-            mountPath: /etc/grafana/provisioning-noenv/datasources
           - name: dashboards-cfg
             mountPath: /etc/grafana/provisioning/dashboards
           - name: dashboards
@@ -104,6 +121,8 @@ spec:
                 name: grafana
                 key: password
       volumes:
+        - name: grafana-etc
+          emptyDir: {}
         - name: config
           configMap:
             name: grafana-cfg
