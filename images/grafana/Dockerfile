@@ -31,7 +31,7 @@ ENV PATH=/usr/share/grafana/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bi
 
 WORKDIR $GF_PATHS_HOME
 
-RUN apt-get update && apt-get install -qq -y libfontconfig ca-certificates curl gettext-base && \
+RUN apt-get update && apt-get install -qq -y libfontconfig ca-certificates gettext-base && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 

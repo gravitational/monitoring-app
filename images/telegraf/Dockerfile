@@ -13,6 +13,7 @@ RUN apt-get update && \
     apt-get install --yes --no-install-recommends curl tar && \
     curl -sSL https://dl.influxdata.com/telegraf/releases/telegraf-${TELEGRAF_VERSION}_linux_amd64.tar.gz -o /telegraf.tar.gz && \
     tar xzf /telegraf.tar.gz --strip-components=2 && \
+    apt-get purge curl -y && \
     apt-get clean && \
     rm -rf \
         /var/lib/apt/lists/* \
