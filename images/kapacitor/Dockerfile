@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-grande:stretch
+FROM quay.io/gravitational/debian-grande:stretch as downloader
 ARG KAPACITOR_VERSION
 
 # Ensure nsswitch is set so localhost will be resolved locally
@@ -7,28 +7,18 @@ ARG KAPACITOR_VERSION
 RUN test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
 
 RUN apt-get update && \
-    apt-get install -y curl wget gnupg dirmngr
+    apt-get install -y curl tar && \
+    curl -sSL https://dl.influxdata.com/kapacitor/releases/kapacitor-${KAPACITOR_VERSION}_linux_amd64.tar.gz -o /kapacitor.tar.gz && \
+    tar xzf /kapacitor.tar.gz --strip-components=2
 
-RUN for key in 05CE15085FC09D18E99EFB22684A14CF2582E0C5; \
-    do \
-      gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
-      gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
-      gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
-    done
-
-RUN wget -q https://dl.influxdata.com/kapacitor/releases/kapacitor_${KAPACITOR_VERSION}_amd64.deb.asc && \
-    wget -q https://dl.influxdata.com/kapacitor/releases/kapacitor_${KAPACITOR_VERSION}_amd64.deb && \
-    gpg --batch --verify kapacitor_${KAPACITOR_VERSION}_amd64.deb.asc kapacitor_${KAPACITOR_VERSION}_amd64.deb && \
-    dpkg -i kapacitor_${KAPACITOR_VERSION}_amd64.deb && \
-    rm -f kapacitor_${KAPACITOR_VERSION}_amd64.deb*
-COPY kapacitor.conf /etc/kapacitor/kapacitor.conf
+FROM quay.io/gravitational/debian-tall:stretch
+COPY --from=downloader /usr/bin/kapacitor /usr/bin/kapacitord /usr/bin/tickfmt /usr/bin/
 
 EXPOSE 9092
 
 VOLUME /var/lib/kapacitor
 
-RUN test -f /cleanup.sh && sh /cleanup.sh
-
+COPY kapacitor.conf /etc/kapacitor/kapacitor.conf
 COPY entrypoint.sh /entrypoint.sh
 COPY loadalerts.sh /loadalerts.sh
 

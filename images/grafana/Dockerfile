@@ -1,7 +1,7 @@
 FROM debian:stretch-slim
 
 ARG GRAFANA_VERSION
-ARG GRAFANA_TGZ="https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-${GRAFANA_VERSION}.linux-x64.tar.gz"
+ARG GRAFANA_TGZ="https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.linux-amd64.tar.gz"
 
 # Ensure nsswitch is set so localhost will be resolved locally
 # https://github.com/gravitational/gravity/issues/1046
@@ -31,7 +31,7 @@ ENV PATH=/usr/share/grafana/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bi
 
 WORKDIR $GF_PATHS_HOME
 
-RUN apt-get update && apt-get install -qq -y libfontconfig ca-certificates curl gettext-base && \
+RUN apt-get update && apt-get install -qq -y libfontconfig ca-certificates gettext-base && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
@@ -44,7 +44,7 @@ RUN groupadd -r -g $GF_GID grafana && \
              "$GF_PATHS_LOGS" \
              "$GF_PATHS_PLUGINS" \
              "$GF_PATHS_DATA" && \
-    chown -R grafana:grafana "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" && \
+    chown -R grafana:grafana "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING" && \
     chmod 777 "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS"
 
 EXPOSE 3000

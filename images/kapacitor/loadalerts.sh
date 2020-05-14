@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 URL=${URL:-http://localhost:9092}
 ALERTDIR=${ALERTDIR:-/opt/alerts}

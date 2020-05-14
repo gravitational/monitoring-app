@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-grande:stretch
+FROM quay.io/gravitational/debian-grande:stretch AS downloader
 ARG TELEGRAF_VERSION
 
 # Ensure nsswitch is set so localhost will be resolved locally
@@ -12,18 +12,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends curl tar && \
     curl -sSL https://dl.influxdata.com/telegraf/releases/telegraf-${TELEGRAF_VERSION}_linux_amd64.tar.gz -o /telegraf.tar.gz && \
-    tar xzf /telegraf.tar.gz --strip-components=2 && \
-    apt-get clean && \
-    rm -rf \
-        /var/lib/apt/lists/* \
-        ~/.bashrc \
-        /usr/share/doc/ \
-        /usr/share/doc-base/ \
-        /usr/share/man/ \
-        /tmp/* \
-        /telegraf.tar.gz \
-        /etc/telegraf/*
+    tar xzf /telegraf.tar.gz --strip-components=2
 
+FROM quay.io/gravitational/debian-tall:stretch
+COPY --from=downloader /usr/bin/telegraf /usr/bin/telegraf
 ADD rootfs/ /
 
 RUN chmod a+rx /usr/local/bin/run*.sh

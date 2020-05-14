@@ -24,6 +24,8 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring
+      securityContext:
+        runAsUser: -1
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
@@ -35,8 +37,6 @@ spec:
       containers:
       - name: watcher
         image: watcher:latest
-        securityContext:
-          runAsUser: -1
         args:
           - --mode=rollups
         env:
@@ -98,7 +98,7 @@ spec:
           name: influxdb
       - name: influxdb-storage
         hostPath:
-          path: /var/lib/data/influxdb
+          path: /var/lib/gravity/monitoring/influxdb
 ---
 apiVersion: v1
 kind: Service
