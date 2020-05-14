@@ -18,7 +18,5 @@ FROM quay.io/gravitational/debian-tall:stretch
 COPY --from=downloader /usr/bin/telegraf /usr/bin/telegraf
 ADD rootfs/ /
 
-RUN chmod a+rx /usr/local/bin/run*.sh
-
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["/usr/local/bin/run.sh"]
+CMD ["/usr/bin/telegraf", "--config", "/etc/telegraf/telegraf.conf"]
