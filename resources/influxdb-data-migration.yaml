@@ -1,0 +1,35 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: influxdb-data-migration
+  namespace: monitoring
+spec:
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: NODE_SELECTOR
+      serviceAccountName: monitoring
+      securityContext:
+        runAsUser: -1
+      containers:
+        - name: migration
+          image: monitoring-utils:latest
+          command: ["/influxdb_data_migration.sh"]
+          env:
+            - name: OLD_DATA_DIR
+              value: "/old-data"
+            - name: NEW_DATA_DIR
+              value: "/new-data"
+          volumeMounts:
+            - name: old-data
+              mountPath: /old-data
+            - name: new-data
+              mountPath: /new-data
+      volumes:
+        - name: old-data
+          hostPath:
+            path: /var/lib/data
+        - name: new-data
+          hostPath:
+            path: /var/lib/gravity/monitoring/influxdb

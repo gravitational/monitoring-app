@@ -14,6 +14,11 @@ if [ $1 = "update" ]; then
         NODE_NAME=$(kubectl --namespace=monitoring get pod -l app=monitoring,component=influxdb -o go-template --template='{{(index .items 0).spec.nodeName}}')
     fi
 
+    # migrate old influxdb data if it exist after upgrade
+    if [ -n "$NODE_NAME" ]; then
+        sed "s/NODE_SELECTOR/$NODE_NAME/" resources/influxdb-data-migration.yaml | /opt/bin/kubectl create -f -
+        /opt/bin/kubectl --namespace=monitoring wait --for=condition=complete --timeout=2m job/influxdb-data-migration
+    fi
     # create influxdb secret in case it does not exist because upgrading from old gravity version
     if ! /opt/bin/kubectl --namespace=monitoring get secret influxdb > /dev/null 2>&1;
     then

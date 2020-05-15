@@ -13,7 +13,6 @@ RUN test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
 
 RUN mkdir -p $INFLUXDB_HOME /data /logs
 
-ADD Dockerfile /
 ADD build/influx* $INFLUXDB_HOME/
 
 # volume used for storing database logs and data

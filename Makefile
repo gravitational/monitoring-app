@@ -15,6 +15,7 @@ IMPORT_IMAGE_FLAGS := --set-image=monitoring-influxdb:$(VERSION) \
 	--set-image=monitoring-kapacitor:$(VERSION) \
 	--set-image=monitoring-telegraf:$(VERSION) \
 	--set-image=monitoring-hook:$(VERSION) \
+	--set-image=monitoring-utils:$(VERSION) \
 	--set-image=watcher:$(VERSION)
 
 IMPORT_OPTIONS := --vendor \
