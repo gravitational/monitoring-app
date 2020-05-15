@@ -12,6 +12,7 @@ spec:
       serviceAccountName: monitoring
       securityContext:
         runAsUser: -1
+      restartPolicy: Never
       containers:
         - name: migration
           image: monitoring-utils:latest
