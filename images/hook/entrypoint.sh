@@ -16,7 +16,7 @@ if [ $1 = "update" ]; then
 
     # migrate old influxdb data if it exist after upgrade
     if [ -n "$NODE_NAME" ]; then
-        sed "s/NODE_SELECTOR/$NODE_NAME/" resources/influxdb-data-migration.yaml | /opt/bin/kubectl create -f -
+        sed "s/NODE_SELECTOR/$NODE_NAME/" /var/lib/gravity/resources/influxdb-data-migration.yaml | /opt/bin/kubectl create -f -
         /opt/bin/kubectl --namespace=monitoring wait --for=condition=complete --timeout=2m job/influxdb-data-migration
     fi
     # create influxdb secret in case it does not exist because upgrading from old gravity version
