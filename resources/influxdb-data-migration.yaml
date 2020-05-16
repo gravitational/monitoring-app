@@ -11,7 +11,7 @@ spec:
         kubernetes.io/hostname: NODE_SELECTOR
       serviceAccountName: monitoring
       securityContext:
-        runAsUser: -1
+        runAsUser: 0
       restartPolicy: Never
       containers:
         - name: migration
