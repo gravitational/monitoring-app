@@ -104,6 +104,8 @@ spec:
                 secretKeyRef:
                   name: telegraf-influxdb-creds
                   key: password
+            - name: HOST_PROC
+              value: "/host/proc"
           resources:
             limits:
               memory: "100Mi"
@@ -114,10 +116,16 @@ spec:
           volumeMounts:
             - name: certificates
               mountPath: /var/lib/gravity/secrets
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
       volumes:
         - name: certificates
           hostPath:
             path: /var/lib/gravity/secrets
+        - name: proc
+          hostPath:
+            path: /proc
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -171,6 +179,8 @@ spec:
                 secretKeyRef:
                   name: telegraf-influxdb-creds
                   key: password
+            - name: HOST_PROC
+              value: "/host/proc"
           resources:
             limits:
               memory: "100Mi"
@@ -181,7 +191,13 @@ spec:
           volumeMounts:
             - name: certificates
               mountPath: /var/lib/gravity/secrets
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
       volumes:
         - name: certificates
           hostPath:
             path: /var/lib/gravity/secrets
+        - name: proc
+          hostPath:
+            path: /proc
