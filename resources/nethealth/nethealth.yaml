@@ -133,7 +133,7 @@ spec:
           operator: Exists
       containers:
         - name: nethealth
-          image: quay.io/gravitational/nethealth-dev:6.3.2
+          image: quay.io/gravitational/nethealth-dev:7.1.0
           command:
             - /nethealth
           args:
