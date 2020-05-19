@@ -8,17 +8,6 @@ if [ $1 = "update" ]; then
     echo "---> Creating monitoring namespace"
     /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 
-    echo "---> Getting node name for influxdb pod"
-    # Patch influxdb deployment but keep the pod scheduled to the same node after the update
-    if kubectl --namespace=monitoring get pod | grep -q influxdb; then
-        NODE_NAME=$(kubectl --namespace=monitoring get pod -l app=monitoring,component=influxdb -o go-template --template='{{(index .items 0).spec.nodeName}}')
-    fi
-
-    # migrate old influxdb data if it exist after upgrade
-    if [ -n "$NODE_NAME" ]; then
-        sed "s/NODE_SELECTOR/$NODE_NAME/" /var/lib/gravity/resources/influxdb-data-migration.yaml | /opt/bin/kubectl create -f -
-        /opt/bin/kubectl --namespace=monitoring wait --for=condition=complete --timeout=2m job/influxdb-data-migration
-    fi
     # create influxdb secret in case it does not exist because upgrading from old gravity version
     if ! /opt/bin/kubectl --namespace=monitoring get secret influxdb > /dev/null 2>&1;
     then
@@ -49,29 +38,7 @@ if [ $1 = "update" ]; then
         rig upsert -f /var/lib/gravity/resources/${filename}.yaml --debug
     done
 
-    if [ -n "$NODE_NAME" ]; then
-        TMPFILE="$(mktemp)"
-        cat >$TMPFILE<<EOF
-spec:
-  template:
-    spec:
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - $NODE_NAME
-EOF
-        kubectl --namespace=monitoring patch deployment influxdb -p "$(cat $TMPFILE)"
-        kubectl --namespace=monitoring delete pod -l app=monitoring,component=influxdb
-        rm $TMPFILE
-    fi
-
-    echo "---> Checking status of updated resources"
+    echo "---> Checking status of updated resources before updating rollups"
     rig status $RIG_CHANGESET --retry-attempts=120 --retry-period=1s --debug
 
     echo "---> Updating rollups"
