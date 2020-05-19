@@ -18,7 +18,6 @@ GRAFANA_TAG   := monitoring-grafana:$(VERSION)
 KAPACITOR_TAG := monitoring-kapacitor:$(VERSION)
 TELEGRAF_TAG  := monitoring-telegraf:$(VERSION)
 HOOK_TAG := monitoring-hook:$(VERSION)
-UTILS_TAG := monitoring-utils:$(VERSION)
 
 REPO_URL := quay.io/gravitational
 
@@ -57,10 +56,7 @@ kapacitor:
 telegraf:
 	$(MAKE) -e BUILDIMAGE=$(TELEGRAF_TAG) EXTRA_ARGS="--build-arg TELEGRAF_VERSION=$(TELEGRAF_VERSION)" TARGETDIR=$@ make-docker-image
 
-utils:
-	$(MAKE) -e BUILDIMAGE=$(UTILS_TAG) TARGETDIR=$@ make-docker-image
-
-all: heapster influxdb grafana kapacitor telegraf hook utils
+all: heapster influxdb grafana kapacitor telegraf hook
 
 clean: heapster-clean influxdb-clean
 
