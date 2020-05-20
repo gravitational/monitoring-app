@@ -1,5 +1,5 @@
 .PHONY: all heapster heapster-build heapster-clean influxdb influxdb-build \
-	influxdb-clean grafana kapacitor telegraf deploy utils
+	influxdb-clean grafana kapacitor telegraf deploy
 
 GRAFANA_VERSION := 5.4.5
 # TODO: heapster is marked as deprecated project and will be removed in k8s 1.13
