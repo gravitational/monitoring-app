@@ -26,7 +26,6 @@ spec:
       serviceAccountName: monitoring
       securityContext:
         runAsUser: -1
-        fsGroup: 1000
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
