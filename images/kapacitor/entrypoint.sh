@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 KAPACITOR_HOSTNAME=${KAPACITOR_HOSTNAME:-$HOSTNAME}

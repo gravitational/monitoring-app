@@ -56,8 +56,6 @@ spec:
       containers:
       - name: grafana
         image: monitoring-grafana:latest
-        securityContext:
-          runAsUser: 0
         env:
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
