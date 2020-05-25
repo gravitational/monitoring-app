@@ -15,6 +15,7 @@ if [ $1 = "update" ]; then
     rig delete deployments/telegraf --resource-namespace=monitoring --force
     rig delete daemonsets/telegraf-node --resource-namespace=monitoring --force
     rig delete daemonsets/telegraf-node-worker --resource-namespace=monitoring --force
+    rig delete daemonsets/telegraf-node-master --resource-namespace=monitoring --force
 
     echo "---> Deleting old deployment 'kapacitor'"
     rig delete deployments/kapacitor --resource-namespace=monitoring --force
