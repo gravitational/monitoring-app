@@ -5,36 +5,23 @@ echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 # note that rig does not take explicit changeset ID
 # taking it from the environment variables
 if [ $1 = "update" ]; then
-    echo "---> Checking: $RIG_CHANGESET"
-    if rig status $RIG_CHANGESET --retry-attempts=1 --retry-period=1s; then exit 0; fi
-
-    echo "---> Starting update, changeset: $RIG_CHANGESET"
-    rig cs delete --force -c cs/$RIG_CHANGESET
-
     echo "---> Deleting old 'heapster' resources"
     rig delete deployments/heapster --resource-namespace=monitoring --force
 
     echo "---> Deleting old 'influxdb' resources"
     rig delete deployments/influxdb --resource-namespace=monitoring --force
 
-    echo "---> Deleting old 'grafana' resources"
-    rig delete deployments/grafana --resource-namespace=monitoring --force
-
     echo "---> Deleting old 'telegraf' resources"
     rig delete deployments/telegraf --resource-namespace=monitoring --force
     rig delete daemonsets/telegraf-node --resource-namespace=monitoring --force
+    rig delete daemonsets/telegraf-node-worker --resource-namespace=monitoring --force
+    rig delete daemonsets/telegraf-node-master --resource-namespace=monitoring --force
 
     echo "---> Deleting old deployment 'kapacitor'"
     rig delete deployments/kapacitor --resource-namespace=monitoring --force
 
-    echo "---> Deleting old secrets"
-    for secret in grafana grafana-influxdb-creds smtp-configuration
-    do
-        rig delete secrets/$secret --resource-namespace=monitoring --force
-    done
-
     echo "---> Deleting old configmaps"
-    for configmap in influxdb grafana-cfg grafana grafana-dashboards-cfg grafana-dashboards grafana-datasources kapacitor-alerts rollups-default alerting-addresses
+    for configmap in influxdb grafana kapacitor-alerts rollups-default 
     do
         rig delete configmaps/$configmap --resource-namespace=monitoring --force
     done
@@ -46,6 +33,10 @@ if [ $1 = "update" ]; then
     do
         rig upsert -f $file --debug
     done
+
+    # Generate password for Grafana administrator
+    password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+    sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
 
     echo "---> Creating or updating resources"
     for name in security grafana watcher
