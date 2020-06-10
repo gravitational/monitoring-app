@@ -170,7 +170,7 @@ data:
                 "folder": "",
                 "name": "0",
                 "options": {
-                    "path": "/var/lib/grafana/dashboards"
+                  "path": "/etc/grafana/dashboards"
                 },
                 "orgId": 1,
                 "type": "file"
