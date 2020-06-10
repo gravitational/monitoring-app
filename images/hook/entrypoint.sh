@@ -21,7 +21,9 @@ if [ $1 = "update" ]; then
     rig delete deployments/kapacitor --resource-namespace=monitoring --force
 
     echo "---> Deleting old configmaps"
-    for configmap in influxdb grafana kapacitor-alerts rollups-default 
+    for configmap in influxdb grafana kapacitor-alerts rollups-default grafana-dashboard-k8s-cluster-rsrc-use grafana-dashboard-k8s-resources-cluster \
+      grafana-dashboard-k8s-resources-namespace grafana-dashboard-k8s-resources-pod grafana-dashboard-k8s-resources-workload grafana-dashboard-k8s-resources-workloads-namespace \
+      grafana-dashboard-nodes grafana-dashboard-pods grafana-dashboard-nethealth
     do
         rig delete configmaps/$configmap --resource-namespace=monitoring --force
     done
