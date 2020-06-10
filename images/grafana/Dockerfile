@@ -6,6 +6,7 @@ FROM grafana/grafana:${GRAFANA_VERSION}
 # https://github.com/golang/go/issues/35305
 RUN test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
 
+COPY rootfs/ /
 COPY run.sh /run.sh
 
 EXPOSE 3000
