@@ -24,6 +24,7 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring
+      priorityClassName: system-cluster-critical
       securityContext:
         runAsUser: -1
       tolerations:

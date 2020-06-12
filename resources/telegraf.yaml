@@ -74,6 +74,7 @@ spec:
       nodeSelector:
         gravitational.io/k8s-role: master
       serviceAccountName: monitoring
+      priorityClassName: system-cluster-critical
       tolerations:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
@@ -154,6 +155,7 @@ spec:
       nodeSelector:
         gravitational.io/k8s-role: node
       serviceAccountName: monitoring
+      priorityClassName: system-cluster-critical
       securityContext:
         runAsUser: -1
       containers:
