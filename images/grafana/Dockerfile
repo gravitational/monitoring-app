@@ -36,6 +36,7 @@ RUN set -ex && apt-get update && apt-get install -qq -y libfontconfig ca-certifi
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=0 /tmp/grafana "$GF_PATHS_HOME"
+COPY rootfs/ /
 
 RUN set -ex && groupadd -r -g $GF_GID grafana && \
     useradd -r -u $GF_UID -g grafana grafana && \
