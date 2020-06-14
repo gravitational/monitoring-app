@@ -48,6 +48,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 65534
       serviceAccountName: monitoring
+      priorityClassName: monitoring-high-priority
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system

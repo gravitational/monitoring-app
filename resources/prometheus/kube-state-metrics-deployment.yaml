@@ -18,6 +18,7 @@ spec:
         app: monitoring
         component: kube-state-metrics
     spec:
+      priorityClassName: monitoring-high-priority
       containers:
       - args:
         - --logtostderr
