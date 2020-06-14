@@ -22,7 +22,7 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring
-      priorityClassName: system-cluster-critical
+      priorityClassName: monitoring-high-priority
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system

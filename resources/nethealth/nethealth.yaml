@@ -121,7 +121,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 5
       serviceAccountName: nethealth
-      priorityClassName: system-cluster-critical
+      priorityClassName: monitoring-high-priority
       tolerations:
         # Tolerate all taints
         - effect: NoSchedule
