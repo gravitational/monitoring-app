@@ -22,6 +22,7 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring
+      priorityClassName: monitoring-high-priority
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
@@ -74,6 +75,7 @@ spec:
       nodeSelector:
         gravitational.io/k8s-role: master
       serviceAccountName: monitoring
+      priorityClassName: monitoring-high-priority
       tolerations:
         # allows to run on master nodes
       - key: "node-role.kubernetes.io/master"
@@ -154,6 +156,7 @@ spec:
       nodeSelector:
         gravitational.io/k8s-role: node
       serviceAccountName: monitoring
+      priorityClassName: monitoring-high-priority
       securityContext:
         runAsUser: -1
       containers:

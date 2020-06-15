@@ -22,6 +22,7 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring-updater
+      priorityClassName: monitoring-high-priority
       securityContext:
         runAsUser: -1
       tolerations:
