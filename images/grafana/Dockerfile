@@ -1,3 +1,4 @@
+# Mostly copied from https://github.com/grafana/grafana/blob/v6.7.x/packaging/docker/ubuntu.Dockerfile
 FROM debian:stretch-slim
 
 ARG GRAFANA_VERSION
@@ -46,6 +47,8 @@ RUN set -ex && groupadd -r -g $GF_GID grafana && \
              "$GF_PATHS_LOGS" \
              "$GF_PATHS_PLUGINS" \
              "$GF_PATHS_DATA" && \
+    cp "$GF_PATHS_HOME/conf/sample.ini" "$GF_PATHS_CONFIG" && \
+    cp "$GF_PATHS_HOME/conf/ldap.toml" /etc/grafana/ldap.toml && \
     chown -R grafana:grafana "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING" && \
     chmod -R 777 "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING"
 
