@@ -58,8 +58,8 @@ spec:
       - name: grafana
         image: monitoring-grafana:latest
         env:
-	  - name: GF_PATHS_CONFIG
-	    value: /etc/grafana/cfg/grafana.ini
+          - name: GF_PATHS_CONFIG
+            value: /etc/grafana/cfg/grafana.ini
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
               secretKeyRef:
