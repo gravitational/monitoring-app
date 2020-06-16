@@ -31,7 +31,7 @@ ENV PATH=/usr/share/grafana/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bi
 
 WORKDIR $GF_PATHS_HOME
 
-RUN set -ex && apt-get update && apt-get install -qq -y libfontconfig ca-certificates gettext-base && \
+RUN set -ex && apt-get update && apt-get install -qq -y libfontconfig ca-certificates dumb-init && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
@@ -42,15 +42,16 @@ RUN set -ex && groupadd -r -g $GF_GID grafana && \
     useradd -r -u $GF_UID -g grafana grafana && \
     mkdir -p "$GF_PATHS_PROVISIONING/datasources" \
              "$GF_PATHS_PROVISIONING/dashboards" \
+             "$GF_PATHS_PROVISIONING/notifiers" \
              "$GF_PATHS_LOGS" \
              "$GF_PATHS_PLUGINS" \
              "$GF_PATHS_DATA" && \
     chown -R grafana:grafana "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING" && \
-    chmod 777 "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS"
+    chmod -R 777 "$GF_PATHS_DATA" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING"
 
 EXPOSE 3000
 
 COPY ./run.sh /run.sh
 
 USER grafana
-ENTRYPOINT [ "/run.sh" ]
+ENTRYPOINT [  "/usr/bin/dumb-init", "/run.sh" ]
