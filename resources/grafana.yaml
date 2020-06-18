@@ -21,6 +21,8 @@ data:
     [users]
     # Default UI theme ("dark" or "light")
     default_theme = dark
+    [security]
+    allow_embedding = true
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -58,6 +60,8 @@ spec:
       - name: grafana
         image: monitoring-grafana:latest
         env:
+          - name: GF_PATHS_CONFIG
+            value: /etc/grafana/cfg/grafana.ini
           - name: GF_SECURITY_ADMIN_USER
             valueFrom:
               secretKeyRef:
@@ -82,7 +86,7 @@ spec:
           - name: config
             mountPath: /etc/grafana/cfg
           - name: datasources
-            mountPath: /etc/grafana/provisioning-noenv/datasources
+            mountPath: /etc/grafana/provisioning/datasources
           - name: dashboards-cfg
             mountPath: /etc/grafana/provisioning/dashboards
       - name: watcher
@@ -143,7 +147,8 @@ data:
         access: proxy
         url: "http://influxdb.monitoring.svc:8086"
         user: "$INFLUXDB_USERNAME"
-        password: "$INFLUXDB_PASSWORD"
+        secureJsonData:
+          password: "$INFLUXDB_PASSWORD"
         database: "k8s"
         isDefault: true
         version: 1
