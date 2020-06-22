@@ -55,10 +55,10 @@
                     "steppedLine": false,
                     "targets": [
                         {
-                            "expr": "sum(namespace_pod_name_container_name:container_cpu_usage_seconds_total:sum_rate{namespace=\"$namespace\", pod=\"$pod\", container!=\"POD\", cluster=\"$cluster\"}) by (container)",
+                            "expr": "sum(namespace_pod_name_container_name:container_cpu_usage_seconds_total:sum_rate{namespace=\"$namespace\", pod_name=\"$pod\", container_name!=\"POD\", cluster=\"$cluster\"}) by (container_name)",
                             "format": "time_series",
                             "intervalFactor": 2,
-                            "legendFormat": "{{container}}",
+                            "legendFormat": "{{container_name}}",
                             "legendLink": null,
                             "step": 10
                         }
