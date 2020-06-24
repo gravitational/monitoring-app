@@ -55,7 +55,7 @@
                     "steppedLine": false,
                     "targets": [
                         {
-                            "expr": "sum(\n    namespace_pod_name_container_name:container_cpu_usage_seconds_total:sum_rate{cluster=\"$cluster\", namespace=\"$namespace\"} * on(namespace,pod) group_left(workload, workload_type) mixin_pod_workload{cluster=\"$cluster\", namespace=\"$namespace\"}\n) by (workload, workload_type)\n",
+                            "expr": "sum(\n    namespace_pod_name_container_name:container_cpu_usage_seconds_total:sum_rate{cluster=\"$cluster\", namespace=\"$namespace\"} * on(namespace,pod_name) group_left(workload, workload_type) label_replace(mixin_pod_workload{cluster=\"$cluster\", namespace=\"$namespace\"}\n, \"pod_name\", \"$1\", \"pod\", \"(.*)\")) by (workload, workload_type)\n",
                             "format": "time_series",
                             "intervalFactor": 2,
                             "legendFormat": "{{workload}} - {{workload_type}}",
