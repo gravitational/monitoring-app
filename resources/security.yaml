@@ -155,3 +155,11 @@ roleRef:
   kind: Role
   name: monitoring:updater
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: scheduling.k8s.io/v1beta1
+kind: PriorityClass
+metadata:
+  name: monitoring-high-priority
+value: 1000000
+globalDefault: false
+description: "This priority class for monitoring application pods."
