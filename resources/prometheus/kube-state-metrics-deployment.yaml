@@ -69,6 +69,7 @@ spec:
             memory: 150Mi
       nodeSelector:
         gravitational.io/k8s-role: master
+      priorityClassName: monitoring-high-priority
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
