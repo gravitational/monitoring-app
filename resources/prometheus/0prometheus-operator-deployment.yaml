@@ -36,6 +36,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+      priorityClassName: monitoring-high-priority
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534

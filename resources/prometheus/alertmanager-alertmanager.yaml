@@ -10,6 +10,7 @@ spec:
   nodeSelector:
     gravitational.io/k8s-role: master
   replicas: 3
+  priorityClassName: monitoring-high-priority
   securityContext:
     fsGroup: 2000
     runAsNonRoot: true

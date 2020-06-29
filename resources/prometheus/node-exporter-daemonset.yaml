@@ -67,6 +67,7 @@ spec:
             memory: 20Mi
       hostNetwork: true
       hostPID: true
+      priorityClassName: monitoring-high-priority
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
