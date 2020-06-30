@@ -140,7 +140,8 @@ data:
             "field": "value",
             "alias": "value_mean"
           }
-        ]
+        ],
+        "where": "type <> 'sys_container'"
       },
       {
         "retention": "long",
@@ -157,7 +158,8 @@ data:
             "field": "value",
             "alias": "value_mean"
           }
-        ]
+        ],
+        "where": "type <> 'sys_container'"
       },
       {
         "retention": "long",
