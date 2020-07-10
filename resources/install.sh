@@ -1,11 +1,14 @@
 #!/bin/sh
 
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
+/opt/bin/kubectl create -f /var/lib/gravity/resources/namespace.yaml
 
-for file in /var/lib/gravity/resources/crds/*
+for file in /var/lib/gravity/resources/kube-prometheus-setup/*
 do
-    head -n -6 $file | /opt/bin/kubectl apply -f -
+    head -n -6 $file | /opt/bin/kubectl create -f -
 done
+
+# Wait until setup of CRDs are done
+until /opt/bin/kubectl get servicemonitors --all-namespaces ; do echo $(date) ": Waiting for CRDs to setup"; done
 
 # Generate password for Grafana administrator
 password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
@@ -16,5 +19,5 @@ do
     /opt/bin/kubectl apply -f /var/lib/gravity/resources/${name}.yaml
 done
 
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/prometheus/
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/nethealth/
+/opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
+/opt/bin/kubectl create -f /var/lib/gravity/resources/nethealth/
