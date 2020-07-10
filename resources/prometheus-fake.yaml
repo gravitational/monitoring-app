@@ -68,7 +68,7 @@ spec:
     spec:
       containers:
       - name: configmap-reload
-        image: quay.io/coreos/configmap-reload:v0.3.0
+        image: jimmidyson/configmap-reload:v0.3.0
 ---
 apiVersion: apps/v1
 kind: Deployment
