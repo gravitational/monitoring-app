@@ -4,7 +4,7 @@
 
 for file in /var/lib/gravity/resources/kube-prometheus-setup/*
 do
-    head -n -6 $file | /opt/bin/kubectl create -f -
+    /opt/bin/kubectl create -f $file
 done
 
 # Wait until setup of CRDs are done
@@ -16,7 +16,7 @@ sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/gra
 
 for name in security grafana watcher
 do
-    /opt/bin/kubectl apply -f /var/lib/gravity/resources/${name}.yaml
+    /opt/bin/kubectl create -f /var/lib/gravity/resources/${name}.yaml
 done
 
 /opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
