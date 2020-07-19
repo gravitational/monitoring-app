@@ -115,14 +115,20 @@ func runRetryLoop(ctx context.Context) chan<- func() error {
 			case handler := <-retryC:
 				handlers = append(handlers, handler)
 			case <-timer.C:
-				for i, handler := range handlers {
+				var i int
+				numHandlers := len(handlers)
+				for i < numHandlers {
+					handler := handlers[i]
 					if err := handler(); err != nil {
 						log.WithError(err).Warn("Failed to complete handler.")
+						i++
 						continue
 					}
 					// Remove handler
 					handlers = append(handlers[:i], handlers[i+1:]...)
+					numHandlers--
 				}
+				handlers = handlers[:i]
 			case <-ctx.Done():
 				return
 			}
