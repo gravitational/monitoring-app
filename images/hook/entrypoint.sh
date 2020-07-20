@@ -20,6 +20,28 @@ if [ $1 = "update" ]; then
     echo "---> Deleting old deployment 'kapacitor'"
     rig delete deployments/kapacitor --resource-namespace=monitoring --force
 
+    echo "---> Removing last applied configuration from resources"
+    for deployment in grafana kube-state-metrics prometheus-adapter prometheus-operator watcher
+    do
+      # || true is needed in case resources does not have last applied configuration
+      kubectl --namespace=monitoring patch deployments.apps $deployment --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
+      kubectl --namespace=monitoring patch deployments.apps $deployment --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
+    done
+    for daemonset in nethealth node-exporter
+    do
+      # || true is needed in case resources does not have last applied configuration
+      kubectl --namespace=monitoring patch daemonsets.apps $daemonset --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
+      kubectl --namespace=monitoring patch daemonsets.apps $daemonset --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
+    done
+    for configmap in adapter-config grafana-cfg prometheus-k8s-rulefiles-0 grafana-dashboard-k8s-cluster-rsrc-use grafana-dashboard-k8s-resources-cluster \
+      grafana-dashboard-k8s-resources-namespace grafana-dashboard-k8s-resources-pod grafana-dashboard-k8s-resources-workload grafana-dashboard-k8s-resources-workloads-namespace \
+      grafana-dashboard-nodes grafana-dashboard-pods grafana-dashboard-nethealth grafana-dashboards
+    do
+      # || true is needed in case resources does not have last applied configuration
+      kubectl --namespace=monitoring patch configmaps $configmap --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
+      kubectl --namespace=monitoring patch configmaps $configmap --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
+    done
+
     echo "---> Deleting old configmaps"
     for configmap in influxdb grafana kapacitor-alerts rollups-default grafana-dashboard-k8s-cluster-rsrc-use grafana-dashboard-k8s-resources-cluster \
       grafana-dashboard-k8s-resources-namespace grafana-dashboard-k8s-resources-pod grafana-dashboard-k8s-resources-workload grafana-dashboard-k8s-resources-workloads-namespace \
