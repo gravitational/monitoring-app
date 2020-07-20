@@ -13,15 +13,10 @@ spec:
   selector:
     matchLabels:
       k8s-app: prometheus-operator
-      app.kubernetes.io/component: controller
-      app.kubernetes.io/name: prometheus-operator
   template:
     metadata:
       labels:
         k8s-app: prometheus-operator
-        app.kubernetes.io/component: controller
-        app.kubernetes.io/name: prometheus-operator
-        app.kubernetes.io/version: v0.35.1
     spec:
       containers:
       - args:
