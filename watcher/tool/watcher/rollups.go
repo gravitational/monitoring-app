@@ -79,6 +79,7 @@ func receiveAndManageRollups(ctx context.Context, client *influxdb.Client, ch <-
 						continue
 					}
 
+					rollup := rollup
 					switch update.EventType {
 					case watch.Added:
 						handler := func() error {
