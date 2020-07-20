@@ -62,6 +62,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client,
 			case watch.Added, watch.Modified:
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
+					dashboard := dashboard
 					handler := func() error {
 						return client.CreateDashboard(dashboard)
 					}
