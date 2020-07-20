@@ -170,7 +170,7 @@ func (c *Client) CreateRollup(r Rollup) error {
 
 	if err = c.execQuery(query); err != nil {
 		if trace.IsAlreadyExists(ConvertError(err)) {
-			log.Info("Continuous already exists with different parameters. Updating it.")
+			log.Info("Continuous query already exists with different parameters. Updating it.")
 			if err = c.UpdateRollup(r); err != nil {
 				return trace.Wrap(err)
 			}
