@@ -81,6 +81,7 @@ func receiveAndCreateDashboards(ctx context.Context, client *grafana.Client,
 			case watch.Deleted:
 				log := log.WithField("configmap", update.ResourceUpdate.Meta())
 				for _, dashboard := range update.Data {
+					dashboard := dashboard
 					handler := func() error {
 						return client.DeleteDashboard(dashboard)
 					}
