@@ -8,7 +8,7 @@ do
 done
 
 # Wait until setup of CRDs are done
-until /opt/bin/kubectl get servicemonitors --all-namespaces ; do echo $(date) ": Waiting for CRDs to setup"; done
+until /opt/bin/kubectl get servicemonitors --all-namespaces ; do echo $(date) ": Waiting for CRDs to setup"; sleep 5; done
 
 # Generate password for Grafana administrator
 password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
@@ -19,5 +19,21 @@ do
     /opt/bin/kubectl create -f /var/lib/gravity/resources/${name}.yaml
 done
 
+if kubectl --namespace openebs get deployments openebs-localpv-provisioner >/dev/null 2>&1
+then
+    cat <<EOF >> /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
+  storage:
+    volumeClaimTemplate:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      spec:
+	accessModes:
+	- ReadWriteOnce
+	resources:
+	  requests:
+	    storage: 5Gi
+	storageClassName: openebs-hostpath
+EOF
+fi
 /opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
 /opt/bin/kubectl create -f /var/lib/gravity/resources/nethealth/
