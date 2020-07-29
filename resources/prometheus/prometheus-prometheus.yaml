@@ -55,6 +55,7 @@ spec:
   storage:
     hostPath:
       path: /var/lib/gravity/monitoring
+    volumeClaimTemplate: {}
   additionalScrapeConfigs:
     name: prometheus-additional-scrape-configs
     key: additional-scrape-configs.yaml
