@@ -52,6 +52,9 @@ spec:
   - key: "node-role.kubernetes.io/master"
     operator: "Exists"
     effect: "NoSchedule"
+  storage:
+    hostPath:
+      path: /var/lib/gravity/monitoring
   additionalScrapeConfigs:
     name: prometheus-additional-scrape-configs
     key: additional-scrape-configs.yaml

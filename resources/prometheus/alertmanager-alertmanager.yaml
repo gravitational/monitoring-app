@@ -33,6 +33,9 @@ spec:
             matchLabels:
               app: alertmanager
               alertmanager: main
+  storage:
+    hostPath:
+      path: /var/lib/gravity/monitoring
   tolerations:
   - key: "gravitational.io/runlevel"
     value: system

@@ -19,21 +19,5 @@ do
     /opt/bin/kubectl create -f /var/lib/gravity/resources/${name}.yaml
 done
 
-if kubectl --namespace openebs get deployments openebs-localpv-provisioner >/dev/null 2>&1
-then
-    cat <<EOF >> /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
-  storage:
-    volumeClaimTemplate:
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      spec:
-	accessModes:
-	- ReadWriteOnce
-	resources:
-	  requests:
-	    storage: 5Gi
-	storageClassName: openebs-hostpath
-EOF
-fi
 /opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
 /opt/bin/kubectl create -f /var/lib/gravity/resources/nethealth/
