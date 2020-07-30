@@ -24,7 +24,7 @@ spec:
         - --logtostderr=true
         - --config-reloader-image=leader.telekube.local:5000/jimmidyson/configmap-reload:v0.3.0
         - --prometheus-config-reloader=leader.telekube.local:5000/coreos/prometheus-config-reloader:v0.35.1
-        image: quay.io/gravitational/prometheus-operator:8d003a7d
+        image: quay.io/gravitational/prometheus-operator:v0.35.2
         name: prometheus-operator
         ports:
         - containerPort: 8080
