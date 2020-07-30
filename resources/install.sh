@@ -19,5 +19,6 @@ do
     /opt/bin/kubectl create -f /var/lib/gravity/resources/${name}.yaml
 done
 
+sed -i "s/runAsUser: -1/runAsUser: $GRAVITY_SERVICE_USER/" /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
 /opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
 /opt/bin/kubectl create -f /var/lib/gravity/resources/nethealth/

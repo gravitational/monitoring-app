@@ -68,6 +68,7 @@ if [ $1 = "update" ]; then
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
+    sed -i "s/runAsUser: -1/runAsUser: $GRAVITY_SERVICE_USER/" /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
     for file in /var/lib/gravity/resources/prometheus/*
     do
         rig upsert -f $file --debug
