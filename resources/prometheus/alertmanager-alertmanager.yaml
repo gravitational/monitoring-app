@@ -10,7 +10,7 @@ spec:
   nodeSelector:
     kubernetes.io/os: linux
     gravitational.io/k8s-role: master
-  replicas: 3
+  replicas: 1
   priorityClassName: monitoring-high-priority
   securityContext:
     fsGroup: 2000
@@ -25,10 +25,8 @@ spec:
         runAsUser: 0
   affinity:
     podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          topologyKey: kubernetes.io/hostname
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
           labelSelector:
             matchLabels:
               app: alertmanager

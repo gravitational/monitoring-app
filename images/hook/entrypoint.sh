@@ -84,6 +84,12 @@ if [ $1 = "update" ]; then
 
     echo "---> Freezing"
     rig freeze
+
+    if [ $(kubectl get nodes -lgravitational.io/k8s-role=master -o name | wc -l) -gt 1 ]
+    then
+	kubectl --namespace monitoring patch prometheuses.monitoring.coreos.com k8s --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+	kubectl --namespace monitoring patch alertmanagers.monitoring.coreos.com main --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+    fi
 elif [ $1 = "rollback" ]; then
     echo "---> Reverting changeset $RIG_CHANGESET"
     rig revert

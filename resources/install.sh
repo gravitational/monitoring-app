@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 /opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 
@@ -22,3 +23,9 @@ done
 sed -i "s/runAsUser: -1/runAsUser: $GRAVITY_SERVICE_USER/" /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
 /opt/bin/kubectl create -f /var/lib/gravity/resources/prometheus/
 /opt/bin/kubectl create -f /var/lib/gravity/resources/nethealth/
+
+if [ $(/opt/bin/kubectl get nodes -lgravitational.io/k8s-role=master -o name | wc -l) -gt 1 ]
+then
+    /opt/bin/kubectl --namespace monitoring patch prometheuses.monitoring.coreos.com k8s --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+    /opt/bin/kubectl --namespace monitoring patch alertmanagers.monitoring.coreos.com main --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+fi

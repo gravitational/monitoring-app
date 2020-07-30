@@ -17,7 +17,7 @@ spec:
     gravitational.io/k8s-role: master
   podMonitorNamespaceSelector: {}
   podMonitorSelector: {}
-  replicas: 2
+  replicas: 1
   resources:
     requests:
       memory: 400Mi
@@ -36,10 +36,8 @@ spec:
   retention: 30d
   affinity:
     podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          topologyKey: kubernetes.io/hostname
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
           labelSelector:
             matchLabels:
               app: prometheus
