@@ -17,7 +17,7 @@ spec:
     gravitational.io/k8s-role: master
   podMonitorNamespaceSelector: {}
   podMonitorSelector: {}
-  replicas: 2
+  replicas: 1
   resources:
     requests:
       memory: 400Mi
@@ -29,17 +29,15 @@ spec:
   securityContext:
     fsGroup: 2000
     runAsNonRoot: true
-    runAsUser: 1000
+    runAsUser: -1
   serviceAccountName: prometheus-k8s
   serviceMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}
   retention: 30d
   affinity:
     podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          topologyKey: kubernetes.io/hostname
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
           labelSelector:
             matchLabels:
               app: prometheus
@@ -52,6 +50,10 @@ spec:
   - key: "node-role.kubernetes.io/master"
     operator: "Exists"
     effect: "NoSchedule"
+  storage:
+    hostPath:
+      path: /var/lib/gravity/monitoring
+    volumeClaimTemplate: {}
   additionalScrapeConfigs:
     name: prometheus-additional-scrape-configs
     key: additional-scrape-configs.yaml

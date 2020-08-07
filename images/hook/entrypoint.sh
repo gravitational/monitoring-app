@@ -68,6 +68,7 @@ if [ $1 = "update" ]; then
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
+    sed -i "s/runAsUser: -1/runAsUser: $GRAVITY_SERVICE_USER/" /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
     for file in /var/lib/gravity/resources/prometheus/*
     do
         rig upsert -f $file --debug
@@ -83,6 +84,15 @@ if [ $1 = "update" ]; then
 
     echo "---> Freezing"
     rig freeze
+
+    if [ $(kubectl get nodes -lgravitational.io/k8s-role=master --output=go-template --template="{{len .items}}") -gt 1 ]
+    then
+	kubectl --namespace monitoring patch prometheuses.monitoring.coreos.com k8s --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+	kubectl --namespace monitoring patch alertmanagers.monitoring.coreos.com main --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+    fi
+    # check for readiness of prometheus pod
+    kubectl --namespace monitoring wait --for=condition=ready pod prometheus-k8s-0
+
 elif [ $1 = "rollback" ]; then
     echo "---> Reverting changeset $RIG_CHANGESET"
     rig revert
