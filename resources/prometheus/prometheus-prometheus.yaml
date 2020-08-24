@@ -14,7 +14,7 @@ spec:
   baseImage: leader.telekube.local:5000/prometheus/prometheus
   nodeSelector:
     gravitational.io/k8s-role: master
-  replicas: 2
+  replicas: 1
   resources:
     requests:
       memory: 400Mi
