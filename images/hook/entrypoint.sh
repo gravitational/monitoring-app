@@ -15,6 +15,16 @@ if [ $1 = "update" ]; then
         sed -i s/b1lIV3gyVDlmQVd3SzdsZTRrZDY=/cm9vdA==/g /var/lib/gravity/resources/influxdb-secret.yaml
         rig upsert -f /var/lib/gravity/resources/influxdb-secret.yaml --debug
     fi
+
+    # Drop series containing 'sys_container' type which are not used anywhere and filling up the database.
+    # Skip this step if infuxdb is not ready. Cleanup is not important to fail the upgrade.
+    if kubectl --namespace=monitoring wait --for condition=Available deployments influxdb --timeout=60s >/dev/null 2>&1
+    then
+	kubectl --namespace=monitoring exec $(kubectl --namespace=monitoring get pod -lcomponent=influxdb -o jsonpath='{.items[0].metadata.name}') \
+		-c influxdb -- influx --username root --password \
+		$(kubectl --namespace=monitoring get secret influxdb -o yaml|awk '/password/ {system("echo "$2"|base64 -d")}') \
+		--database k8s --execute "drop series where type = 'sys_container'"
+    fi
     
     echo "---> Deleting old configmaps"
     rig delete configmaps/grafana-dashboards --resource-namespace=monitoring --force
