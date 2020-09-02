@@ -20,10 +20,11 @@ if [ $1 = "update" ]; then
     # Skip this step if infuxdb is not ready. Cleanup is not important to fail the upgrade.
     if kubectl --namespace=monitoring wait --for condition=Available deployments influxdb --timeout=60s >/dev/null 2>&1
     then
-	kubectl --namespace=monitoring exec $(kubectl --namespace=monitoring get pod -lcomponent=influxdb -o jsonpath='{.items[0].metadata.name}') \
-		-c influxdb -- influx --username root --password \
-		$(kubectl --namespace=monitoring get secret influxdb -o yaml|awk '/password/ {system("echo "$2"|base64 -d")}') \
-		--database k8s --execute "drop series where type = 'sys_container'"
+        echo "---> Dropping sys_container series"
+        kubectl --namespace=monitoring exec $(kubectl --namespace=monitoring get pod -lcomponent=influxdb -o jsonpath='{.items[0].metadata.name}') \
+            -c influxdb -- influx --username root --password \
+            $(kubectl --namespace=monitoring get secret influxdb -o yaml|awk '/password/ {system("echo "$2"|base64 -d")}') \
+            --database k8s --execute "drop series where type = 'sys_container'" || true
     fi
     
     echo "---> Deleting old configmaps"
