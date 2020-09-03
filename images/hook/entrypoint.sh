@@ -17,7 +17,7 @@ if [ $1 = "update" ]; then
     fi
 
     # Drop series containing 'sys_container' type which are not used anywhere and filling up the database.
-    # Skip this step if infuxdb is not ready. Cleanup is not important to fail the upgrade.
+    # Skip this step if influxdb is not ready. Cleanup is not important to fail the upgrade.
     if kubectl --namespace=monitoring wait --for condition=Available deployments influxdb --timeout=60s >/dev/null 2>&1
     then
         echo "---> Dropping sys_container series"
