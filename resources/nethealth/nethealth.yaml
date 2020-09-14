@@ -133,7 +133,7 @@ spec:
           operator: Exists
       containers:
         - name: nethealth
-          image: quay.io/gravitational/nethealth-dev:7.1.0
+          image: quay.io/gravitational/nethealth-dev:7.1.5
           command:
             - /nethealth
           args:
@@ -172,67 +172,4 @@ spec:
         - name: tmpfs
           emptyDir:
             medium: Memory
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nethealth
-  namespace: monitoring
-  labels:
-    k8s-app: nethealth
-spec:
-  selector:
-    k8s-app: nethealth
-  ports:
-  - name: metrics
-    protocol: TCP
-    port: 9801
-    targetPort: metrics
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  annotations:
-  labels:
-    k8s-app: nethealth
-  name: nethealth
-  namespace: monitoring
-spec:
-  endpoints:
-  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-    interval: 15s
-    port: metrics
-  namespaceSelector:
-    matchNames:
-    - monitoring
-  selector:
-    matchLabels:
-      k8s-app: nethealth
----
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  annotations:
-  labels:
-    prometheus: k8s
-    role: alert-rules
-  name: prometheus-nethealth-rules
-  namespace: monitoring
-spec:
-  groups:
-  - name: nethealth.rules
-    rules:
-    - alert: OverlayPacketLoss
-      expr: min(sum(increase (nethealth_echo_timeout_total[1m])) by (node_name,peer_name) / on (node_name,peer_name) sum(increase (nethealth_echo_request_total[1m])) by (node_name,peer_name)) by (peer_name) * 100 > 0
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        message: '{{ $labels.peer_name }} has {{ printf "%0.0f" $value }}% packet loss on the overlay network.'
-    - alert: OverlayLatency
-      expr: min(histogram_quantile(0.5, sum(rate(nethealth_echo_duration_seconds_bucket[1m])) by (node_name,peer_name,le))) by (peer_name) * 1000 > 15
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        message: '{{ $labels.peer_name }} has {{ printf "%0.0f" $value }}ms network latency on the overlay network.'
+
