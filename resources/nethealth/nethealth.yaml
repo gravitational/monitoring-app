@@ -13,11 +13,12 @@ spec:
   allowedCapabilities:
   - NET_RAW
   volumes:
-  - 'configMap'
-  - 'emptyDir'
-  - 'projected'
-  - 'secret'
-  - 'downwardAPI'
+  - configMap
+  - emptyDir
+  - projected
+  - secret
+  - downwardAPI
+  - hostPath
   runAsUser:
     rule: 'RunAsAny'
   seLinux:
@@ -30,6 +31,8 @@ spec:
   hostIPC: false
   hostPID: false
   readOnlyRootFilesystem: true
+  allowedHostPaths:
+  - pathPrefix: "/run/nethealth"
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -133,7 +136,7 @@ spec:
           operator: Exists
       containers:
         - name: nethealth
-          image: quay.io/gravitational/nethealth-dev:7.1.5
+          image: quay.io/gravitational/nethealth-dev:7.1.5-knisbet-domain-socket
           command:
             - /nethealth
           args:
@@ -164,6 +167,8 @@ spec:
           volumeMounts:
             - mountPath: /tmp
               name: tmpfs
+            - mountPath: /run/nethealth
+              name: run
           ports:
           - name: metrics
             containerPort: 9801
@@ -172,6 +177,10 @@ spec:
         - name: tmpfs
           emptyDir:
             medium: Memory
+        - name: run
+          hostPath:
+              path: /run/nethealth
+              type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
