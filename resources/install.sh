@@ -21,6 +21,5 @@ done
 
 # Remove unused nethealth objects
 # Todo: can be removed when upgrades from gravity 7.0 are no longer supported.
-/opt/bin/kubectl delete -n monitoring svc/nethealth || true
 /opt/bin/kubectl delete -n monitoring servicemonitor/nethealth || true
 /opt/bin/kubectl delete -n monitoring prometheusrule/prometheus-nethealth-rules || true
