@@ -64,7 +64,7 @@ func run() error {
 		}
 
 	case constants.ModeAlerts:
-		err = runAlertsWatcher(context.Background(), client, kubeconfig)
+		err := runAlertsWatcher(context.Background(), client, kubeconfig)
 		if err != nil {
 			return trace.Wrap(err)
 		}

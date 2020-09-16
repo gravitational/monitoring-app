@@ -65,7 +65,7 @@ func runAutoscale(ctx context.Context, config autoscaleConfig) error {
 		return trace.Wrap(err)
 	}
 
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(config.interval)
 	defer ticker.Stop()
 
 	log.Info("Starting autoscaler.")
