@@ -29,29 +29,69 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	mode, kubeconfig string
+	debug            bool
+)
+
 func main() {
-	var mode string
 	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
+	flag.StringVar(&kubeconfig, "kubeconfig", "", fmt.Sprintf("optional kubeconfig path"))
+	flag.BoolVar(&debug, "debug", false, fmt.Sprintf("turn on debug logging"))
 	flag.Parse()
 
-	client, err := kubernetes.NewClient()
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	err := run()
 	if err != nil {
 		exitWithError(err)
+	}
+}
+
+func run() error {
+	client, err := kubernetes.NewClient(kubeconfig)
+	if err != nil {
+		return trace.Wrap(err)
 	}
 
 	switch mode {
 	case constants.ModeDashboards:
-		err = runDashboardsWatcher(client)
+		err := runDashboardsWatcher(client)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+
 	case constants.ModeAlerts:
-		err = runAlertsWatcher(context.Background(), client)
+		err = runAlertsWatcher(context.Background(), client, kubeconfig)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+
+	case constants.ModeAutoscale:
+		alertmanagers, err := kubernetes.Alertmanagers(kubeconfig)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		prometheuses, err := kubernetes.Prometheuses(kubeconfig)
+		if err != nil {
+			return trace.Wrap(err)
+		}
+		err = runAutoscale(context.Background(), autoscaleConfig{
+			nodes:         client.CoreV1().Nodes(),
+			alertmanagers: alertmanagers,
+			prometheuses:  prometheuses,
+		})
+		if err != nil {
+			return trace.Wrap(err)
+		}
+
 	default:
-		fmt.Printf("ERROR: unknown mode %q\n", mode)
-		os.Exit(255)
+		return trace.BadParameter("unknown mode %q", mode)
 	}
 
-	if err != nil {
-		exitWithError(err)
-	}
+	return nil
 }
 
 func exitWithError(err error) {
