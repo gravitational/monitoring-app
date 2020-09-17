@@ -81,12 +81,10 @@ func runAutoscale(ctx context.Context, config autoscaleConfig) error {
 			err = reconcileAlertmanager(config.alertmanagers, nodes)
 			if err != nil {
 				log.WithError(err).Error("Failed to reconcile Alertmanager.")
-				continue
 			}
 			err = reconcilePrometheus(config.prometheuses, nodes)
 			if err != nil {
 				log.WithError(err).Error("Failed to reconcile Prometheus.")
-				continue
 			}
 		case <-ctx.Done():
 			return nil
