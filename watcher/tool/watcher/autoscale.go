@@ -123,24 +123,22 @@ func reconcileAlertmanager(alertmanagers monitoringv1.AlertmanagerInterface, nod
 
 	if len(nodes) > 1 {
 		if replicas != 2 {
-			log.Infof("Alertmanager has %v replicas, scaling to 2.", replicas)
 			alertmanager.Spec.Replicas = int32P(2)
-			if _, err := alertmanagers.Update(alertmanager); err != nil {
-				return trace.Wrap(err)
-			}
-		} else {
-			log.Debugf("Alertmanager has %v replicas.", replicas)
 		}
 	} else {
 		if replicas != 1 {
-			log.Infof("Alertmanager has %v replicas, scaling to 1.", replicas)
 			alertmanager.Spec.Replicas = int32P(1)
-			if _, err := alertmanagers.Update(alertmanager); err != nil {
-				return trace.Wrap(err)
-			}
-		} else {
-			log.Debugf("Alertmanager has %v replicas.", replicas)
 		}
+	}
+
+	if int32V(alertmanager.Spec.Replicas) == replicas {
+		log.Debugf("Alertmanager has %v replicas.", replicas)
+		return nil
+	}
+
+	log.Infof("Alertmanager has %v replicas, scaling to %v.", replicas, int32V(alertmanager.Spec.Replicas))
+	if _, err := alertmanagers.Update(alertmanager); err != nil {
+		return trace.Wrap(err)
 	}
 
 	return nil
@@ -158,24 +156,22 @@ func reconcilePrometheus(prometheuses monitoringv1.PrometheusInterface, nodes []
 
 	if len(nodes) > 1 {
 		if replicas != 2 {
-			log.Infof("Prometheus has %v replicas, scaling to 2.", replicas)
 			prometheus.Spec.Replicas = int32P(2)
-			if _, err := prometheuses.Update(prometheus); err != nil {
-				return trace.Wrap(err)
-			}
-		} else {
-			log.Debugf("Prometheus has %v replicas.", replicas)
 		}
 	} else {
 		if replicas != 1 {
-			log.Infof("Prometheus has %v replicas, scaling to 1.", replicas)
 			prometheus.Spec.Replicas = int32P(1)
-			if _, err := prometheuses.Update(prometheus); err != nil {
-				return trace.Wrap(err)
-			}
-		} else {
-			log.Debugf("Prometheus has %v replicas.", replicas)
 		}
+	}
+
+	if int32V(prometheus.Spec.Replicas) == replicas {
+		log.Debugf("Prometheus has %v replicas.", replicas)
+		return nil
+	}
+
+	log.Infof("Prometheus has %v replicas, scaling to %v.", replicas, int32V(prometheus.Spec.Replicas))
+	if _, err := prometheuses.Update(prometheus); err != nil {
+		return trace.Wrap(err)
 	}
 
 	return nil
