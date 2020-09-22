@@ -72,4 +72,4 @@ hooks:
             containers:
               - name: hook
                 image: quay.io/gravitational/debian-tall:stretch
-                command: ["/usr/local/bin/kubectl", "delete", "-f", "/var/lib/gravity/resources/resources.yaml"]
+                command: ["/bin/sh", "/var/lib/gravity/resources/uninstall.sh"]

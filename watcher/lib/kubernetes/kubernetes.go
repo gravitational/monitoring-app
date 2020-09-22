@@ -36,9 +36,11 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	monitoringv1typed "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 )
 
 func init() {
@@ -51,23 +53,33 @@ type Client struct {
 }
 
 // NewClient returns a new Kubernetes API client
-func NewClient() (*Client, error) {
-	config, err := rest.InClusterConfig()
+func NewClient(kubeconfig string) (*Client, error) {
+	var config *rest.Config
+	var err error
+	if kubeconfig != "" {
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	} else {
+		config, err = rest.InClusterConfig()
+	}
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
 	return &Client{Clientset: client}, nil
 }
 
 // NewMonitoringClient returns a new in-cluster Prometheus CRD API client.
-func NewMonitoringClient() (*monitoring.Clientset, error) {
-	config, err := rest.InClusterConfig()
+func NewMonitoringClient(kubeconfig string) (*monitoring.Clientset, error) {
+	var config *rest.Config
+	var err error
+	if kubeconfig != "" {
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	} else {
+		config, err = rest.InClusterConfig()
+	}
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -76,6 +88,24 @@ func NewMonitoringClient() (*monitoring.Clientset, error) {
 		return nil, trace.Wrap(err)
 	}
 	return client, nil
+}
+
+// Prometheuses returns Prometheus CRD client in monitoring namespace.
+func Prometheuses(kubeconfig string) (monitoringv1typed.PrometheusInterface, error) {
+	client, err := NewMonitoringClient(kubeconfig)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return client.MonitoringV1().Prometheuses(constants.MonitoringNamespace), nil
+}
+
+// Alertmanagers returns Alertmanager CRD client in monitoring namespace.
+func Alertmanagers(kubeconfig string) (monitoringv1typed.AlertmanagerInterface, error) {
+	client, err := NewMonitoringClient(kubeconfig)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return client.MonitoringV1().Alertmanagers(constants.MonitoringNamespace), nil
 }
 
 // WatchConfigMaps watches Kubernetes API for ConfigMaps using specified configs to match
@@ -190,7 +220,7 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 		select {
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				return trace.Retry(nil, "watcher closed")
+				return trace.Retry(nil, "configmap watcher closed")
 			}
 
 			switch configMap := event.Object.(type) {
@@ -220,7 +250,7 @@ func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secr
 		select {
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				return trace.Retry(nil, "watcher closed")
+				return trace.Retry(nil, "secret watcher closed")
 			}
 
 			switch secret := event.Object.(type) {

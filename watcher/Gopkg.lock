@@ -67,25 +67,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:f20fae798c9e630c3322d8403f0ff9b2d3d11aae22cd3562d1f8874af220c37d"
-  name = "github.com/go-kit/kit"
-  packages = [
-    "log",
-    "log/level",
-  ]
-  pruneopts = "NUT"
-  revision = "12210fb6ace19e0496167bb3e667dcd91fa9f69b"
-  version = "v0.8.0"
-
-[[projects]]
-  digest = "1:738c75300725db7262825a96ba5b6a8a737f0faa93d9dadcf3977504034877e0"
-  name = "github.com/go-logfmt/logfmt"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "07c9b44f60d7ffdfb7d8efe1ad539965737836dc"
-  version = "v0.4.0"
-
-[[projects]]
   digest = "1:260f7ebefc63024c8dfe2c9f1a2935a89fa4213637a1f522f592f80c001cc441"
   name = "github.com/go-openapi/jsonpointer"
   packages = ["."]
@@ -214,6 +195,14 @@
   revision = "3befbb6ad0cc97d4c25d851e9528915809e1a22f"
 
 [[projects]]
+  digest = "1:5ccb3c124495404d208fb4cf7c0ff480a6e7017873c6c2d3e490a71777c3783e"
+  name = "github.com/imdario/mergo"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "cd55aeac72a19c6d5826061d5125d72b252a12eb"
+  version = "v0.3.11"
+
+[[projects]]
   digest = "1:6b1eae4bb93e5ccd23cb09d1e005ecb391316d27701b7a5264f8555a6e2f3d87"
   name = "github.com/jonboulle/clockwork"
   packages = ["."]
@@ -228,14 +217,6 @@
   pruneopts = "NUT"
   revision = "0ff49de124c6f76f8494e194af75bde0f1a49a29"
   version = "v1.1.6"
-
-[[projects]]
-  branch = "master"
-  digest = "1:f91bb67d051a94cf6ab2cf07eee0550432afc31655838d42cdec258db4b348f0"
-  name = "github.com/kr/logfmt"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
   branch = "master"
@@ -298,14 +279,6 @@
   version = "v3.0.0"
 
 [[projects]]
-  digest = "1:e7ddc2c938fdc740a9c10121586e848f767e041835e51ca0ac6088c6e0a7a036"
-  name = "github.com/prometheus/alertmanager"
-  packages = ["config"]
-  pruneopts = "NUT"
-  revision = "c7551cd75c414dc81df027f691e2eb21d4fd85b2"
-  version = "v0.17.0"
-
-[[projects]]
   digest = "1:00e5485f002096d8284d57ce59acb8e08121a5accdf92777ca7368bf9e5e18e8"
   name = "github.com/prometheus/client_golang"
   packages = [
@@ -361,6 +334,14 @@
   revision = "dcdb95d728dbb6fe4b9fbe6b3b9d1fb268e68036"
   source = "github.com/gravitational/logrus"
   version = "1.0.6"
+
+[[projects]]
+  digest = "1:d115708a27806831d1babbc6f28a7478ddf8e32a7095507c816e2515fb03a810"
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "2e9d26c8c37aae03e3f9d4e90b7116f5accb7cab"
+  version = "v1.0.5"
 
 [[projects]]
   branch = "master"
@@ -574,7 +555,7 @@
   version = "kubernetes-1.13.0"
 
 [[projects]]
-  digest = "1:e1400901929f16dbd9ad8335d7263de7df441f4b50688ebb2c0a1198ff7bfc10"
+  digest = "1:f06b3d010bd069bf48c00fb588db50d72dcff5443b0f9816c38820f81f5a7dc9"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -619,13 +600,18 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
+    "tools/auth",
+    "tools/clientcmd",
     "tools/clientcmd/api",
+    "tools/clientcmd/api/latest",
+    "tools/clientcmd/api/v1",
     "tools/metrics",
     "tools/reference",
     "transport",
     "util/cert",
     "util/connrotation",
     "util/flowcontrol",
+    "util/homedir",
     "util/integer",
   ]
   pruneopts = "NUT"
@@ -668,8 +654,10 @@
     "github.com/gravitational/rigging",
     "github.com/gravitational/roundtrip",
     "github.com/gravitational/trace",
-    "github.com/prometheus/alertmanager/config",
+    "github.com/prometheus/common/config",
+    "github.com/prometheus/common/model",
     "github.com/sirupsen/logrus",
+    "gopkg.in/yaml.v2",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
@@ -681,6 +669,7 @@
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/clientcmd",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

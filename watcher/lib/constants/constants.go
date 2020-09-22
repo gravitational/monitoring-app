@@ -29,6 +29,10 @@ const (
 	// monitoring configuration updates
 	ModeAlerts = "alerts"
 
+	// ModeAutoscale is the mode in which watcher updates the number of
+	// Prometheus/Alertmanager replicas based on the number of nodes.
+	ModeAutoscale = "autoscale"
+
 	// GrafanaAPIAddress is the API address of Grafana running in the same pod
 	GrafanaAPIAddress = "http://localhost:3000"
 
@@ -74,6 +78,16 @@ const (
 
 	// MonitoringApp defines the monitoring application label
 	MonitoringApp = "monitoring"
+
+	// NodeRoleLabel is the label with Kubernetes node role.
+	NodeRoleLabel = "gravitational.io/k8s-role"
+	// MasterLabel is the label that marks Kubernetes master nodes.
+	MasterLabel = "master"
+
+	// AlermanagerName is the name of the Alertmanager CRD object.
+	AlertmanagerName = "main"
+	// PrometheusName is the name of the Prometheus CRD object.
+	PrometheusName = "k8s"
 )
 
 var (
@@ -81,5 +95,6 @@ var (
 	AllModes = []string{
 		ModeAlerts,
 		ModeDashboards,
+		ModeAutoscale,
 	}
 )
