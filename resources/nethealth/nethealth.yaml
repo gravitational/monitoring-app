@@ -136,7 +136,7 @@ spec:
           operator: Exists
       containers:
         - name: nethealth
-          image: quay.io/gravitational/nethealth-dev:7.1.5-knisbet-domain-socket
+          image: quay.io/gravitational/nethealth-dev:7.1.6
           command:
             - /nethealth
           args:
