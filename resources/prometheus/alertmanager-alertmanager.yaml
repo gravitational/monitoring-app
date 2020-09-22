@@ -9,7 +9,8 @@ spec:
   baseImage: leader.telekube.local:5000/prometheus/alertmanager
   nodeSelector:
     gravitational.io/k8s-role: master
-  replicas: 3
+  # will be auto-scaled by the watcher in a multi-node cluster
+  replicas: 1
   securityContext:
     fsGroup: 2000
     runAsNonRoot: true
