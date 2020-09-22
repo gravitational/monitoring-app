@@ -59,6 +59,8 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: docker/default
     spec:
       serviceAccountName: monitoring-autoscaler
+      nodeSelector:
+        gravitational.io/k8s-role: master
       tolerations:
       - key: "gravitational.io/runlevel"
         value: system
