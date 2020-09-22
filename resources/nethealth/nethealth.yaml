@@ -129,11 +129,8 @@ spec:
       terminationGracePeriodSeconds: 5
       serviceAccountName: nethealth
       tolerations:
-        # Tolerate all taints
-        - effect: NoSchedule
-          operator: Exists
-        - effect: NoExecute
-          operator: Exists
+      # tolerate any taints
+      - operator: "Exists"
       containers:
         - name: nethealth
           image: quay.io/gravitational/nethealth-dev:7.1.6

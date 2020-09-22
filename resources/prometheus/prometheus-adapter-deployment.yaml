@@ -43,6 +43,9 @@ spec:
           readOnly: false
       nodeSelector:
         gravitational.io/k8s-role: master
+      tolerations:
+      # tolerate any taints
+      - operator: "Exists"
       priorityClassName: monitoring-high-priority
       serviceAccountName: prometheus-adapter
       volumes:

@@ -23,12 +23,8 @@ spec:
       priorityClassName: monitoring-high-priority
       serviceAccountName: monitoring-updater
       tolerations:
-      - key: "gravitational.io/runlevel"
-        value: system
-        operator: Equal
-      - key: "node-role.kubernetes.io/master"
-        operator: "Exists"
-        effect: "NoSchedule"
+      # tolerate any taints
+      - operator: "Exists"
       containers:
         - name: watcher
           image: watcher:latest
