@@ -18,8 +18,3 @@ done
 
 /opt/bin/kubectl apply -f /var/lib/gravity/resources/prometheus/
 /opt/bin/kubectl apply -f /var/lib/gravity/resources/nethealth/
-
-# Remove unused nethealth objects
-# Todo: can be removed when upgrades from gravity 7.0 are no longer supported.
-/opt/bin/kubectl delete -n monitoring servicemonitor/nethealth || true
-/opt/bin/kubectl delete -n monitoring prometheusrule/prometheus-nethealth-rules || true
