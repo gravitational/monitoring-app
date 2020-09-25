@@ -13,11 +13,12 @@ spec:
   allowedCapabilities:
   - NET_RAW
   volumes:
-  - 'configMap'
-  - 'emptyDir'
-  - 'projected'
-  - 'secret'
-  - 'downwardAPI'
+  - configMap
+  - emptyDir
+  - projected
+  - secret
+  - downwardAPI
+  - hostPath
   runAsUser:
     rule: 'RunAsAny'
   seLinux:
@@ -30,6 +31,8 @@ spec:
   hostIPC: false
   hostPID: false
   readOnlyRootFilesystem: true
+  allowedHostPaths:
+  - pathPrefix: "/run/nethealth"
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -133,7 +136,7 @@ spec:
           operator: Exists
       containers:
         - name: nethealth
-          image: quay.io/gravitational/nethealth-dev:7.1.0
+          image: quay.io/gravitational/nethealth-dev:7.1.6
           command:
             - /nethealth
           args:
@@ -164,6 +167,8 @@ spec:
           volumeMounts:
             - mountPath: /tmp
               name: tmpfs
+            - mountPath: /run/nethealth
+              name: run
           ports:
           - name: metrics
             containerPort: 9801
@@ -172,6 +177,10 @@ spec:
         - name: tmpfs
           emptyDir:
             medium: Memory
+        - name: run
+          hostPath:
+              path: /run/nethealth
+              type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
@@ -188,51 +197,3 @@ spec:
     protocol: TCP
     port: 9801
     targetPort: metrics
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  annotations:
-  labels:
-    k8s-app: nethealth
-  name: nethealth
-  namespace: monitoring
-spec:
-  endpoints:
-  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-    interval: 15s
-    port: metrics
-  namespaceSelector:
-    matchNames:
-    - monitoring
-  selector:
-    matchLabels:
-      k8s-app: nethealth
----
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  annotations:
-  labels:
-    prometheus: k8s
-    role: alert-rules
-  name: prometheus-nethealth-rules
-  namespace: monitoring
-spec:
-  groups:
-  - name: nethealth.rules
-    rules:
-    - alert: OverlayPacketLoss
-      expr: min(sum(increase (nethealth_echo_timeout_total[1m])) by (node_name,peer_name) / on (node_name,peer_name) sum(increase (nethealth_echo_request_total[1m])) by (node_name,peer_name)) by (peer_name) * 100 > 0
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        message: '{{ $labels.peer_name }} has {{ printf "%0.0f" $value }}% packet loss on the overlay network.'
-    - alert: OverlayLatency
-      expr: min(histogram_quantile(0.5, sum(rate(nethealth_echo_duration_seconds_bucket[1m])) by (node_name,peer_name,le))) by (peer_name) * 1000 > 15
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        message: '{{ $labels.peer_name }} has {{ printf "%0.0f" $value }}ms network latency on the overlay network.'
