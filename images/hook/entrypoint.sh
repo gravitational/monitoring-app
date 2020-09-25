@@ -83,6 +83,20 @@ if [ $1 = "update" ]; then
 
     echo "---> Freezing"
     rig freeze
+
+    if [ $(kubectl get nodes -lgravitational.io/k8s-role=master --output=go-template --template="{{len .items}}") -gt 1 ]
+    then
+	kubectl --namespace monitoring patch prometheuses.monitoring.coreos.com k8s --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+	kubectl --namespace monitoring patch alertmanagers.monitoring.coreos.com main --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+    fi
+    # check for readiness of prometheus pod
+    kubectl --namespace monitoring wait --for=condition=ready pod prometheus-k8s-0
+
+
+    # Remove unused nethealth objects
+    # Todo: can be removed when upgrades from gravity 7.0 are no longer supported.
+    /opt/bin/kubectl delete -n monitoring servicemonitor/nethealth || true
+    /opt/bin/kubectl delete -n monitoring prometheusrule/prometheus-nethealth-rules || true
 elif [ $1 = "rollback" ]; then
     echo "---> Reverting changeset $RIG_CHANGESET"
     rig revert
