@@ -32,8 +32,8 @@ import (
 	kubeapi "k8s.io/client-go/kubernetes"
 )
 
-func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client) error {
-	monitoringClient, err := kubernetes.NewMonitoringClient()
+func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, kubeconfig string) error {
+	monitoringClient, err := kubernetes.NewMonitoringClient(kubeconfig)
 	if err != nil {
 		return trace.Wrap(err)
 	}
