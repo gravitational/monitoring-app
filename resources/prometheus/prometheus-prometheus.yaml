@@ -17,6 +17,7 @@ spec:
     gravitational.io/k8s-role: master
   podMonitorNamespaceSelector: {}
   podMonitorSelector: {}
+  # will be auto-scaled by the watcher in a multi-node cluster
   replicas: 1
   resources:
     requests:
