@@ -31,6 +31,8 @@ spec:
     fsGroup: 2000
     runAsNonRoot: true
     runAsUser: -1
+    seLinuxOptions:
+      type: gravity_container_system_t
   serviceAccountName: prometheus-k8s
   serviceMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}

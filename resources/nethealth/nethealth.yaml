@@ -163,6 +163,8 @@ spec:
               - all
               add:
               - NET_RAW
+            seLinuxOptions:
+              type: gravity_container_system_t
           imagePullPolicy: Always
           volumeMounts:
             - mountPath: /tmp
