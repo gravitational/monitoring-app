@@ -26,13 +26,8 @@ spec:
       securityContext:
         runAsUser: -1
       tolerations:
-      - key: "gravitational.io/runlevel"
-        value: system
-        operator: Equal
-        # allows to run on master nodes
-      - key: "node-role.kubernetes.io/master"
-        operator: "Exists"
-        effect: "NoSchedule"
+      # tolerate any taints
+      - operator: "Exists"
       containers:
         - name: watcher
           image: watcher:latest
