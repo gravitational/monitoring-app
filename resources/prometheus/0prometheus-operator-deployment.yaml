@@ -37,6 +37,9 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       priorityClassName: monitoring-high-priority
+      tolerations:
+      # tolerate any taints
+      - operator: "Exists"
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534

@@ -69,6 +69,9 @@ spec:
             memory: 150Mi
       nodeSelector:
         gravitational.io/k8s-role: master
+      tolerations:
+      # tolerate any taints
+      - operator: "Exists"
       priorityClassName: monitoring-high-priority
       securityContext:
         runAsNonRoot: true
