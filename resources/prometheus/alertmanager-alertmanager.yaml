@@ -36,11 +36,7 @@ spec:
     hostPath:
       path: /var/lib/gravity/monitoring
   tolerations:
-  - key: "gravitational.io/runlevel"
-    value: system
-    operator: Equal
-  # allows to run on master nodes
-  - key: "node-role.kubernetes.io/master"
-    operator: "Exists"
-    effect: "NoSchedule"
+  # tolerate any taint
+  - operator: "Exists"
   version: v0.18.0
+  
