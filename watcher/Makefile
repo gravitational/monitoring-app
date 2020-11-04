@@ -36,7 +36,9 @@ container: build
 build:
 	mkdir -p $(BUILDDIR)
 	docker run -i --rm=true \
+		-u $$(id -u):$$(id -g) \
 		-v $(CURDIR):$(DSTDIR) \
+		-e GOCACHE=/tmp/.cache \
 		$(BUILDBOX) \
 		/bin/bash -c "make -C $(DSTDIR) build-inside-container"
 
