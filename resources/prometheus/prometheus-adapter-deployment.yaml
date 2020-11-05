@@ -44,6 +44,9 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
         gravitational.io/k8s-role: master
+      tolerations:
+      # tolerate any taints
+      - operator: "Exists"
       priorityClassName: monitoring-high-priority
       serviceAccountName: prometheus-adapter
       volumes:
