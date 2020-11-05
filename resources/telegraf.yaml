@@ -24,13 +24,8 @@ spec:
       serviceAccountName: monitoring
       priorityClassName: monitoring-high-priority
       tolerations:
-      - key: "gravitational.io/runlevel"
-        value: system
-        operator: Equal
-        # allows to run on master nodes
-      - key: "node-role.kubernetes.io/master"
-        operator: "Exists"
-        effect: "NoSchedule"
+      # tolerate any taints
+      - operator: "Exists"
       securityContext:
         runAsUser: -1
       containers:
@@ -77,10 +72,8 @@ spec:
       serviceAccountName: monitoring
       priorityClassName: monitoring-high-priority
       tolerations:
-        # allows to run on master nodes
-      - key: "node-role.kubernetes.io/master"
-        operator: "Exists"
-        effect: "NoSchedule"
+      # tolerate any taints
+      - operator: "Exists"
       securityContext:
         runAsUser: -1
       containers:
@@ -157,6 +150,9 @@ spec:
         gravitational.io/k8s-role: node
       serviceAccountName: monitoring
       priorityClassName: monitoring-high-priority
+      tolerations:
+      # tolerate any taints
+      - operator: "Exists"
       securityContext:
         runAsUser: -1
       containers:
