@@ -20,6 +20,28 @@ if [ $1 = "update" ]; then
     echo "---> Deleting old deployment 'kapacitor'"
     rig delete deployments/kapacitor --resource-namespace=monitoring --force
 
+    echo "---> Removing last applied configuration from resources"
+    for deployment in grafana kube-state-metrics prometheus-adapter prometheus-operator watcher
+    do
+      # || true is needed in case resources does not have last applied configuration
+      kubectl --namespace=monitoring patch deployments.apps $deployment --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
+      kubectl --namespace=monitoring patch deployments.apps $deployment --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
+    done
+    for daemonset in nethealth node-exporter
+    do
+      # || true is needed in case resources does not have last applied configuration
+      kubectl --namespace=monitoring patch daemonsets.apps $daemonset --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
+      kubectl --namespace=monitoring patch daemonsets.apps $daemonset --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
+    done
+    for configmap in adapter-config grafana-cfg prometheus-k8s-rulefiles-0 grafana-dashboard-k8s-cluster-rsrc-use grafana-dashboard-k8s-resources-cluster \
+      grafana-dashboard-k8s-resources-namespace grafana-dashboard-k8s-resources-pod grafana-dashboard-k8s-resources-workload grafana-dashboard-k8s-resources-workloads-namespace \
+      grafana-dashboard-nodes grafana-dashboard-pods grafana-dashboard-nethealth grafana-dashboards
+    do
+      # || true is needed in case resources does not have last applied configuration
+      kubectl --namespace=monitoring patch configmaps $configmap --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
+      kubectl --namespace=monitoring patch configmaps $configmap --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
+    done
+
     echo "---> Deleting old configmaps"
     for configmap in influxdb grafana kapacitor-alerts rollups-default grafana-dashboard-k8s-cluster-rsrc-use grafana-dashboard-k8s-resources-cluster \
       grafana-dashboard-k8s-resources-namespace grafana-dashboard-k8s-resources-pod grafana-dashboard-k8s-resources-workload grafana-dashboard-k8s-resources-workloads-namespace \
@@ -31,7 +53,7 @@ if [ $1 = "update" ]; then
     echo "---> Creating monitoring namespace"
     rig upsert -f /var/lib/gravity/resources/namespace.yaml --debug
 
-    for file in /var/lib/gravity/resources/crds/*
+    for file in /var/lib/gravity/resources/kube-prometheus-setup/*
     do
         rig upsert -f $file --debug
     done
@@ -46,6 +68,7 @@ if [ $1 = "update" ]; then
         rig upsert -f /var/lib/gravity/resources/${name}.yaml --debug
     done
 
+    sed -i "s/runAsUser: -1/runAsUser: $GRAVITY_SERVICE_USER/" /var/lib/gravity/resources/prometheus/prometheus-prometheus.yaml
     for file in /var/lib/gravity/resources/prometheus/*
     do
         rig upsert -f $file --debug
@@ -61,6 +84,15 @@ if [ $1 = "update" ]; then
 
     echo "---> Freezing"
     rig freeze
+
+    if [ $(kubectl get nodes -lgravitational.io/k8s-role=master --output=go-template --template="{{len .items}}") -gt 1 ]
+    then
+	kubectl --namespace monitoring patch prometheuses.monitoring.coreos.com k8s --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+	kubectl --namespace monitoring patch alertmanagers.monitoring.coreos.com main --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
+    fi
+    # check for readiness of prometheus pod
+    kubectl --namespace monitoring wait --for=condition=ready pod prometheus-k8s-0
+
 
     # Remove unused nethealth objects
     # Todo: can be removed when upgrades from gravity 7.0 are no longer supported.

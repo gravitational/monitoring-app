@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -58,7 +58,7 @@ spec:
         - --port=8081
         - --telemetry-host=127.0.0.1
         - --telemetry-port=8082
-        image: quay.io/coreos/kube-state-metrics:v1.5.0
+        image: quay.io/coreos/kube-state-metrics:v1.9.2
         name: kube-state-metrics
         resources:
           limits:
@@ -69,6 +69,7 @@ spec:
             memory: 150Mi
       nodeSelector:
         gravitational.io/k8s-role: master
+        kubernetes.io/os: linux
       tolerations:
       # tolerate any taints
       - operator: "Exists"
