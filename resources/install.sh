@@ -31,5 +31,5 @@ then
 fi
 
 # check for readiness of prometheus pod
-timeout 5m sh -c "while ! /opt/bin/kubectl get pod prometheus-k8s-0; do sleep 10; done"
+timeout 5m sh -c "while ! /opt/bin/kubectl --namespace=monitoring get pod prometheus-k8s-0; do sleep 10; done"
 /opt/bin/kubectl --namespace monitoring wait --for=condition=ready pod prometheus-k8s-0
