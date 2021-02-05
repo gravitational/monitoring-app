@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus-adapter
@@ -42,6 +42,7 @@ spec:
           name: config
           readOnly: false
       nodeSelector:
+        kubernetes.io/os: linux
         gravitational.io/k8s-role: master
       tolerations:
       # tolerate any taints
