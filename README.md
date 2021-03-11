@@ -1,32 +1,14 @@
 # Gravity Cluster Monitoring
 
-This gravity app provides an InfluxDB, Heapster + Grafana based monitoring system. Also provided is a Kapacitor deployment, for alerting.
-
-## Overview
-
-As alluded to, there are 4 main components in the monitoring system: InfluxDB, Heapster, Grafana and Kapacitor.
-
-### InfluxDB
-
-InfluxDB is the main data store for current + future monitoring time series data. It provides the service `influxdb.monitoring.svc.cluster.local`.
-
-### Heapster
-
-Heapster monitors Kubernetes components and reports statistics and information to InfluxDB about nodes and pods.
-
-### Grafana
-
-Grafana is the dashboard system that provides visualization information on all the information stored in InfluxDB. It is exposed as the service `grafana.monitoring.svc.cluster.local`. Grafana credentials are generated during initial installation and placed into a Secret `grafana` in `monitoring` namespace.
-
-### Kapacitor
-
-Kapacitor is the alerting system, that streams data from InfluxDB and sends alerts as configured by the end user. It exposes the service `kapacitor.monitoring.svc.cluster.local`.
+[Gravity](https://github.com/gravitational/gravity)'s Monitoring Application provides a
+[Prometheus](https://prometheus.io/) and [Grafana](https://grafana.com/grafana/) based monitoring system.
 
 ## Grafana integration
 
-This app is shipped with two pre-configured Grafana dashboards providing machine- and pod-level overview of the installed site. Grafana UI is integrated with Gravity control panel. To view dashboards once the site is up and running, navigate to that site's `Monitoring` page.
+This app is shipped with two pre-configured Grafana dashboards providing machine- and pod-level overview of the installed site.
+The Grafana UI is integrated with Gravity control panel. To view dashboards, navigate to that site's `Monitoring` page.
 
-Grafana is configured with anonymous mode which allows anyone logged into Gravity OpsCenter (or site) to use it.
+Grafana is configured with anonymous mode which allows anyone logged into the Gravity WebUI to use it.
 
 In development (sites installed with virsh locally) the anonymous mode has full Admin permissions that allows creating new and modifying existing dashboards which is convenient for development.
 
@@ -53,10 +35,6 @@ data:
 An example of a dashboard ConfigMap can be seen in the monitoring-app's own resources.
 
 A dashboard ConfigMap may contain multiple keys with dashboards, key names are not relevant. Dashboard JSON can be obtained from Grafana by building a dashboard and then exporting it (or viewing its raw JSON representation).
-
-## Metrics collection
-
-All default metrics collected by heapster go into `k8s` database in InfluxDB. All other applications that collect metrics should submit them into the same `k8s` database in order for proper retention policies to be enforced.
 
 ## Retention policies
 
@@ -127,19 +105,7 @@ Each rollup is a JSON object with the following fields:
 * `field` - name of the field to apply rollup function to (e.g. "value")
 * `alias` - new name for the rolled up field (e.g. "value_max")
 
-## Kapacitor integration
+## Contributing
 
-Kapacitor provides alerting for default and user-defined alerts.
-
-### Basic configuration
-
-To configure Kapacitor to send email alerts, change the values of the Kubernetes Secret `smtp-configuration`. To configure the 'to' and 'from' email addresses for sending alerts, update the `alerting-addresses` ConfigMap. You will need to reload any running Kapacitor pods after making these changes for them to take effect.
-
-### Custom and default alerts
-
-Alerts (written in [TICKscript](https://docs.influxdata.com/kapacitor/v1.2/tick/)) are automatically detected, loaded and enabled. They are read from the Kubernetes ConfigMap named `kapacitor-alerts`. To create new alerts, add your alert scripts as new key/values to that ConfigMap.
-
-## Future work
-
- - [ ] Better InfluxDB persistence, availability work
- - [ ] More default Grafana Dashboards
+If you would like to improve Gravity's Monitoring Application, check out our
+[contributing guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md).
