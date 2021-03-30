@@ -91,6 +91,7 @@ if [ $1 = "update" ]; then
 	kubectl --namespace monitoring patch alertmanagers.monitoring.coreos.com main --type=json -p='[{"op": "replace", "path": "/spec/replicas", "value": 2}]'
     fi
     # check for readiness of prometheus pod
+    timeout 5m sh -c "while ! kubectl get pod prometheus-k8s-0; do sleep 10; done"
     kubectl --namespace monitoring wait --for=condition=ready pod prometheus-k8s-0
 
 
