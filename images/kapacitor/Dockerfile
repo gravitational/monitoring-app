@@ -1,11 +1,6 @@
 FROM quay.io/gravitational/debian-grande:stretch as downloader
 ARG KAPACITOR_VERSION
 
-# Ensure nsswitch is set so localhost will be resolved locally
-# https://github.com/gravitational/gravity/issues/1046
-# https://github.com/golang/go/issues/35305
-RUN set -ex && test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
-
 RUN set -ex && apt-get update && \
     apt-get install -y curl tar && \
     curl -sSL https://dl.influxdata.com/kapacitor/releases/kapacitor-${KAPACITOR_VERSION}_linux_amd64.tar.gz -o /kapacitor.tar.gz && \
@@ -13,6 +8,11 @@ RUN set -ex && apt-get update && \
 
 FROM quay.io/gravitational/debian-tall:stretch
 COPY --from=downloader /usr/bin/kapacitor /usr/bin/kapacitord /usr/bin/tickfmt /usr/bin/
+
+# Ensure nsswitch is set so localhost will be resolved locally
+# https://github.com/gravitational/gravity/issues/1046
+# https://github.com/golang/go/issues/35305
+RUN set -ex && test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
 
 EXPOSE 9092
 
