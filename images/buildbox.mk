@@ -12,25 +12,28 @@ ASSETS=$(PWD)/$(TARGETDIR)
 endif
 override BUILDDIR=$(ASSETS)/build
 
-.PHONY: all prepare buildbox
-
 # Configuration by convention: use TARGET as a directory name
 BINARIES=$(BUILDDIR)/$(TARGET)
 
-BBOX := quay.io/gravitational/debian-venti:go1.9-stretch
+# BBOX_IID stores the docker image hash of the buildbox
+BBOX_IID=$(BUILDDIR)/.bbox.iid
 
-all: prepare $(BINARIES)
+.PHONY: all
+all: $(BINARIES)
 
-$(BINARIES): buildbox $(ASSETS)/Makefile
+$(BINARIES): $(BBOX_IID) $(ASSETS)/Makefile | $(BUILDDIR)
 	@echo "\n---> BuildBox for $(TARGET):\n"
 	docker run --rm=true \
+		--user $$(id -u):$$(id -g) \
 		--volume=$(ASSETS):/assets \
 		--volume=$(BUILDDIR):/targetdir \
-		--env="BUILD_UID=$(shell id -u)" \
 		--env="TARGETDIR=/targetdir" \
 		--env="VER=$(VER)" \
-		$(BBOX) \
+		$$(cat $(BBOX_IID)) \
 		make -f /assets/Makefile
 
-prepare:
+$(BBOX_IID): $(PWD)/Dockerfile $(PWD)/buildbox.mk | $(BUILDDIR)
+	docker build $(PWD) --build-arg UID=$$(id -u) --build-arg GID=$$(id -g) --iidfile $(BBOX_IID)
+
+$(BUILDDIR):
 	mkdir -p $(BUILDDIR)
