@@ -92,7 +92,7 @@ spec:
     spec:
       containers:
       - name: prometheus-config-reloader
-        image: quay.io/coreos/prometheus-config-reloader:v0.35.1
+        image: quay.io/coreos/prometheus-config-reloader:v0.44.1
 ---
 apiVersion: apps/v1
 kind: Deployment
