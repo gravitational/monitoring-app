@@ -1,5 +1,5 @@
 ---
-apiVersion: extensions/v1beta1
+apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
   annotations:
@@ -133,7 +133,7 @@ spec:
       - operator: "Exists"
       containers:
         - name: nethealth
-          image: quay.io/gravitational/nethealth-dev:7.1.7
+          image: quay.io/gravitational/nethealth-dev:7.1.11
           command:
             - /nethealth
           args:
