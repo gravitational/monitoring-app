@@ -1,0 +1,7 @@
+apiVersion: cluster.gravitational.io/v1beta1
+kind: ImageSet
+metadata:
+  name: extra-images
+spec:
+  images:
+  - image: quay.io/gravitational/nethealth-dev:7.1.11

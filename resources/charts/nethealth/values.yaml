@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 image:
-  repository: quay.io/gravitational/nethealth-dev
+  repository: leader.telekube.local:5000/nethealth-dev
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "7.1.11"
