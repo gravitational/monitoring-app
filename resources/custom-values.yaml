@@ -1,0 +1,175 @@
+nameOverride: "kube-prometheus"
+
+defaultRules:
+  rules:
+    time: false
+
+alertmanager:
+  config:
+    global:
+      smtp_smarthost: 'localhost:25'
+      smtp_from: 'noreply@platform.gravitational.io'
+      smtp_require_tls: false
+    route:
+      group_by: ['job']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'default'
+      routes:
+      - match:
+          alertname: Watchdog
+        receiver: 'null'
+    receivers:
+    - name: 'null'
+    - name: 'default'
+    templates:
+    - '/etc/alertmanager/config/*.tmpl'
+  alertmanagerSpec:
+    storage:
+      hostPath:
+        path: /var/lib/gravity/monitoring
+    nodeSelector:
+      kubernetes.io/os: linux
+      gravitational.io/k8s-role: master
+    podAntiAffinity: "hard"
+    tolerations:
+      # tolerate any taint
+      - operator: "Exists"
+    containers:
+      - name: mta
+        image: leader.telekube.local:5000/monitoring-mta:1.0.0
+        securityContext:
+          runAsNonRoot: false
+          runAsUser: 0
+    priorityClassName: monitoring-high-priority
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: -1
+      fsGroup: 2000
+
+grafana:
+  adminPassword: prom-operator
+  rbac:
+    pspUseAppArmor: false
+
+kubelet:
+  serviceMonitor:
+    resourcePath: "/metrics/resource"
+
+kubeControllerManager:
+  enabled: true
+
+prometheusOperator:
+  image:
+    repository: quay.io/gravitational/prometheus-operator
+    tag: v0.49.1-gravitational
+
+prometheus:
+  podSecurityPolicy:
+    volumes:
+      - hostPath
+  prometheusSpec:
+    tolerations:
+      # tolerate any taints
+      - operator: "Exists"
+    nodeSelector:
+      kubernetes.io/os: linux
+      gravitational.io/k8s-role: master
+    retention: 30d
+    # will be auto-scaled by the watcher in a multi-node cluster
+    replicas: 1
+    podAntiAffinity: "hard"
+    resources:
+      requests:
+        memory: 400Mi
+    storageSpec:
+      hostPath:
+        path: /var/lib/gravity/monitoring
+    additionalScrapeConfigs:
+      - job_name: satellite
+        kubernetes_sd_configs:
+          - role: node
+        scheme: http
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:7580
+          - source_labels: [__meta_kubernetes_node_name]
+            action: replace
+            target_label: node
+            regex: (.*)
+            replacement: ${1}
+        metric_relabel_configs:
+          - regex: (kubernetes_io_hostname|failure_domain_beta_kubernetes_io_region|beta_kubernetes_io_os|beta_kubernetes_io_arch|beta_kubernetes_io_instance_type|failure_domain_beta_kubernetes_io_zone|role|gravitational_io_advertise_ip|instance)
+            action: labeldrop
+      - job_name: kube-scheduler
+        scheme: http
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - default
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            separator: ;
+            regex: apiserver
+            replacement: $1
+            action: keep
+          - source_labels: [__meta_kubernetes_service_label_provider]
+            separator: ;
+            regex: kubernetes
+            replacement: $1
+            action: keep
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:10251
+          - source_labels: [__address__]
+            action: replace
+            target_label: node
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}
+      - job_name: kube-controller-manager
+        scheme: http
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - default
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            separator: ;
+            regex: apiserver
+            replacement: $1
+            action: keep
+          - source_labels: [__meta_kubernetes_service_label_provider]
+            separator: ;
+            regex: kubernetes
+            replacement: $1
+            action: keep
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:10252
+          - source_labels: [__address__]
+            action: replace
+            target_label: node
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}
+        metric_relabel_configs:
+          - action: labeldrop
+            regex: etcd_(debugging|disk|request|server).*    
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: -1
+      fsGroup: 2000
+    priorityClassName: monitoring-high-priority
