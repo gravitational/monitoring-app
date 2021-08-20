@@ -1,0 +1,50 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: "{{ template "watcher.fullname" . }}:updater"
+  labels:
+    {{- include "watcher.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - extensions
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - privileged
+    verbs:
+      - use
+  - apiGroups:
+      - ''
+    verbs:
+      - get
+      - list
+      - watch
+    resources:
+      - secrets
+      - configmaps
+      - endpoints
+      - events
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - services
+  - apiGroups:
+      - ''
+    verbs:
+      - update
+    resources:
+      - secrets
+    resourceNames:
+      - alertmanager-main
+  - apiGroups:
+      - monitoring.coreos.com
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+    resources:
+      - prometheusrules
+{{- end }}

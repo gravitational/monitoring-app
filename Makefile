@@ -48,6 +48,7 @@ hook:
 
 .PHONY: import
 import: package
+	echo "image.tag: $(VERSION)" > resources/custom-values-watcher.yaml
 	-$(GRAVITY) app delete \
 		--ops-url=$(OPS_URL) \
 		$(REPOSITORY)/$(NAME):$(VERSION) \
