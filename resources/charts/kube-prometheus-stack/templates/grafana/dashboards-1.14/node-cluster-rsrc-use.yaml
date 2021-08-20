@@ -92,7 +92,7 @@ data:
                         "steppedLine": false,
                         "targets": [
                             {
-                                "expr": "((\n  instance:node_cpu_utilisation:rate5m{job=\"node-exporter\", cluster=\"$cluster\"}\n  *\n  instance:node_num_cpu:sum{job=\"node-exporter\", cluster=\"$cluster\"}\n) != 0 )\n/ scalar(sum(instance:node_num_cpu:sum{job=\"node-exporter\", cluster=\"$cluster\"}))\n",
+                                "expr": "((\n  instance:node_cpu_utilization:rate5m{job=\"node-exporter\", cluster=\"$cluster\"}\n  *\n  instance:node_num_cpu:sum{job=\"node-exporter\", cluster=\"$cluster\"}\n) != 0 )\n/ scalar(sum(instance:node_num_cpu:sum{job=\"node-exporter\", cluster=\"$cluster\"}))\n",
                                 "format": "time_series",
                                 "intervalFactor": 2,
                                 "legendFormat": "{{`{{`}} instance {{`}}`}}",
@@ -104,7 +104,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "CPU Utilisation",
+                        "title": "CPU Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 2,
@@ -291,7 +291,7 @@ data:
                         "steppedLine": false,
                         "targets": [
                             {
-                                "expr": "(\n  instance:node_memory_utilisation:ratio{job=\"node-exporter\", cluster=\"$cluster\"}\n  / scalar(count(instance:node_memory_utilisation:ratio{job=\"node-exporter\", cluster=\"$cluster\"}))\n) != 0\n",
+                                "expr": "(\n  instance:node_memory_utilization:ratio{job=\"node-exporter\", cluster=\"$cluster\"}\n  / scalar(count(instance:node_memory_utilization:ratio{job=\"node-exporter\", cluster=\"$cluster\"}))\n) != 0\n",
                                 "format": "time_series",
                                 "intervalFactor": 2,
                                 "legendFormat": "{{`{{`}}instance{{`}}`}}",
@@ -303,7 +303,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Memory Utilisation",
+                        "title": "Memory Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 2,
@@ -517,7 +517,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Network Utilisation (Bytes Receive/Transmit)",
+                        "title": "Network Utilization (Bytes Receive/Transmit)",
                         "tooltip": {
                             "shared": true,
                             "sort": 2,
@@ -731,7 +731,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Disk IO Utilisation",
+                        "title": "Disk IO Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 2,
@@ -930,7 +930,7 @@ data:
                         ],
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Disk Space Utilisation",
+                        "title": "Disk Space Utilization",
                         "tooltip": {
                             "shared": true,
                             "sort": 2,

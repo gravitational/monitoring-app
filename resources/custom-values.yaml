@@ -52,9 +52,22 @@ alertmanager:
       fsGroup: 2000
 
 grafana:
+  image:
+    repository: leader.telekube.local:5000/grafana/grafana
+    pullPolicy: Always
   adminPassword: prom-operator
   rbac:
     pspUseAppArmor: false
+
+kube-state-metrics:
+  image:
+    repository: leader.telekube.local:5000/kube-state-metrics/kube-state-metrics
+    pullPolicy: Always
+
+prometheus-node-exporter:
+  image:
+    repository: leader.telekube.local:5000/prometheus/node-exporter
+    pullPolicy: Always
 
 kubelet:
   serviceMonitor:
@@ -67,12 +80,16 @@ prometheusOperator:
   image:
     repository: leader.telekube.local:5000/gravitational/prometheus-operator
     tag: v0.49.1-gravitational
+  prometheusConfigReloaderImage:
+    repository: leader.telekube.local:5000/prometheus-operator/prometheus-config-reloader
 
 prometheus:
   podSecurityPolicy:
     volumes:
       - hostPath
   prometheusSpec:
+    image:
+      repository: leader.telekube.local:5000/prometheus/prometheus
     tolerations:
       # tolerate any taints
       - operator: "Exists"

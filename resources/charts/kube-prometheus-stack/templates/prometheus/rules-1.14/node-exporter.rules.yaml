@@ -35,7 +35,7 @@ spec:
         1 - avg without (cpu, mode) (
           rate(node_cpu_seconds_total{job="node-exporter", mode="idle"}[5m])
         )
-      record: instance:node_cpu_utilisation:rate5m
+      record: instance:node_cpu_utilization:rate5m
     - expr: |-
         (
           node_load1{job="node-exporter"}
@@ -49,7 +49,7 @@ spec:
         /
           node_memory_MemTotal_bytes{job="node-exporter"}
         )
-      record: instance:node_memory_utilisation:ratio
+      record: instance:node_memory_utilization:ratio
     - expr: rate(node_vmstat_pgmajfault{job="node-exporter"}[5m])
       record: instance:node_vmstat_pgmajfault:rate5m
     - expr: rate(node_disk_io_time_seconds_total{job="node-exporter", device=~"mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|dasd.+"}[5m])

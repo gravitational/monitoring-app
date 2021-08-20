@@ -88,7 +88,7 @@ data:
                         "thresholds": "70,80",
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "CPU Utilisation (from requests)",
+                        "title": "CPU Utilization (from requests)",
                         "tooltip": {
                             "shared": false,
                             "sort": 0,
@@ -172,7 +172,7 @@ data:
                         "thresholds": "70,80",
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "CPU Utilisation (from limits)",
+                        "title": "CPU Utilization (from limits)",
                         "tooltip": {
                             "shared": false,
                             "sort": 0,
@@ -256,7 +256,7 @@ data:
                         "thresholds": "70,80",
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Memory Utilisation (from requests)",
+                        "title": "Memory Utilization (from requests)",
                         "tooltip": {
                             "shared": false,
                             "sort": 0,
@@ -340,7 +340,7 @@ data:
                         "thresholds": "70,80",
                         "timeFrom": null,
                         "timeShift": null,
-                        "title": "Memory Utilisation (from limits)",
+                        "title": "Memory Utilization (from limits)",
                         "tooltip": {
                             "shared": false,
                             "sort": 0,

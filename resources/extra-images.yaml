@@ -5,3 +5,10 @@ metadata:
 spec:
   images:
   - image: quay.io/gravitational/nethealth-dev:7.1.11
+  - image: quay.io/prometheus/alertmanager:v0.22.2
+  - image: quay.io/gravitational/prometheus-operator:v0.49.1-gravitational
+  - image: quay.io/prometheus-operator/prometheus-config-reloader:v0.49.0
+  - image: quay.io/prometheus/prometheus:v2.28.1
+  - image: grafana/grafana:8.0.5
+  - image: k8s.gcr.io/kube-state-metrics/kube-state-metrics:v2.1.0
+  - image: quay.io/prometheus/node-exporter:v1.2.0
