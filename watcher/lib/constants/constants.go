@@ -85,9 +85,9 @@ const (
 	MasterLabel = "master"
 
 	// AlermanagerName is the name of the Alertmanager CRD object.
-	AlertmanagerName = "main"
+	AlertmanagerName = "monitoring-kube-prometheus-alertmanager"
 	// PrometheusName is the name of the Prometheus CRD object.
-	PrometheusName = "k8s"
+	PrometheusName = "monitoring-kube-prometheus-prometheus"
 )
 
 var (

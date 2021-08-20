@@ -12,7 +12,6 @@ MTA_IMAGE_VERSION := 1.0.0
 
 IMPORT_IMAGE_FLAGS := --set-image=monitoring-grafana:$(VERSION) \
 	--set-image=monitoring-hook:$(VERSION) \
-	--set-image=monitoring-mta:$(MTA_IMAGE_VERSION) \
 	--set-image=watcher:$(VERSION)
 
 IMPORT_OPTIONS := --vendor \
