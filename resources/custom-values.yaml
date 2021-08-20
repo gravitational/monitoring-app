@@ -26,6 +26,8 @@ alertmanager:
     templates:
     - '/etc/alertmanager/config/*.tmpl'
   alertmanagerSpec:
+    image:
+      repository: leader.telekube.local:5000/prometheus/alertmanager
     storage:
       hostPath:
         path: /var/lib/gravity/monitoring
@@ -63,7 +65,7 @@ kubeControllerManager:
 
 prometheusOperator:
   image:
-    repository: quay.io/gravitational/prometheus-operator
+    repository: leader.telekube.local:5000/gravitational/prometheus-operator
     tag: v0.49.1-gravitational
 
 prometheus:
