@@ -17,42 +17,43 @@ package rigging
 import (
 	"context"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/trace"
-	"k8s.io/api/core/v1"
+	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // NewServiceAccountControl returns a new instance of the ServiceAccount controller
 func NewServiceAccountControl(config ServiceAccountConfig) (*ServiceAccountControl, error) {
-	err := config.CheckAndSetDefaults()
+	err := config.checkAndSetDefaults()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 	return &ServiceAccountControl{
 		ServiceAccountConfig: config,
-		ServiceAccount:       config.Account,
-		Entry: log.WithFields(log.Fields{
-			"service_account": formatMeta(config.Account.ObjectMeta),
+		FieldLogger: log.WithFields(log.Fields{
+			"service_account": formatMeta(config.ObjectMeta),
 		}),
 	}, nil
 }
 
 // ServiceAccountConfig defines controller configuration
 type ServiceAccountConfig struct {
-	// Account is the existing service account
-	Account v1.ServiceAccount
+	// ServiceAccount is the existing service account
+	*v1.ServiceAccount
 	// Client is k8s client
 	Client *kubernetes.Clientset
 }
 
-func (c *ServiceAccountConfig) CheckAndSetDefaults() error {
+func (c *ServiceAccountConfig) checkAndSetDefaults() error {
+	if c.ServiceAccount == nil {
+		return trace.BadParameter("missing parameter ServiceAccount")
+	}
 	if c.Client == nil {
 		return trace.BadParameter("missing parameter Client")
 	}
-	c.Account.Kind = KindServiceAccount
-	c.Account.APIVersion = V1
+	updateTypeMetaServiceAccount(c.ServiceAccount)
 	return nil
 }
 
@@ -60,39 +61,51 @@ func (c *ServiceAccountConfig) CheckAndSetDefaults() error {
 // adds various operations, like delete, status check and update
 type ServiceAccountControl struct {
 	ServiceAccountConfig
-	v1.ServiceAccount
-	*log.Entry
+	log.FieldLogger
 }
 
 func (c *ServiceAccountControl) Delete(ctx context.Context, cascade bool) error {
 	c.Infof("delete %v", formatMeta(c.ObjectMeta))
 
-	err := c.Client.Core().ServiceAccounts(c.Namespace).Delete(c.Name, nil)
+	err := c.Client.CoreV1().ServiceAccounts(c.Namespace).Delete(ctx, c.Name, metav1.DeleteOptions{})
 	return ConvertError(err)
 }
 
 func (c *ServiceAccountControl) Upsert(ctx context.Context) error {
 	c.Infof("upsert %v", formatMeta(c.ObjectMeta))
 
-	accounts := c.Client.Core().ServiceAccounts(c.Namespace)
+	accounts := c.Client.CoreV1().ServiceAccounts(c.Namespace)
 	c.UID = ""
 	c.SelfLink = ""
 	c.ResourceVersion = ""
-	_, err := accounts.Get(c.Name, metav1.GetOptions{})
+	existing, err := accounts.Get(ctx, c.Name, metav1.GetOptions{})
 	err = ConvertError(err)
 	if err != nil {
 		if !trace.IsNotFound(err) {
 			return trace.Wrap(err)
 		}
-		_, err = accounts.Create(&c.ServiceAccount)
+		_, err = accounts.Create(ctx, c.ServiceAccount, metav1.CreateOptions{})
 		return ConvertError(err)
 	}
-	_, err = accounts.Update(&c.ServiceAccount)
+
+	if checkCustomerManagedResource(existing.Annotations) {
+		c.WithField("serviceaccount", formatMeta(c.ObjectMeta)).Info("Skipping update since object is customer managed.")
+		return nil
+	}
+
+	_, err = accounts.Update(ctx, c.ServiceAccount, metav1.UpdateOptions{})
 	return ConvertError(err)
 }
 
-func (c *ServiceAccountControl) Status() error {
-	accounts := c.Client.Core().ServiceAccounts(c.Namespace)
-	_, err := accounts.Get(c.Name, metav1.GetOptions{})
+func (c *ServiceAccountControl) Status(ctx context.Context) error {
+	accounts := c.Client.CoreV1().ServiceAccounts(c.Namespace)
+	_, err := accounts.Get(ctx, c.Name, metav1.GetOptions{})
 	return ConvertError(err)
+}
+
+func updateTypeMetaServiceAccount(r *v1.ServiceAccount) {
+	r.Kind = KindServiceAccount
+	if r.APIVersion == "" {
+		r.APIVersion = v1.SchemeGroupVersion.String()
+	}
 }

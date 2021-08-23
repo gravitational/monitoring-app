@@ -36,8 +36,8 @@ var (
 
 func main() {
 	flag.StringVar(&mode, "mode", "", fmt.Sprintf("watcher mode: %v", constants.AllModes))
-	flag.StringVar(&kubeconfig, "kubeconfig", "", fmt.Sprintf("optional kubeconfig path"))
-	flag.BoolVar(&debug, "debug", false, fmt.Sprintf("turn on debug logging"))
+	flag.StringVar(&kubeconfig, "kubeconfig", "", "optional kubeconfig path")
+	flag.BoolVar(&debug, "debug", false, "turn on debug logging")
 	flag.Parse()
 
 	if debug {
