@@ -48,7 +48,6 @@ alertmanager:
     securityContext:
       runAsGroup: 2000
       runAsNonRoot: true
-      runAsUser: -1
       fsGroup: 2000
 
 grafana:
@@ -197,6 +196,5 @@ prometheus:
     securityContext:
       runAsGroup: 2000
       runAsNonRoot: true
-      runAsUser: -1
       fsGroup: 2000
     priorityClassName: monitoring-high-priority
