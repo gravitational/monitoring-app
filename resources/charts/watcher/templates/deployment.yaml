@@ -32,7 +32,7 @@ spec:
             - --mode=alerts
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-        - name: "{{ .Chart.name }}-dashboards"
+        - name: "{{ .Chart.Name }}-dashboards"
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
