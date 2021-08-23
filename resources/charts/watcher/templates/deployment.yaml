@@ -23,7 +23,7 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: "{{ .Chart.Name }}-alerts"
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -32,6 +32,24 @@ spec:
             - --mode=alerts
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+        - name: "{{ .Chart.name }}-dashboards"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --mode=dashboards
+          env:
+            - name: GRAFANA_API_ADDRESS
+              value: "{{ .Values.grafana.service }}"
+            - name: GRAFANA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.grafana.secretName }}"
+                  key: "{{ .Values.grafana.secretUsernameKey }}"
+            - name: GRAFANA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.grafana.secretName }}"
+                  key: "{{ .Values.grafana.secretPasswordKey }}"
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

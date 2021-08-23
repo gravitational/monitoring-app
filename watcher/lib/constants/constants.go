@@ -36,6 +36,9 @@ const (
 	// GrafanaAPIAddress is the API address of Grafana running in the same pod
 	GrafanaAPIAddress = "http://localhost:3000"
 
+	// GrafanaApiAddrEnv is the name of environment variable with Grafana API Address
+	GrafanaApiAddrEnv = "GRAFANA_API_ADDRESS"
+
 	// GrafanaUsernameEnv is the name of environment variable with Grafana username
 	GrafanaUsernameEnv = "GRAFANA_USERNAME"
 

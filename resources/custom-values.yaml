@@ -61,6 +61,27 @@ grafana:
   adminPassword: prom-operator
   rbac:
     pspUseAppArmor: false
+  priorityClassName: monitoring-high-priority
+  tolerations:
+      # tolerate any taints
+      - operator: "Exists"
+  grafana.ini:
+    paths:
+      data: /var/lib/grafana/
+      logs: /var/log/grafana
+      plugins: /var/lib/grafana/plugins
+      provisioning: /etc/grafana/provisioning
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+    log:
+      mode: console
+    auth.anonymous:
+      enabled: true
+    users:
+      default_theme: "light"
+    security:
+      allow_embedding: true
 
 kube-state-metrics:
   image:

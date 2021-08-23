@@ -57,3 +57,9 @@ tolerations:
   - operator: "Exists"
 
 affinity: {}
+
+grafana:
+  secretName: monitoring-grafana
+  service: monitoring-grafana.monitoring.svc.cluster.local
+  secretUsernameKey: admin-user
+  secretPasswordKey: admin-password
