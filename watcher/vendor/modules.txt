@@ -29,10 +29,9 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/gofuzz v1.1.0
 github.com/google/gofuzz
-# github.com/googleapis/gnostic v0.5.5
+# github.com/googleapis/gnostic v0.5.5 => github.com/googleapis/gnostic v0.4.1
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
-github.com/googleapis/gnostic/jsonschema
 github.com/googleapis/gnostic/openapiv2
 # github.com/gosimple/slug v1.1.1
 ## explicit
@@ -161,17 +160,11 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/airbrake/gobrake.v2 v2.0.9
-## explicit
-# gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2
-## explicit
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-gopkg.in/yaml.v3
 # k8s.io/api v0.22.0 => k8s.io/api v0.19.14
 ## explicit
 k8s.io/api/admissionregistration/v1
@@ -350,3 +343,4 @@ sigs.k8s.io/yaml
 # github.com/sirupsen/logrus => github.com/gravitational/logrus v0.10.1-0.20180402202453-dcdb95d728db
 # k8s.io/api => k8s.io/api v0.19.14
 # k8s.io/client-go => k8s.io/client-go v0.19.14
+# github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1

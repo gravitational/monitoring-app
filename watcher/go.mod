@@ -16,8 +16,6 @@ require (
 	github.com/prometheus/common v0.10.0
 	github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be // indirect
 	github.com/sirupsen/logrus v1.6.0
-	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
-	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.22.0
 	k8s.io/apimachinery v0.22.0
@@ -30,4 +28,5 @@ replace (
 	github.com/sirupsen/logrus => github.com/gravitational/logrus v0.10.1-0.20180402202453-dcdb95d728db
 	k8s.io/api => k8s.io/api v0.19.14
 	k8s.io/client-go => k8s.io/client-go v0.19.14
+	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 )
