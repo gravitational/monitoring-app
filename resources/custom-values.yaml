@@ -3,6 +3,90 @@ nameOverride: "kube-prometheus"
 defaultRules:
   rules:
     time: false
+  additionalPrometheusRules:
+    - name: gravity-default-rules
+      groups:
+        - name: cluster.rules
+          rules:
+            # Total number of CPU cores in the cluster.
+            - expr: |
+                sum(instance:node_num_cpu:sum)
+              record: cluster:cpu_total
+            # Cluster-wide CPU usage rate in percent.
+            - expr: |
+                (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m]))) * 100
+              record: cluster:cpu_usage_rate
+            # Cluster-wide total RAM in bytes.
+            - expr: |
+                sum(node_memory_MemTotal_bytes{job="node-exporter"})
+              record: cluster:memory_total_bytes
+            # Cluster-wide RAM usage in bytes.
+            - expr: |
+                sum(node_memory_MemTotal_bytes{job="node-exporter"}) - sum(node_memory_MemAvailable_bytes{job="node-exporter"})
+              record: cluster:memory_usage_bytes
+            # Cluster-wide RAM usage rate in percent.
+            - expr: |
+                (1 - sum(:node_memory_MemAvailable_bytes:sum) / sum(kube_node_status_allocatable)) * 100
+              record: cluster:memory_usage_rate
+        - name: sysctl
+          rules:
+          - alert: BrNetfilterMissing
+            annotations:
+              message: Bridge netfilter is disabled on node {{ $labels.node }}
+            expr: max_over_time(satellite_sysctl_br_netfilter[1h]) unless satellite_sysctl_br_netfilter or satellite_sysctl_br_netfilter == 0
+            for: 5m
+            labels:
+              severity: critical
+          - alert: IPv4ForwardingMissing
+            annotations:
+              message: IPv4 forwarding is disabled on node {{ $labels.node }}
+            expr: max_over_time(satellite_sysctl_ipv4_forwarding[1h]) unless satellite_sysctl_ipv4_forwarding or satellite_sysctl_ipv4_forwarding == 0
+            for: 5m
+            labels:
+              severity: critical
+        - name: docker
+          rules:
+          - alert: DockerDown
+            annotations:
+              message: Docker daemon is down on host {{ $labels.node }}
+            expr: satellite_docker_health == 0
+            for: 5m
+            labels:
+              severity: critical
+        - name: node-resources
+          rules:
+          - alert: NodeCPUHighUsage
+            annotations:
+              message: Node {{ $labels.node }} has high cpu usage.
+            expr: |
+              instance:node_cpu_utilization:rate1m * 100 > 75 and instance:node_cpu_utilization:rate1m * 100 <= 90
+            for: 30m
+            labels:
+              severity: warning
+          - alert: NodeCPUHighUsage
+            annotations:
+              message: Node {{ $labels.node }} has high cpu usage.
+            expr: |
+              instance:node_cpu_utilization:rate1m * 100 > 90
+            for: 5m
+            labels:
+              severity: critical
+          - alert: NodeMemoryHighUsage
+            annotations:
+              message: Node {{ $labels.node }} has high memory usage.
+            expr: |
+              instance:node_memory_utilization:ratio * 100 > 80 and instance:node_memory_utilization:ratio * 100 <= 90
+            for: 30m
+            labels:
+              severity: warning
+          - alert: NodeMemoryHighUsage
+            annotations:
+              message: Node {{ $labels.node }} has high memory usage.
+            expr: |
+              instance:node_memory_utilization:ratio * 100 > 90
+            for: 5m
+            labels:
+              severity: critical
 
 alertmanager:
   config:
@@ -53,12 +137,14 @@ alertmanager:
 grafana:
   image:
     repository: leader.telekube.local:5000/grafana/grafana
+    tag: 6.7.6
     pullPolicy: Always
   sidecar:
     image:
       repository: leader.telekube.local:5000/kiwigrid/k8s-sidecar
     imagePullPolicy: Always
-  adminPassword: prom-operator
+    datasources:
+      url: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090/
   rbac:
     pspUseAppArmor: false
   priorityClassName: monitoring-high-priority
@@ -66,6 +152,8 @@ grafana:
       # tolerate any taints
       - operator: "Exists"
   grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/web/grafana"
     paths:
       data: /var/lib/grafana/
       logs: /var/log/grafana
@@ -76,12 +164,18 @@ grafana:
       reporting_enabled: false
     log:
       mode: console
+    auth:
+      disable_signout_menu: true
     auth.anonymous:
       enabled: true
     users:
       default_theme: "light"
     security:
       allow_embedding: true
+    alerting:
+      enabled: false
+    explore:
+      enabled: false
 
 kube-state-metrics:
   image:

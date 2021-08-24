@@ -60,6 +60,6 @@ affinity: {}
 
 grafana:
   secretName: monitoring-grafana
-  service: monitoring-grafana.monitoring.svc.cluster.local
+  service: http://monitoring-grafana.monitoring.svc.cluster.local
   secretUsernameKey: admin-user
   secretPasswordKey: admin-password
