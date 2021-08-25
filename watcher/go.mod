@@ -6,7 +6,7 @@ require (
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/gosimple/slug v1.1.1
-	github.com/gravitational/rigging v0.0.0-20210822131352-bc158e784924
+	github.com/gravitational/rigging v0.0.0-20210825034630-62c449aedb8d
 	github.com/gravitational/roundtrip v1.0.0
 	github.com/gravitational/trace v1.1.6
 	github.com/imdario/mergo v0.3.11 // indirect

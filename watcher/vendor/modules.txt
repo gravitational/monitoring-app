@@ -36,7 +36,7 @@ github.com/googleapis/gnostic/openapiv2
 # github.com/gosimple/slug v1.1.1
 ## explicit
 github.com/gosimple/slug
-# github.com/gravitational/rigging v0.0.0-20210822131352-bc158e784924
+# github.com/gravitational/rigging v0.0.0-20210825034630-62c449aedb8d
 ## explicit
 github.com/gravitational/rigging
 # github.com/gravitational/roundtrip v1.0.0
