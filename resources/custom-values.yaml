@@ -197,6 +197,10 @@ kubelet:
 
 kubeControllerManager:
   enabled: true
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
 
 prometheusOperator:
   image:
@@ -232,7 +236,37 @@ prometheus:
     storageSpec:
       hostPath:
         path: /var/lib/gravity/monitoring
+    volumes:
+      - name: secrets
+        hostPath:
+          path: /var/state
+          type: Directory
+    volumeMounts:
+      - name: secrets
+        mountPath: /var/state
     additionalScrapeConfigs:
+      - job_name: etcd
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:2379
+          - source_labels: [__meta_kubernetes_node_label_gravitational_io_k8s_role]
+            action: keep
+            regex: master
+        metric_relabel_configs:
+          - regex: (kubernetes_io_hostname|failure_domain_beta_kubernetes_io_region|beta_kubernetes_io_os|beta_kubernetes_io_arch|beta_kubernetes_io_instance_type|failure_domain_beta_kubernetes_io_zone|role|gravitational_io_advertise_ip|instance)
+            action: labeldrop
+        tls_cinfig:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/etcd.cert
+          key_file: /var/state/etcd.key
       - job_name: satellite
         kubernetes_sd_configs:
           - role: node
@@ -317,3 +351,21 @@ prometheus:
       runAsNonRoot: true
       fsGroup: 2000
     priorityClassName: monitoring-high-priority
+
+kubeEtcd:
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+
+kubeProxy:
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+
+kubeScheduler:
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
