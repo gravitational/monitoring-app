@@ -15,5 +15,5 @@ password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\
     --set grafana.adminPassword="${password}" --set alertmanager.alertmanagerSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER" --set prometheus.prometheusSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER"
 
 # check for readiness of prometheus pod
-# timeout 5m sh -c "while ! /opt/bin/kubectl --namespace=monitoring get pod prometheus-k8s-0; do sleep 10; done"
-# /opt/bin/kubectl --namespace monitoring wait --for=condition=ready pod prometheus-k8s-0
+timeout 5m sh -c "while ! /opt/bin/kubectl --namespace=monitoring get pod prometheus-monitoring-kube-prometheus-prometheus-0; do sleep 10; done"
+/opt/bin/kubectl --namespace monitoring wait --for=condition=ready pod prometheus-monitoring-kube-prometheus-prometheus-0

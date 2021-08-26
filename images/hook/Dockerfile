@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/debian-grande:buster
+FROM quay.io/gravitational/rig:7.1.5
 
 # Ensure nsswitch is set so localhost will be resolved locally
 # https://github.com/gravitational/gravity/issues/1046
@@ -19,6 +19,7 @@ RUN apt-get update && \
         /usr/share/man/ \
         /tmp/*
 
-ADD entrypoint.sh /
+ADD update.sh rollback.sh /
+RUN chmod +x /update.sh /rollback.sh
 
-ENTRYPOINT ["dumb-init", "/entrypoint.sh"]
+ENTRYPOINT ["dumb-init", "/update.sh"]

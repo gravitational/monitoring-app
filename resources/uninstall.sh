@@ -1,8 +1,7 @@
 #!/bin/sh
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/nethealth/
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/prometheus/
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/security.yaml
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/grafana.yaml
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/watcher.yaml
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/crds/*
-/opt/bin/kubectl delete -f /var/lib/gravity/resources/namespace.yaml
+set -eux
+for release_name in monitoring watcher nethealth; do
+    if /opt/bin/helm3 --namespace monitoring status "$release_name" >/dev/null 2>&1; then
+        /opt/bin/helm3 --namespace monitoring uninstall "$release_name"
+    fi
+done
