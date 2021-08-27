@@ -93,9 +93,9 @@ kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 # Generate password for Grafana administrator
 password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
 
-helm3 upgrade --install nethealth --namespace monitoring /var/lib/gravity/resources/charts/nethealth
-helm3 upgrade --install watcher --namespace monitoring /var/lib/gravity/resources/charts/watcher -f /var/lib/gravity/resources/custom-values-watcher.yaml
-helm3 upgrade --install monitoring --namespace monitoring /var/lib/gravity/resources/charts/kube-prometheus-stack -f /var/lib/gravity/resources/custom-values.yaml \
+/opt/bin/helm3 upgrade --install nethealth --namespace monitoring /var/lib/gravity/resources/charts/nethealth
+/opt/bin/helm3 upgrade --install watcher --namespace monitoring /var/lib/gravity/resources/charts/watcher -f /var/lib/gravity/resources/custom-values-watcher.yaml
+/opt/bin/helm3 upgrade --install monitoring --namespace monitoring /var/lib/gravity/resources/charts/kube-prometheus-stack -f /var/lib/gravity/resources/custom-values.yaml \
     --set grafana.adminPassword="${password}" --set alertmanager.alertmanagerSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER" --set prometheus.prometheusSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER"
 
 # check for readiness of prometheus pod
