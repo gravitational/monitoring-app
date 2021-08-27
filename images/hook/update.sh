@@ -88,7 +88,7 @@ echo "---> Freezing"
 rig freeze
 
 echo "---> Creating monitoring namespace"
-kubectl apply -f /var/lib/gravity/resources/namespace.yaml --debug
+kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 
 # Generate password for Grafana administrator
 password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
