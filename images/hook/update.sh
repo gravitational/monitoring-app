@@ -56,6 +56,7 @@ do
 done
 rig delete alertmanagers/main --resource-namespace=monitoring --force
 rig delete prometheuses/k8s --resource-namespace=monitoring --force
+rig delete psp/nethealth --resource-namespace=monitoring --force
 for promrule in gravity-k8s-rules prometheus-k8s-rules prometheus-nethealth-rules
 do
     rig delete prometheusrules/$promrule --resource-namespace=monitoring --force

@@ -1,4 +1,4 @@
-FROM quay.io/gravitational/rig:7.1.5
+FROM quay.io/gravitational/rig:7.1.6
 
 # Ensure nsswitch is set so localhost will be resolved locally
 # https://github.com/gravitational/gravity/issues/1046
