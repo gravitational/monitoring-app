@@ -81,6 +81,11 @@ for clusterrolebinding in kube-state-metrics monitoring:autoscaler monitoring:me
 do
     rig delete clusterrolebindings/"$clusterrolebinding" --force
 done
+for crd in alertmanagers.monitoring.coreos.com podmonitors.monitoring.coreos.com prometheuses.monitoring.coreos.com \
+  prometheusrules.monitoring.coreos.com servicemonitors.monitoring.coreos.com
+do
+    rig delete crds/"$crd" --force
+done
 
 echo "---> Checking status"
 rig status "$RIG_CHANGESET" --retry-attempts=120 --retry-period=1s --debug
@@ -95,9 +100,9 @@ kubectl apply -f /var/lib/gravity/resources/namespace.yaml
 password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
 
 /opt/bin/helm3 upgrade --install nethealth --namespace monitoring /var/lib/gravity/resources/charts/nethealth
-/opt/bin/helm3 upgrade --install watcher --namespace monitoring /var/lib/gravity/resources/charts/watcher -f /var/lib/gravity/resources/custom-values-watcher.yaml
 /opt/bin/helm3 upgrade --install monitoring --namespace monitoring /var/lib/gravity/resources/charts/kube-prometheus-stack -f /var/lib/gravity/resources/custom-values.yaml \
     --set grafana.adminPassword="${password}" --set alertmanager.alertmanagerSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER" --set prometheus.prometheusSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER"
+/opt/bin/helm3 upgrade --install watcher --namespace monitoring /var/lib/gravity/resources/charts/watcher -f /var/lib/gravity/resources/custom-values-watcher.yaml
 
 # check for readiness of prometheus pod
 timeout 5m sh -c "while ! kubectl --namespace=monitoring get pod prometheus-monitoring-kube-prometheus-prometheus-0; do sleep 10; done"
