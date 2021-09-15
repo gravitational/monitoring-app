@@ -5,7 +5,7 @@ echo "---> Assuming changeset from the environment: $RIG_CHANGESET"
 echo "---> Removing last applied configuration from resources"
 for deployment in autoscaler grafana kube-state-metrics prometheus-adapter prometheus-operator watcher
 do
-  # || true is needed in case resources does not have last applied configuration
+  # || true is needed in case resource does not have last applied configuration
   kubectl --namespace=monitoring patch deployments.apps $deployment --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
   kubectl --namespace=monitoring patch deployments.apps $deployment --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
 done
