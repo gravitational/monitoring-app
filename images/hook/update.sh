@@ -11,13 +11,13 @@ do
 done
 for daemonset in nethealth node-exporter
 do
-  # || true is needed in case resources does not have last applied configuration
+  # || true is needed in case resource does not have last applied configuration
   kubectl --namespace=monitoring patch daemonsets.apps $daemonset --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
   kubectl --namespace=monitoring patch daemonsets.apps $daemonset --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
 done
 for configmap in adapter-config grafana-cfg prometheus-k8s-rulefiles-0 grafana-dashboards
 do
-  # || true is needed in case resources does not have last applied configuration
+  # || true is needed in case resource does not have last applied configuration
   kubectl --namespace=monitoring patch configmaps $configmap --type=json -p='[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]' || true
   kubectl --namespace=monitoring patch configmaps $configmap --type=json -p='[{"op": "remove", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]' || true
 done

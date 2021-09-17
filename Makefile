@@ -39,6 +39,10 @@ define replace
 endef
 endif
 
+BUILD_DIR := build
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
 .PHONY: package
 package:
 	$(MAKE) -C watcher
@@ -57,8 +61,8 @@ hook:
 	$(MAKE) -C images hook
 
 .PHONY: import
-import: package update-charts-version
-	echo "image:\n  tag: $(VERSION)" > resources/custom-values-watcher.yaml
+import: package $(BUILD_DIR)/resources/app.yaml
+	echo "image:\n  tag: $(VERSION)" > $(BUILD_DIR)/resources/custom-values-watcher.yaml
 	-$(GRAVITY) app delete \
 		--ops-url=$(OPS_URL) \
 		$(REPOSITORY)/$(NAME):$(VERSION) \
@@ -66,9 +70,7 @@ import: package update-charts-version
 	$(GRAVITY) app import \
 		$(IMPORT_OPTIONS) \
 		$(EXTRA_GRAVITY_OPTIONS) \
-		--include=resources --include=registry .
-	$(call replace,"s/$(VERSION)/0.1.0/g",resources/charts/nethealth/Chart.yaml)
-	$(call replace,"s/$(VERSION)/0.1.0/g",resources/charts/watcher/Chart.yaml)
+		--include=resources --include=registry $(BUILD_DIR)
 
 .PHONY: tarball
 tarball: import
@@ -82,7 +84,9 @@ tarball: import
 clean:
 	$(MAKE) -C watcher clean
 
-.PHONY: update-charts-version
-update-charts-version:
+# .PHONY because VERSION is dynamic
+.PHONY: $(BUILD_DIR)/resources/app.yaml
+$(BUILD_DIR)/resources/app.yaml: | $(BUILD_DIR)
+	cp -a resources $(BUILD_DIR)
 	$(call replace,"s/0.1.0/$(VERSION)/g",resources/charts/nethealth/Chart.yaml)
 	$(call replace,"s/0.1.0/$(VERSION)/g",resources/charts/watcher/Chart.yaml)
