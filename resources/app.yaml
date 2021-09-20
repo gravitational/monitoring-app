@@ -38,7 +38,7 @@ hooks:
             containers:
               - name: hook
                 image: monitoring-hook:0.0.1
-                command: ["dumb-init", "/rollback.sh"]
+                command: ["dumb-init", "/update.sh"]
   rollback:
     job: |
       apiVersion: batch/v1
