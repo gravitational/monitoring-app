@@ -20,7 +20,6 @@ podAnnotations:
   seccomp.security.alpha.kubernetes.io/pod: docker/default
 
 podSecurityContext: {}
-  # fsGroup: 2000
 
 securityContext:
   allowPrivilegeEscalation: false

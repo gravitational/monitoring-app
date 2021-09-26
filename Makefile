@@ -6,6 +6,9 @@ OUT ?= $(NAME).tar.gz
 GRAVITY ?= gravity
 export
 
+MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+TOP := $(realpath $(patsubst %/,%,$(dir $(MKFILE_PATH))))
+
 EXTRA_GRAVITY_OPTIONS ?=
 
 MTA_IMAGE_VERSION := 1.0.0
@@ -39,7 +42,7 @@ define replace
 endef
 endif
 
-BUILD_DIR := build
+BUILD_DIR ?= $(TOP)/build
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
@@ -88,5 +91,5 @@ clean:
 .PHONY: $(BUILD_DIR)/resources/app.yaml
 $(BUILD_DIR)/resources/app.yaml: | $(BUILD_DIR)
 	cp -a resources $(BUILD_DIR)
-	$(call replace,"s/0.1.0/$(VERSION)/g",resources/charts/nethealth/Chart.yaml)
-	$(call replace,"s/0.1.0/$(VERSION)/g",resources/charts/watcher/Chart.yaml)
+	$(call replace,"s/version-placeholder/$(VERSION)/g",$(BUILD_DIR)/resources/charts/nethealth/Chart.yaml)
+	$(call replace,"s/version-placeholder/$(VERSION)/g",$(BUILD_DIR)/resources/charts/watcher/Chart.yaml)

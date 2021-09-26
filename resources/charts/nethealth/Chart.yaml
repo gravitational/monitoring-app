@@ -4,6 +4,8 @@ description: Nethealth collects information about the overlay network.
 home: https://github.com/gravitational/monitoring-app
 keywords:
 - nethealth
+# https://helm.sh/docs/topics/charts/#the-chartyaml-file
+# kubeVersion: A SemVer range of compatible Kubernetes versions (optional)
 kubeVersion: '>=1.15.0-0'
 maintainers:
 - name: UnderGreen
@@ -12,4 +14,4 @@ name: nethealth
 sources:
 - https://github.com/gravitational/monitoring-app
 type: application
-version: 0.1.0
+version: version-placeholder
