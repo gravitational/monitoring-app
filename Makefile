@@ -41,6 +41,8 @@ define replace
 	sed -i '' $1 $2
 endef
 endif
+.PHONY: all
+all: package
 
 BUILD_DIR ?= $(TOP)/build
 $(BUILD_DIR):
