@@ -1,0 +1,371 @@
+nameOverride: "kube-prometheus"
+
+defaultRules:
+  rules:
+    time: false
+
+additionalPrometheusRules:
+  - name: gravity-default-rules
+    groups:
+      - name: cluster.rules
+        rules:
+          # Total number of CPU cores in the cluster.
+          - expr: |
+              sum(instance:node_num_cpu:sum)
+            record: cluster:cpu_total
+          # Cluster-wide CPU usage rate in percent.
+          - expr: |
+              (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m]))) * 100
+            record: cluster:cpu_usage_rate
+          # Cluster-wide total RAM in bytes.
+          - expr: |
+              sum(node_memory_MemTotal_bytes{job="node-exporter"})
+            record: cluster:memory_total_bytes
+          # Cluster-wide RAM usage in bytes.
+          - expr: |
+              sum(node_memory_MemTotal_bytes{job="node-exporter"}) - sum(node_memory_MemAvailable_bytes{job="node-exporter"})
+            record: cluster:memory_usage_bytes
+          # Cluster-wide RAM usage rate in percent.
+          - expr: |
+              (1 - sum(:node_memory_MemAvailable_bytes:sum) / sum(kube_node_status_allocatable)) * 100
+            record: cluster:memory_usage_rate
+      - name: sysctl
+        rules:
+        - alert: BrNetfilterMissing
+          annotations:
+            message: Bridge netfilter is disabled on node {{ $labels.node }}
+          expr: max_over_time(satellite_sysctl_br_netfilter[1h]) unless satellite_sysctl_br_netfilter or satellite_sysctl_br_netfilter == 0
+          for: 5m
+          labels:
+            severity: critical
+        - alert: IPv4ForwardingMissing
+          annotations:
+            message: IPv4 forwarding is disabled on node {{ $labels.node }}
+          expr: max_over_time(satellite_sysctl_ipv4_forwarding[1h]) unless satellite_sysctl_ipv4_forwarding or satellite_sysctl_ipv4_forwarding == 0
+          for: 5m
+          labels:
+            severity: critical
+      - name: docker
+        rules:
+        - alert: DockerDown
+          annotations:
+            message: Docker daemon is down on host {{ $labels.node }}
+          expr: satellite_docker_health == 0
+          for: 5m
+          labels:
+            severity: critical
+      - name: node-resources
+        rules:
+        - alert: NodeCPUHighUsage
+          annotations:
+            message: Node {{ $labels.node }} has high cpu usage.
+          expr: |
+            instance:node_cpu_utilization:rate1m * 100 > 75 and instance:node_cpu_utilization:rate1m * 100 <= 90
+          for: 30m
+          labels:
+            severity: warning
+        - alert: NodeCPUHighUsage
+          annotations:
+            message: Node {{ $labels.node }} has high cpu usage.
+          expr: |
+            instance:node_cpu_utilization:rate1m * 100 > 90
+          for: 5m
+          labels:
+            severity: critical
+        - alert: NodeMemoryHighUsage
+          annotations:
+            message: Node {{ $labels.node }} has high memory usage.
+          expr: |
+            instance:node_memory_utilization:ratio * 100 > 80 and instance:node_memory_utilization:ratio * 100 <= 90
+          for: 30m
+          labels:
+            severity: warning
+        - alert: NodeMemoryHighUsage
+          annotations:
+            message: Node {{ $labels.node }} has high memory usage.
+          expr: |
+            instance:node_memory_utilization:ratio * 100 > 90
+          for: 5m
+          labels:
+            severity: critical
+
+alertmanager:
+  config:
+    global:
+      smtp_smarthost: 'localhost:25'
+      smtp_from: 'noreply@platform.gravitational.io'
+      smtp_require_tls: false
+    route:
+      group_by: ['job']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'default'
+      routes:
+      - match:
+          alertname: Watchdog
+        receiver: 'null'
+    receivers:
+    - name: 'null'
+    - name: 'default'
+    templates:
+    - '/etc/alertmanager/config/*.tmpl'
+  alertmanagerSpec:
+    image:
+      repository: leader.telekube.local:5000/prometheus/alertmanager
+    storage:
+      hostPath:
+        path: /var/lib/gravity/monitoring
+    nodeSelector:
+      kubernetes.io/os: linux
+      gravitational.io/k8s-role: master
+    podAntiAffinity: "hard"
+    tolerations:
+      # tolerate any taint
+      - operator: "Exists"
+    containers:
+      - name: mta
+        image: leader.telekube.local:5000/monitoring-mta:1.0.0
+        securityContext:
+          runAsNonRoot: false
+          runAsUser: 0
+    priorityClassName: monitoring-high-priority
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      fsGroup: 2000
+
+grafana:
+  image:
+    repository: leader.telekube.local:5000/grafana/grafana
+    tag: 7.5.10
+    pullPolicy: Always
+  sidecar:
+    image:
+      repository: leader.telekube.local:5000/kiwigrid/k8s-sidecar
+    imagePullPolicy: Always
+    datasources:
+      url: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090/
+  rbac:
+    pspUseAppArmor: false
+  priorityClassName: monitoring-high-priority
+  tolerations:
+      # tolerate any taints
+      - operator: "Exists"
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/web/grafana"
+    paths:
+      data: /var/lib/grafana/
+      logs: /var/log/grafana
+      plugins: /var/lib/grafana/plugins
+      provisioning: /etc/grafana/provisioning
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+    log:
+      mode: console
+    auth:
+      disable_signout_menu: true
+    auth.anonymous:
+      enabled: true
+    users:
+      default_theme: "light"
+    security:
+      allow_embedding: true
+    alerting:
+      enabled: false
+    explore:
+      enabled: false
+
+kube-state-metrics:
+  image:
+    repository: leader.telekube.local:5000/kube-state-metrics/kube-state-metrics
+    pullPolicy: Always
+
+prometheus-node-exporter:
+  image:
+    repository: leader.telekube.local:5000/prometheus/node-exporter
+    pullPolicy: Always
+  extraArgs:
+    - --collector.filesystem.ignored-mount-points=^/(dev|proc|run|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+    - --collector.filesystem.ignored-fs-types=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
+
+kubelet:
+  serviceMonitor:
+    resourcePath: "/metrics/resource"
+
+kubeControllerManager:
+  enabled: true
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+
+prometheusOperator:
+  image:
+    repository: leader.telekube.local:5000/gravitational/prometheus-operator
+    tag: v0.49.1-gravitational
+  prometheusConfigReloaderImage:
+    repository: leader.telekube.local:5000/prometheus-operator/prometheus-config-reloader
+  admissionWebhooks:
+    patch:
+      image:
+        repository: leader.telekube.local:5000/jettech/kube-webhook-certgen
+
+prometheus:
+  podSecurityPolicy:
+    volumes:
+      - hostPath
+  prometheusSpec:
+    image:
+      repository: leader.telekube.local:5000/prometheus/prometheus
+    tolerations:
+      # tolerate any taints
+      - operator: "Exists"
+    nodeSelector:
+      kubernetes.io/os: linux
+      gravitational.io/k8s-role: master
+    retention: 30d
+    # will be auto-scaled by the watcher in a multi-node cluster
+    replicas: 1
+    podAntiAffinity: "hard"
+    resources:
+      requests:
+        memory: 400Mi
+    storageSpec:
+      hostPath:
+        path: /var/lib/gravity/monitoring
+    volumes:
+      - name: secrets
+        hostPath:
+          path: /var/state
+          type: Directory
+    volumeMounts:
+      - name: secrets
+        mountPath: /var/state
+    additionalScrapeConfigs:
+      - job_name: etcd
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:2379
+          - source_labels: [__meta_kubernetes_node_label_gravitational_io_k8s_role]
+            action: keep
+            regex: master
+        metric_relabel_configs:
+          - regex: (kubernetes_io_hostname|failure_domain_beta_kubernetes_io_region|beta_kubernetes_io_os|beta_kubernetes_io_arch|beta_kubernetes_io_instance_type|failure_domain_beta_kubernetes_io_zone|role|gravitational_io_advertise_ip|instance)
+            action: labeldrop
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/etcd.cert
+          key_file: /var/state/etcd.key
+      - job_name: satellite
+        kubernetes_sd_configs:
+          - role: node
+        scheme: http
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:7580
+          - source_labels: [__meta_kubernetes_node_name]
+            action: replace
+            target_label: node
+            regex: (.*)
+            replacement: ${1}
+        metric_relabel_configs:
+          - regex: (kubernetes_io_hostname|failure_domain_beta_kubernetes_io_region|beta_kubernetes_io_os|beta_kubernetes_io_arch|beta_kubernetes_io_instance_type|failure_domain_beta_kubernetes_io_zone|role|gravitational_io_advertise_ip|instance)
+            action: labeldrop
+      - job_name: kube-scheduler
+        scheme: http
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - default
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            separator: ;
+            regex: apiserver
+            replacement: $1
+            action: keep
+          - source_labels: [__meta_kubernetes_service_label_provider]
+            separator: ;
+            regex: kubernetes
+            replacement: $1
+            action: keep
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:10251
+          - source_labels: [__address__]
+            action: replace
+            target_label: node
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}
+      - job_name: kube-controller-manager
+        scheme: http
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - default
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            separator: ;
+            regex: apiserver
+            replacement: $1
+            action: keep
+          - source_labels: [__meta_kubernetes_service_label_provider]
+            separator: ;
+            regex: kubernetes
+            replacement: $1
+            action: keep
+          - source_labels: [__address__]
+            action: replace
+            target_label: __address__
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}:10252
+          - source_labels: [__address__]
+            action: replace
+            target_label: node
+            regex: ([^:;]+):(\d+)
+            replacement: ${1}
+        metric_relabel_configs:
+          - action: labeldrop
+            regex: etcd_(debugging|disk|request|server).*    
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      fsGroup: 2000
+    priorityClassName: monitoring-high-priority
+
+kubeEtcd:
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+
+kubeProxy:
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+
+kubeScheduler:
+  service:
+    enabled: false
+  serviceMonitor:
+    enabled: false

@@ -46,7 +46,7 @@ func runDashboardsWatcher(kubernetesClient *kubernetes.Client) error {
 	}
 
 	ch := make(chan kubernetes.ConfigMapUpdate)
-	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{label, ch})
+	go kubernetesClient.WatchConfigMaps(context.TODO(), kubernetes.ConfigMap{Selector: label, RecvCh: ch})
 	receiveAndCreateDashboards(context.TODO(), grafanaClient, ch)
 	return nil
 }

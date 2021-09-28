@@ -38,7 +38,7 @@ func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, 
 		return trace.Wrap(err)
 	}
 
-	rClient, err := resources.New(resources.ClientConfig{
+	rClient, err := resources.New(ctx, resources.ClientConfig{
 		KubernetesClient: kubernetesClient.Clientset,
 		MonitoringClient: monitoringClient,
 		Namespace:        constants.MonitoringNamespace,
@@ -65,13 +65,13 @@ func runAlertsWatcher(ctx context.Context, kubernetesClient *kubernetes.Client, 
 	alertCh := make(chan kubernetes.ConfigMapUpdate)
 	alertTargetCh := make(chan kubernetes.ConfigMapUpdate)
 	configmaps := []kubernetes.ConfigMap{
-		{alertLabel, alertCh},
-		{targetLabel, alertTargetCh},
+		{Selector: alertLabel, RecvCh: alertCh},
+		{Selector: targetLabel, RecvCh: alertTargetCh},
 	}
 	smtpCh := make(chan kubernetes.SecretUpdate)
 
 	go kubernetesClient.WatchConfigMaps(ctx, configmaps...)
-	go kubernetesClient.WatchSecrets(ctx, kubernetes.Secret{smtpLabel, smtpCh})
+	go kubernetesClient.WatchSecrets(ctx, kubernetes.Secret{Selector: smtpLabel, RecvCh: smtpCh})
 	receiverLoop(ctx, kubernetesClient.Clientset, rClient,
 		alertCh, alertTargetCh, smtpCh)
 
@@ -87,7 +87,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 			spec := []byte(update.Data[constants.ResourceSpecKey])
 			switch update.EventType {
 			case watch.Added, watch.Modified:
-				if err := createAlert(rClient, spec, log); err != nil {
+				if err := createAlert(ctx, rClient, spec, log); err != nil {
 					log.Warnf("Failed to create alert from spec %s: %v.", spec, trace.DebugReport(err))
 				}
 			case watch.Deleted:
@@ -127,7 +127,7 @@ func receiverLoop(ctx context.Context, kubeClient *kubeapi.Clientset, rClient re
 	}
 }
 
-func createAlert(client resources.Resources, spec []byte, log *log.Entry) error {
+func createAlert(ctx context.Context, client resources.Resources, spec []byte, log *log.Entry) error {
 	log.Debugf("Creating alert from spec %s.", spec)
 
 	if len(bytes.TrimSpace(spec)) == 0 {

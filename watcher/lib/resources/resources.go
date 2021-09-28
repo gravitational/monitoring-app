@@ -17,14 +17,15 @@ limitations under the License.
 package resources
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	v1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 	"github.com/gravitational/rigging"
 	"github.com/gravitational/trace"
+	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -60,6 +61,7 @@ type Client struct {
 	Namespace string
 	// FieldLogger provides logging facilities.
 	logrus.FieldLogger
+	context.Context
 }
 
 // ClientConfig is the client configuration.
@@ -88,7 +90,7 @@ func (c *ClientConfig) CheckAndSetDefaults() error {
 }
 
 // New returns a new resources manager client.
-func New(conf ClientConfig) (*Client, error) {
+func New(ctx context.Context, conf ClientConfig) (*Client, error) {
 	err := conf.CheckAndSetDefaults()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -98,6 +100,7 @@ func New(conf ClientConfig) (*Client, error) {
 		Rules:       conf.MonitoringClient.MonitoringV1().PrometheusRules(conf.Namespace),
 		Namespace:   conf.Namespace,
 		FieldLogger: logrus.WithField(trace.Component, "resources"),
+		Context:     ctx,
 	}, nil
 }
 
@@ -237,7 +240,7 @@ func (c *Client) DeleteAlertTarget() error {
 // UpsertAlert creates a new or updates an existing monitoring alert.
 func (c *Client) UpsertAlert(alert Alert) error {
 	c.Infof("Creating alert: %s.", alert)
-	_, err := c.Rules.Create(c.newPrometheusRule(alert))
+	_, err := c.Rules.Create(c.Context, c.newPrometheusRule(alert), metav1.CreateOptions{})
 	if err == nil {
 		return nil
 	}
@@ -247,12 +250,12 @@ func (c *Client) UpsertAlert(alert Alert) error {
 	}
 	// Updating PrometheusRule requires resourceVersion to be set on the
 	// CRD object so retrieve it first and update appropriate fields.
-	rule, err := c.Rules.Get(alert.CRDName, metav1.GetOptions{})
+	rule, err := c.Rules.Get(c.Context, alert.CRDName, metav1.GetOptions{})
 	if err != nil {
 		return trace.Wrap(rigging.ConvertError(err))
 	}
 	c.updatePrometheusRule(rule, alert)
-	_, err = c.Rules.Update(rule)
+	_, err = c.Rules.Update(c.Context, rule, metav1.UpdateOptions{})
 	if err != nil {
 		return trace.Wrap(rigging.ConvertError(err))
 	}
@@ -262,7 +265,7 @@ func (c *Client) UpsertAlert(alert Alert) error {
 // DeleteAlert deletes specified monitoring alert.
 func (c *Client) DeleteAlert(name string) error {
 	c.Infof("Deleting alert: %v.", name)
-	err := c.Rules.Delete(name, nil)
+	err := c.Rules.Delete(c.Context, name, metav1.DeleteOptions{})
 	if err != nil {
 		return trace.Wrap(rigging.ConvertError(err))
 	}
@@ -271,7 +274,7 @@ func (c *Client) DeleteAlert(name string) error {
 
 // getAlertmanagerConfig returns Alertmanager configuration.
 func (c *Client) getAlertmanagerConfig() (*Config, error) {
-	secret, err := c.Secrets.Get(alertmanagerSecretName, metav1.GetOptions{})
+	secret, err := c.Secrets.Get(c.Context, alertmanagerSecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, trace.Wrap(rigging.ConvertError(err))
 	}
@@ -289,7 +292,7 @@ func (c *Client) getAlertmanagerConfig() (*Config, error) {
 // updateAlertmanagerConfig updates Alertmanager configuration.
 func (c *Client) updateAlertmanagerConfig(conf *Config) error {
 	c.Debugf("Updating alertmanager configuration file: %#v.", conf)
-	secret, err := c.Secrets.Get(alertmanagerSecretName, metav1.GetOptions{})
+	secret, err := c.Secrets.Get(c.Context, alertmanagerSecretName, metav1.GetOptions{})
 	if err != nil {
 		return trace.Wrap(rigging.ConvertError(err))
 	}
@@ -300,7 +303,7 @@ func (c *Client) updateAlertmanagerConfig(conf *Config) error {
 	secret.StringData = map[string]string{
 		alertmanagerConfigFilename: confString,
 	}
-	_, err = c.Secrets.Update(secret)
+	_, err = c.Secrets.Update(c.Context, secret, metav1.UpdateOptions{})
 	if err != nil {
 		return trace.Wrap(rigging.ConvertError(err))
 	}

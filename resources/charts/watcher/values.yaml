@@ -1,0 +1,58 @@
+# Default values for watcher.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: leader.telekube.local:5000/watcher
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations:
+  seccomp.security.alpha.kubernetes.io/pod: docker/default
+
+podSecurityContext: {}
+
+securityContext:
+  runAsUser: 65534
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector:
+  gravitational.io/k8s-role: master
+
+tolerations:
+  # tolerate any taints
+  - operator: "Exists"
+
+affinity: {}
+
+grafana:
+  secretName: monitoring-grafana
+  service: http://monitoring-grafana.monitoring.svc.cluster.local
+  secretUsernameKey: admin-user
+  secretPasswordKey: admin-password

@@ -1,0 +1,17 @@
+apiVersion: cluster.gravitational.io/v1beta1
+kind: ImageSet
+metadata:
+  name: extra-images
+spec:
+  images:
+  - image: monitoring-mta:1.0.0
+  - image: quay.io/gravitational/nethealth-dev:7.1.11
+  - image: quay.io/prometheus/alertmanager:v0.22.2
+  - image: quay.io/gravitational/prometheus-operator:v0.49.1-gravitational
+  - image: quay.io/prometheus-operator/prometheus-config-reloader:v0.49.0
+  - image: quay.io/prometheus/prometheus:v2.28.1
+  - image: grafana/grafana:7.5.10
+  - image: k8s.gcr.io/kube-state-metrics/kube-state-metrics:v2.1.0
+  - image: quay.io/prometheus/node-exporter:v1.2.0
+  - image: jettech/kube-webhook-certgen:v1.5.2
+  - image: quay.io/kiwigrid/k8s-sidecar:1.12.2

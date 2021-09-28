@@ -6,13 +6,15 @@ OUT ?= $(NAME).tar.gz
 GRAVITY ?= gravity
 export
 
+MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+TOP := $(realpath $(patsubst %/,%,$(dir $(MKFILE_PATH))))
+
 EXTRA_GRAVITY_OPTIONS ?=
 
 MTA_IMAGE_VERSION := 1.0.0
 
 IMPORT_IMAGE_FLAGS := --set-image=monitoring-grafana:$(VERSION) \
 	--set-image=monitoring-hook:$(VERSION) \
-	--set-image=monitoring-mta:$(MTA_IMAGE_VERSION) \
 	--set-image=watcher:$(VERSION)
 
 IMPORT_OPTIONS := --vendor \
@@ -28,6 +30,23 @@ IMPORT_OPTIONS := --vendor \
 	--name=$(NAME) \
 	--version=$(VERSION) \
 	$(IMPORT_IMAGE_FLAGS)
+
+UNAME := $(shell uname | tr A-Z a-z)
+define replace
+	sed -i $1 $2
+endef
+
+ifeq ($(UNAME),darwin)
+define replace
+	sed -i '' $1 $2
+endef
+endif
+.PHONY: all
+all: package
+
+BUILD_DIR ?= $(TOP)/build
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 .PHONY: package
 package:
@@ -47,7 +66,8 @@ hook:
 	$(MAKE) -C images hook
 
 .PHONY: import
-import: package
+import: package $(BUILD_DIR)/resources/app.yaml
+	echo "image:\n  tag: $(VERSION)" > $(BUILD_DIR)/resources/custom-values-watcher.yaml
 	-$(GRAVITY) app delete \
 		--ops-url=$(OPS_URL) \
 		$(REPOSITORY)/$(NAME):$(VERSION) \
@@ -55,7 +75,7 @@ import: package
 	$(GRAVITY) app import \
 		$(IMPORT_OPTIONS) \
 		$(EXTRA_GRAVITY_OPTIONS) \
-		--include=resources --include=registry .
+		--include=resources --include=registry $(BUILD_DIR)
 
 .PHONY: tarball
 tarball: import
@@ -68,3 +88,10 @@ tarball: import
 .PHONY: clean
 clean:
 	$(MAKE) -C watcher clean
+
+# .PHONY because VERSION is dynamic
+.PHONY: $(BUILD_DIR)/resources/app.yaml
+$(BUILD_DIR)/resources/app.yaml: | $(BUILD_DIR)
+	cp -a resources $(BUILD_DIR)
+	$(call replace,"s/version-placeholder/$(VERSION)/g",$(BUILD_DIR)/resources/charts/nethealth/Chart.yaml)
+	$(call replace,"s/version-placeholder/$(VERSION)/g",$(BUILD_DIR)/resources/charts/watcher/Chart.yaml)

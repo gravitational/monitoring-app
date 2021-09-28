@@ -156,7 +156,7 @@ roleRef:
   name: monitoring:updater
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: scheduling.k8s.io/v1beta1
+apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
   name: monitoring-high-priority

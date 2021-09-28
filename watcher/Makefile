@@ -1,4 +1,4 @@
-BUILDBOX := quay.io/gravitational/debian-venti:go1.15.3-buster
+BUILDBOX := quay.io/gravitational/debian-venti:go1.15.15-buster
 BUILDDIR := $(abspath build)
 CURDIR := $(dir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 DSTDIR := /gopath/src/github.com/gravitational/monitoring-app/watcher

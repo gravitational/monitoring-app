@@ -23,7 +23,7 @@ import (
 	"github.com/gravitational/monitoring-app/watcher/lib/constants"
 	"github.com/gravitational/monitoring-app/watcher/lib/kubernetes"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -73,16 +73,16 @@ func runAutoscale(ctx context.Context, config autoscaleConfig) error {
 	for {
 		select {
 		case <-ticker.C:
-			nodes, err := getMasterNodes(config.nodes)
+			nodes, err := getMasterNodes(ctx, config.nodes)
 			if err != nil {
 				log.WithError(err).Error("Failed to query nodes.")
 				continue
 			}
-			err = reconcileAlertmanager(config.alertmanagers, nodes)
+			err = reconcileAlertmanager(ctx, config.alertmanagers, nodes)
 			if err != nil {
 				log.WithError(err).Error("Failed to reconcile Alertmanager.")
 			}
-			err = reconcilePrometheus(config.prometheuses, nodes)
+			err = reconcilePrometheus(ctx, config.prometheuses, nodes)
 			if err != nil {
 				log.WithError(err).Error("Failed to reconcile Prometheus.")
 			}
@@ -93,13 +93,13 @@ func runAutoscale(ctx context.Context, config autoscaleConfig) error {
 }
 
 // getMasterNodes returns a list of Kubernetes master nodes.
-func getMasterNodes(nodes v1.NodeInterface) ([]corev1.Node, error) {
+func getMasterNodes(ctx context.Context, nodes v1.NodeInterface) ([]corev1.Node, error) {
 	masterLabel, err := kubernetes.MatchLabel(constants.NodeRoleLabel, constants.MasterLabel)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	nodeList, err := nodes.List(metav1.ListOptions{
+	nodeList, err := nodes.List(ctx, metav1.ListOptions{
 		LabelSelector: masterLabel.String(),
 	})
 	if err != nil {
@@ -111,8 +111,8 @@ func getMasterNodes(nodes v1.NodeInterface) ([]corev1.Node, error) {
 
 // reconcileAlertmanager adjusts the number of Alertmanager replicas according
 // to the provided node list.
-func reconcileAlertmanager(alertmanagers monitoringv1.AlertmanagerInterface, nodes []corev1.Node) error {
-	alertmanager, err := alertmanagers.Get(constants.AlertmanagerName, metav1.GetOptions{})
+func reconcileAlertmanager(ctx context.Context, alertmanagers monitoringv1.AlertmanagerInterface, nodes []corev1.Node) error {
+	alertmanager, err := alertmanagers.Get(ctx, constants.AlertmanagerName, metav1.GetOptions{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -135,7 +135,7 @@ func reconcileAlertmanager(alertmanagers monitoringv1.AlertmanagerInterface, nod
 	}
 
 	log.Infof("Alertmanager has %v replicas, scaling to %v.", replicas, int32V(alertmanager.Spec.Replicas))
-	if _, err := alertmanagers.Update(alertmanager); err != nil {
+	if _, err := alertmanagers.Update(ctx, alertmanager, metav1.UpdateOptions{}); err != nil {
 		return trace.Wrap(err)
 	}
 
@@ -144,8 +144,8 @@ func reconcileAlertmanager(alertmanagers monitoringv1.AlertmanagerInterface, nod
 
 // reconcilePrometheus adjusts the number of Prometheus replicas according to
 // the provided node list.
-func reconcilePrometheus(prometheuses monitoringv1.PrometheusInterface, nodes []corev1.Node) error {
-	prometheus, err := prometheuses.Get(constants.PrometheusName, metav1.GetOptions{})
+func reconcilePrometheus(ctx context.Context, prometheuses monitoringv1.PrometheusInterface, nodes []corev1.Node) error {
+	prometheus, err := prometheuses.Get(ctx, constants.PrometheusName, metav1.GetOptions{})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -168,7 +168,7 @@ func reconcilePrometheus(prometheuses monitoringv1.PrometheusInterface, nodes []
 	}
 
 	log.Infof("Prometheus has %v replicas, scaling to %v.", replicas, int32V(prometheus.Spec.Replicas))
-	if _, err := prometheuses.Update(prometheus); err != nil {
+	if _, err := prometheuses.Update(ctx, prometheus, metav1.UpdateOptions{}); err != nil {
 		return trace.Wrap(err)
 	}
 

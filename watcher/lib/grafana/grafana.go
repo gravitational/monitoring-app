@@ -48,7 +48,12 @@ func NewClient() (*Client, error) {
 		return nil, trace.BadParameter("%s environment variable is not set", constants.GrafanaPasswordEnv)
 	}
 
-	client, err := roundtrip.NewClient(constants.GrafanaAPIAddress, "", roundtrip.BasicAuth(username, password))
+	apiAddress := os.Getenv(constants.GrafanaApiAddrEnv)
+	if apiAddress == "" {
+		apiAddress = constants.GrafanaAPIAddress
+	}
+
+	client, err := roundtrip.NewClient(apiAddress, "", roundtrip.BasicAuth(username, password))
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

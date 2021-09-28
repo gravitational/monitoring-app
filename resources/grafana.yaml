@@ -112,10 +112,6 @@ spec:
               secretKeyRef:
                 name: grafana
                 key: password
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-      serviceAccountName: monitoring
       volumes:
       - name: grafana-cfg
         configMap:

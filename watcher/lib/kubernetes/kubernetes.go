@@ -25,6 +25,9 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	monitoringv1typed "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,10 +40,6 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
-	monitoringv1typed "github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
 )
 
 func init() {
@@ -209,7 +208,7 @@ type ResourceUpdate struct {
 }
 
 func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, config ConfigMap) error {
-	watcher, err := client.Watch(metav1.ListOptions{LabelSelector: config.Selector.String()})
+	watcher, err := client.Watch(ctx, metav1.ListOptions{LabelSelector: config.Selector.String()})
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -239,7 +238,7 @@ func watchConfigMap(ctx context.Context, client corev1.ConfigMapInterface, confi
 }
 
 func watchSecret(ctx context.Context, client corev1.SecretInterface, config Secret) error {
-	watcher, err := client.Watch(metav1.ListOptions{LabelSelector: config.Selector.String()})
+	watcher, err := client.Watch(ctx, metav1.ListOptions{LabelSelector: config.Selector.String()})
 	if err != nil {
 		return trace.Wrap(err)
 	}

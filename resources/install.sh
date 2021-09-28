@@ -1,20 +1,19 @@
 #!/bin/sh
+set -eux
 
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/namespace.yaml
-
-for file in /var/lib/gravity/resources/crds/*
-do
-    head -n -6 $file | /opt/bin/kubectl apply -f -
-done
-
-# Generate password for Grafana administrator
-password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
-sed -i s/cGFzc3dvcmQtZ29lcy1oZXJlCg==/$password/g /var/lib/gravity/resources/grafana.yaml
-
-for name in security grafana watcher
+for name in namespace priority-class
 do
     /opt/bin/kubectl apply -f /var/lib/gravity/resources/${name}.yaml
 done
 
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/prometheus/
-/opt/bin/kubectl apply -f /var/lib/gravity/resources/nethealth/
+# Generate password for Grafana administrator
+password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
+
+/opt/bin/helm3 install nethealth --namespace monitoring /var/lib/gravity/resources/charts/nethealth
+/opt/bin/helm3 install monitoring --namespace monitoring /var/lib/gravity/resources/charts/kube-prometheus-stack -f /var/lib/gravity/resources/custom-values.yaml \
+    --set grafana.adminPassword="${password}" --set alertmanager.alertmanagerSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER" --set prometheus.prometheusSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER"
+/opt/bin/helm3 install watcher --namespace monitoring /var/lib/gravity/resources/charts/watcher -f /var/lib/gravity/resources/custom-values-watcher.yaml
+
+# check for readiness of prometheus pod
+timeout 5m sh -c "while ! /opt/bin/kubectl --namespace=monitoring get pod prometheus-monitoring-kube-prometheus-prometheus-0; do sleep 10; done"
+/opt/bin/kubectl --namespace monitoring wait --for=condition=ready pod prometheus-monitoring-kube-prometheus-prometheus-0

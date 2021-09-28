@@ -1,0 +1,37 @@
+{{- if .Values.rbac.create }}
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
+  name: {{ template "nethealth.fullname" . }}
+  labels:
+    {{- include "nethealth.labels" . | nindent 4 }}
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  allowedCapabilities:
+    - NET_RAW
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+    - hostPath
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  readOnlyRootFilesystem: true
+  allowedHostPaths:
+    - pathPrefix: /run/nethealth
+{{- end }}
