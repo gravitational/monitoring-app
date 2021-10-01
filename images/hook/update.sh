@@ -93,8 +93,9 @@ rig status "$RIG_CHANGESET" --retry-attempts=120 --retry-period=1s --debug
 echo "---> Freezing"
 rig freeze
 
-echo "---> Creating monitoring namespace"
+echo "---> Creating monitoring namespace and priority class"
 kubectl apply -f /var/lib/gravity/resources/namespace.yaml
+kubectl apply -f /var/lib/gravity/resources/priority-class.yaml
 
 # Generate password for Grafana administrator
 password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\n ' | /opt/bin/base64)
