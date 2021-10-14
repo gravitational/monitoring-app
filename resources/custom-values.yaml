@@ -319,6 +319,7 @@ prometheus:
           ca_file: /var/state/root.cert
           cert_file: /var/state/etcd.cert
           key_file: /var/state/etcd.key
+          insecure_skip_verify: true
       - job_name: kube-controller-manager
         scheme: https
         kubernetes_sd_configs:
@@ -351,6 +352,7 @@ prometheus:
           ca_file: /var/state/root.cert
           cert_file: /var/state/etcd.cert
           key_file: /var/state/etcd.key
+          insecure_skip_verify: true
         metric_relabel_configs:
           - action: labeldrop
             regex: etcd_(debugging|disk|request|server).*    
