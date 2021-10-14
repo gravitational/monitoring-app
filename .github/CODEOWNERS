@@ -1,0 +1,5 @@
+# Monitoring App Owners
+*  @gravitational/codeowners-gravity-code
+
+# This file
+/.github/CODEOWNERS @gravitational/admins
