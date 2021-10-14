@@ -309,7 +309,7 @@ prometheus:
             action: replace
             target_label: __address__
             regex: ([^:;]+):(\d+)
-            replacement: ${1}:10251
+            replacement: ${1}:10259
           - source_labels: [__address__]
             action: replace
             target_label: node
@@ -337,7 +337,7 @@ prometheus:
             action: replace
             target_label: __address__
             regex: ([^:;]+):(\d+)
-            replacement: ${1}:10252
+            replacement: ${1}:10257
           - source_labels: [__address__]
             action: replace
             target_label: node
