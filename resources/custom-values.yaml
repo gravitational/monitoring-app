@@ -288,7 +288,7 @@ prometheus:
           - regex: (kubernetes_io_hostname|failure_domain_beta_kubernetes_io_region|beta_kubernetes_io_os|beta_kubernetes_io_arch|beta_kubernetes_io_instance_type|failure_domain_beta_kubernetes_io_zone|role|gravitational_io_advertise_ip|instance)
             action: labeldrop
       - job_name: kube-scheduler
-        scheme: http
+        scheme: https
         kubernetes_sd_configs:
           - role: endpoints
             namespaces:
@@ -315,8 +315,12 @@ prometheus:
             target_label: node
             regex: ([^:;]+):(\d+)
             replacement: ${1}
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/etcd.cert
+          key_file: /var/state/etcd.key
       - job_name: kube-controller-manager
-        scheme: http
+        scheme: https
         kubernetes_sd_configs:
           - role: endpoints
             namespaces:
@@ -343,6 +347,10 @@ prometheus:
             target_label: node
             regex: ([^:;]+):(\d+)
             replacement: ${1}
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/etcd.cert
+          key_file: /var/state/etcd.key
         metric_relabel_configs:
           - action: labeldrop
             regex: etcd_(debugging|disk|request|server).*    
