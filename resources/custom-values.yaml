@@ -288,7 +288,7 @@ prometheus:
           - regex: (kubernetes_io_hostname|failure_domain_beta_kubernetes_io_region|beta_kubernetes_io_os|beta_kubernetes_io_arch|beta_kubernetes_io_instance_type|failure_domain_beta_kubernetes_io_zone|role|gravitational_io_advertise_ip|instance)
             action: labeldrop
       - job_name: kube-scheduler
-        scheme: http
+        scheme: https
         kubernetes_sd_configs:
           - role: endpoints
             namespaces:
@@ -309,14 +309,21 @@ prometheus:
             action: replace
             target_label: __address__
             regex: ([^:;]+):(\d+)
-            replacement: ${1}:10251
+            replacement: ${1}:10259
           - source_labels: [__address__]
             action: replace
             target_label: node
             regex: ([^:;]+):(\d+)
             replacement: ${1}
+        authorization:
+          type: Bearer
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/scheduler.cert
+          key_file: /var/state/scheduler.key
       - job_name: kube-controller-manager
-        scheme: http
+        scheme: https
         kubernetes_sd_configs:
           - role: endpoints
             namespaces:
@@ -337,12 +344,19 @@ prometheus:
             action: replace
             target_label: __address__
             regex: ([^:;]+):(\d+)
-            replacement: ${1}:10252
+            replacement: ${1}:10257
           - source_labels: [__address__]
             action: replace
             target_label: node
             regex: ([^:;]+):(\d+)
             replacement: ${1}
+        authorization:
+          type: Bearer
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/scheduler.cert
+          key_file: /var/state/scheduler.key
         metric_relabel_configs:
           - action: labeldrop
             regex: etcd_(debugging|disk|request|server).*    
