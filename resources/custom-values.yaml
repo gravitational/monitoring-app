@@ -315,10 +315,9 @@ prometheus:
             target_label: node
             regex: ([^:;]+):(\d+)
             replacement: ${1}
-        tls_config:
-          ca_file: /var/state/root.cert
-          cert_file: /var/state/etcd.cert
-          key_file: /var/state/etcd.key
+        authorization:
+          type: Bearer
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
       - job_name: kube-controller-manager
         scheme: https
         kubernetes_sd_configs:
@@ -347,10 +346,9 @@ prometheus:
             target_label: node
             regex: ([^:;]+):(\d+)
             replacement: ${1}
-        tls_config:
-          ca_file: /var/state/root.cert
-          cert_file: /var/state/etcd.cert
-          key_file: /var/state/etcd.key
+        authorization:
+          type: Bearer
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
         metric_relabel_configs:
           - action: labeldrop
             regex: etcd_(debugging|disk|request|server).*    
