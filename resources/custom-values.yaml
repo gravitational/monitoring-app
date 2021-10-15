@@ -318,6 +318,10 @@ prometheus:
         authorization:
           type: Bearer
           credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/scheduler.cert
+          key_file: /var/state/scheduler.key
       - job_name: kube-controller-manager
         scheme: https
         kubernetes_sd_configs:
@@ -349,6 +353,10 @@ prometheus:
         authorization:
           type: Bearer
           credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/state/root.cert
+          cert_file: /var/state/scheduler.cert
+          key_file: /var/state/scheduler.key
         metric_relabel_configs:
           - action: labeldrop
             regex: etcd_(debugging|disk|request|server).*    
