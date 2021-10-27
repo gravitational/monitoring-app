@@ -244,6 +244,9 @@ prometheus:
     volumeMounts:
       - name: secrets
         mountPath: /var/state
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
     additionalScrapeConfigs:
       - job_name: etcd
         kubernetes_sd_configs:
