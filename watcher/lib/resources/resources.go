@@ -395,4 +395,4 @@ var prometheusRuleLabels = map[string]string{
 var alertmanagerConfigFilename = "alertmanager.yaml"
 
 // alertmanagerSecretName is the name of the secret with Alertmanager configuration.
-var alertmanagerSecretName = "alertmanager-main"
+var alertmanagerSecretName = "alertmanager-monitoring-kube-prometheus-alertmanager"
