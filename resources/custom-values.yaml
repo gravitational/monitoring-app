@@ -362,7 +362,7 @@ prometheus:
           key_file: /var/state/scheduler.key
         metric_relabel_configs:
           - action: labeldrop
-            regex: etcd_(debugging|disk|request|server).*    
+            regex: etcd_(debugging|disk|request|server).*
     securityContext:
       runAsGroup: 2000
       runAsNonRoot: true
