@@ -13,7 +13,7 @@ EXTRA_GRAVITY_OPTIONS ?=
 
 MTA_IMAGE_VERSION := 1.0.0
 
-IMPORT_IMAGE_FLAGS := --set-image=monitoring-grafana:$(VERSION) \
+IMPORT_IMAGE_FLAGS := \
 	--set-image=monitoring-hook:$(VERSION) \
 	--set-image=watcher:$(VERSION)
 
