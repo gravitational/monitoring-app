@@ -104,6 +104,7 @@ password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1 | tr -d '\
 /opt/bin/helm3 upgrade --install monitoring --namespace monitoring /var/lib/gravity/resources/charts/kube-prometheus-stack -f /var/lib/gravity/resources/custom-values.yaml \
     --set grafana.adminPassword="${password}" --set alertmanager.alertmanagerSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER" --set prometheus.prometheusSpec.securityContext.runAsUser="$GRAVITY_SERVICE_USER"
 /opt/bin/helm3 upgrade --install watcher --namespace monitoring /var/lib/gravity/resources/charts/watcher -f /var/lib/gravity/resources/custom-values-watcher.yaml
+/opt/bin/helm3 upgrade --install ms --namespace monitoring /var/lib/gravity/resources/charts/metrics-server -f /var/lib/gravity/resources/custom-values-ms.yaml
 
 # check for readiness of prometheus pod
 timeout 5m sh -c "while ! kubectl --namespace=monitoring get pod prometheus-monitoring-kube-prometheus-prometheus-0; do sleep 10; done"
