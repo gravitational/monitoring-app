@@ -6,3 +6,5 @@ tolerations:
   # tolerate any taint
   - operator: "Exists"
 
+rbac:
+  pspEnabled: true
